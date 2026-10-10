@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Arimo, Courier_Prime } from "next/font/google";
 import "./globals.css";
+import { PwaManager } from "@/components/pwa/pwa-manager";
 
 const arimo = Arimo({ variable: "--font-arimo", subsets: ["latin"], display: "swap" });
 const courierPrime = Courier_Prime({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Aller au contenu
         </a>
+        <PwaManager />
         {children}
       </body>
     </html>

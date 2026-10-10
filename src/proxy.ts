@@ -16,6 +16,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Tout sauf : API, fichiers Next, ressources publiques et écrans d'authentification.
-    "/((?!api|_next/static|_next/image|brand|icons|icon.png|apple-icon.png|manifest.webmanifest|robots.txt|connexion|mot-de-passe-oublie|reinitialiser|invitation).*)",
+    "/((?!api|_next/static|_next/image|brand|icons|icon.png|apple-icon.png|manifest.webmanifest|sw.js|hors-ligne.html|robots.txt|connexion|mot-de-passe-oublie|reinitialiser|invitation).*)",
   ],
 };

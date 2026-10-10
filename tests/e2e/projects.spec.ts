@@ -113,8 +113,11 @@ test.describe("tâches", () => {
     await page.getByRole("button", { name: "Archiver" }).click();
     await expect(page).toHaveURL(new RegExp(`/projets/${id}$`));
     await page.goto("/plus/archives");
-    await expect(page.getByRole("link", { name: "Entretiens" })).toBeVisible();
-    await page.getByRole("button", { name: "Restaurer" }).first().click();
+    // La base de test cumule les archives : on cible la ligne de CETTE tâche.
+    const row = page.getByRole("listitem").filter({ has: page.locator(`a[href="/taches/${taskId}"]`) });
+    await expect(row).toBeVisible();
+    await row.getByRole("button", { name: "Restaurer" }).click();
+    await expect(row).toHaveCount(0);
     await page.goto(`/projets/${id}?onglet=taches`);
     await expect(page.getByRole("link", { name: "Entretiens" })).toBeVisible();
   });

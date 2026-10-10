@@ -20,7 +20,8 @@
     "db:status": "prisma migrate status",
     "db:seed": "prisma db seed",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:bundle",
-    "invite": "node --conditions=react-server --import tsx scripts/invite.ts"
+    "invite": "node --conditions=react-server --import tsx scripts/invite.ts",
+    "demo:seed": "node --conditions=react-server --import tsx scripts/demo-seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

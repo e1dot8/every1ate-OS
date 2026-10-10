@@ -5,7 +5,17 @@ Application privée, PWA mobile-first. Spécification : [`docs/CAHIER_DES_CHARGE
 Décisions techniques : [`docs/adr/`](docs/adr/README.md).
 Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8yJOZKCV4X) (une page par lot).
 
-**État : lot 1, connexion sécurisée** (invitations, connexion, mot de passe oublié, appareils connectés, journal d'audit).
+**État : V1 complète (lots 0 à 7), prête pour le pilote interne.** V2 (portail clients/prestataires, lot 8) : à venir.
+
+| Lot | Contenu                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------- |
+| 1   | Connexion par invitation, mot de passe oublié, appareils connectés, journal d'audit                       |
+| 2   | Projets, lots, tâches, dépendances, statuts, modèles, clôture, archives                                   |
+| 3   | Roadmap/Gantt, jalons, chronomètre et saisie du temps, priorité expliquée, notifications et escalade 48 h |
+| 4   | CRM : entreprises, contacts, pipeline 7 étapes, prévisions, relances, conversion en projet                |
+| 5   | Finance : budgets, coûts, échéancier, encaissements, marges, MRR, imports CSV/Excel, gouvernance, cockpit |
+| 6   | Calendrier interne, abonnement ICS Google/Apple, références Google Drive                                  |
+| 7   | PWA (cache limité, hors ligne, purge à la déconnexion), sauvegardes, durcissement sécurité                |
 
 ## Stack
 
@@ -19,7 +29,8 @@ src/
 ├── app/                 routes Next.js (pages, api/health, manifest PWA)
 ├── components/ui/       composants du design system (format shadcn)
 ├── components/nav/      navigation (barre basse mobile, rail ordinateur)
-├── features/            modules métier — à partir du lot 2
+├── features/            modules métier : projects, planning, time, crm, finance,
+│                        calendar, documents, notifications (règles pures + services)
 ├── lib/
 │   ├── env.ts           variables d'environnement validées (Zod)
 │   ├── db/client.ts     client Prisma unique
@@ -27,7 +38,8 @@ src/
 │   └── navigation.ts    entrées de navigation
 └── generated/prisma/    client Prisma généré (non versionné)
 prisma/                  schéma, migrations versionnées, seed
-netlify/functions/       tâches planifiées
+netlify/functions/       tâches planifiées (santé quotidienne, passe horaire retards/priorités/relances)
+scripts/                 invitations, sauvegarde/restauration, données de démonstration
 tests/unit/ · tests/e2e/ tests Vitest et Playwright
 docs/                    cahier des charges, ADR
 ```
@@ -84,7 +96,8 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
    - `DIRECT_DATABASE_URL` : production = URL directe de `main` (migrations au build).
    - `BETTER_AUTH_SECRET` : valeur aléatoire (`openssl rand -base64 32`), différente par contexte.
    - `APP_URL` : URL publique du contexte (domaine final en production).
-   - `RESEND_API_KEY` et `EMAIL_FROM` : envoi réel des invitations et réinitialisations.
+   - `RESEND_API_KEY` et `EMAIL_FROM` : envoi réel des invitations, réinitialisations et alertes.
+   - `CRON_SECRET` : 32 caractères minimum, partagé avec la fonction planifiée `scheduled-scan`.
    - Cocher _Contains secret values_ pour les deux.
 4. Pousser un commit dont le message contient `[deploy]`. Vérifier `https://<site>.netlify.app/api/health` → `{"status":"ok",...}`.
 5. Créer le premier compte : `DATABASE_URL=<url production> APP_URL=<url> RESEND_API_KEY=<clé> pnpm invite <email> <prénom>`.
@@ -93,6 +106,18 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
 
 Les migrations de production s'exécutent au build (`prisma migrate deploy`) : elles appliquent
 uniquement les migrations versionnées et ne réinitialisent jamais la base.
+
+## Exploitation
+
+- Sauvegardes et restauration : [`docs/SAUVEGARDES.md`](docs/SAUVEGARDES.md)
+- Tâches planifiées, alertes, incidents : [`docs/EXPLOITATION.md`](docs/EXPLOITATION.md)
+- Pilote interne (checklist des trois associés) : [`docs/PILOTE.md`](docs/PILOTE.md)
+- Décisions encore ouvertes (§24 du cahier des charges) : [`docs/POINTS_A_CONFIRMER.md`](docs/POINTS_A_CONFIRMER.md)
+
+## Données de démonstration (local uniquement)
+
+`pnpm demo:seed` crée une agence fictive (associés, clients, projets, opportunités, finances,
+événements) sur une base **locale** : le script refuse toute autre base. Aucune donnée réelle.
 
 ## Règles de travail
 

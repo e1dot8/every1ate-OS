@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>Hors ligne · Every1.ate OS</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #fff;
+        color: #111;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      main {
+        max-width: 28rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        line-height: 1.5;
+        color: #444;
+      }
+      .tag {
+        font-family: "Courier New", monospace;
+        color: #1d4ed8;
+        font-size: 0.9rem;
+      }
+      button {
+        margin-top: 1rem;
+        min-height: 44px;
+        padding: 0 1.25rem;
+        border-radius: 10px;
+        border: 2px solid #111;
+        background: #111;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="tag">// hors ligne</p>
+      <h1>Pas de connexion</h1>
+      <p>
+        Every1.ate OS a besoin du réseau pour afficher vos données. Par sécurité, aucune page privée n'est
+        conservée sur cet appareil.
+      </p>
+      <p>Aucune modification n'a été enregistrée pendant la coupure.</p>
+      <button type="button" onclick="location.reload()">Réessayer</button>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { PurgeOnSignOut } from "@/components/pwa/pwa-manager";
 import { SignInForm } from "./sign-in-form";
 
 export const metadata: Metadata = { title: "Connexion" };
@@ -7,6 +8,7 @@ export const metadata: Metadata = { title: "Connexion" };
 export default function SignInPage() {
   return (
     <>
+      <PurgeOnSignOut />
       <header className="flex flex-col gap-1.5">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Connexion</h1>
         <p className="text-muted-foreground">Espace réservé aux associés d&apos;EVERY1.ATE.</p>

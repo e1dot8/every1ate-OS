@@ -16,7 +16,8 @@ import { changePasswordSchema, inviteSchema } from "@/lib/validation/auth";
 export async function signOutAction() {
   await requireUser();
   await getAuth().api.signOut({ headers: await headers() });
-  redirect("/connexion");
+  // « deconnecte » déclenche la purge des caches (en-tête Clear-Site-Data + nettoyage côté client).
+  redirect("/connexion?deconnecte=1");
 }
 
 export async function changePasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {

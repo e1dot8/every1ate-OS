@@ -11,6 +11,7 @@ import {
   LogOut,
   Palette,
   ShieldCheck,
+  Smartphone,
   Timer,
   UserPlus,
   Wallet,
@@ -73,6 +74,12 @@ async function Menu() {
       />
       <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
       <Row href="/plus/archives" icon={Archive} title="Archives" detail="Projets, lots et tâches archivés" />
+      <Row
+        href="/plus/installer"
+        icon={Smartphone}
+        title="Installer l'application"
+        detail="iPhone, Android, ordinateur"
+      />
       <Row href="/design" icon={Palette} title="Design system" detail="Tokens et composants de l'interface" />
       <form action={signOutAction}>
         <button type="submit" className={`${rowClass} cursor-pointer font-bold hover:bg-muted/60`}>
