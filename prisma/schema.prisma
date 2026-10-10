@@ -38,12 +38,12 @@ model User {
 
   invitationsSent Invitation[] @relation("InvitedBy")
 
-  projectsOwned      Project[]           @relation("ProjectOwner")
-  projectsCreated    Project[]           @relation("ProjectCreator")
-  workPackagesOwned  WorkPackage[]       @relation("WorkPackageOwner")
+  projectsOwned      Project[]             @relation("ProjectOwner")
+  projectsCreated    Project[]             @relation("ProjectCreator")
+  workPackagesOwned  WorkPackage[]         @relation("WorkPackageOwner")
   workPackageMembers WorkPackageMember[]
-  tasksOwned         Task[]              @relation("TaskOwner")
-  tasksCreated       Task[]              @relation("TaskCreator")
+  tasksOwned         Task[]                @relation("TaskOwner")
+  tasksCreated       Task[]                @relation("TaskCreator")
   taskContributions  TaskContributor[]
   closureItemsDone   ClosureItem[]
   timeEntries        TimeEntry[]
@@ -52,6 +52,9 @@ model User {
   opportunitiesOwned Opportunity[]         @relation("OpportunityOwner")
   opportunitiesMade  Opportunity[]         @relation("OpportunityCreator")
   crmActivities      OpportunityActivity[]
+  decisionsRequested DecisionRequest[]     @relation("DecisionAuthor")
+  decisionVotes      DecisionVote[]
+  importBatches      ImportBatch[]
 
   @@map("user")
 }
@@ -212,53 +215,62 @@ enum Priority {
 
 /// Client (version minimale au lot 2, enrichie au lot 4 par le CRM).
 model Client {
-  id            String          @id @default(cuid())
+  id            String              @id @default(cuid())
   name          String
   /// Lot 4 : fiche entreprise du CRM.
   website       String?
   sector        String?
   address       String?
   notes         String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   archivedAt    DateTime?
   projects      Project[]
   contacts      ClientContact[]
   opportunities Opportunity[]
+  contracts     RecurringContract[]
 
   @@index([name])
   @@map("client")
 }
 
 model Project {
-  id              String        @id @default(cuid())
+  id              String              @id @default(cuid())
   name            String
   description     String?
   clientId        String?
-  client          Client?       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  client          Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
   templateKey     String?
   ownerId         String
-  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  phase           ProjectPhase  @default(RECETTE)
-  status          ProjectStatus @default(A_PREPARER)
+  owner           User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  phase           ProjectPhase        @default(RECETTE)
+  status          ProjectStatus       @default(A_PREPARER)
   statusReason    String?
-  startDate       DateTime?     @db.Date
-  plannedEndDate  DateTime?     @db.Date
-  actualStartDate DateTime?     @db.Date
-  actualEndDate   DateTime?     @db.Date
+  startDate       DateTime?           @db.Date
+  plannedEndDate  DateTime?           @db.Date
+  /// Fin prévue de référence (planning initial) pour la règle de retard majeur (§14.1).
+  baselineEndDate DateTime?           @db.Date
+  actualStartDate DateTime?           @db.Date
+  actualEndDate   DateTime?           @db.Date
   closedAt        DateTime?
   closedById      String?
   closingReview   String?
   archivedAt      DateTime?
   createdById     String
-  createdBy       User          @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdBy       User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   workPackages    WorkPackage[]
   tasks           Task[]
   closureItems    ClosureItem[]
   milestones      Milestone[]
   opportunity     Opportunity?
+  budgetRevisions BudgetRevision[]
+  costItems       CostItem[]
+  billing         BillingMilestone[]
+  payments        PaymentRecord[]
+  contracts       RecurringContract[]
+  decisions       DecisionRequest[]
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -268,25 +280,28 @@ model Project {
 
 /// Lot : périmètre de travail autonome rattaché à un projet.
 model WorkPackage {
-  id           String              @id @default(cuid())
-  projectId    String
-  project      Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  name         String
-  description  String?
-  ownerId      String?
-  owner        User?               @relation("WorkPackageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  position     Int                 @default(0)
-  plannedStart DateTime?           @db.Date
-  plannedEnd   DateTime?           @db.Date
-  actualStart  DateTime?           @db.Date
-  actualEnd    DateTime?           @db.Date
-  notes        String?
-  archivedAt   DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  members      WorkPackageMember[]
-  tasks        Task[]
-  milestones   Milestone[]
+  id              String              @id @default(cuid())
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name            String
+  description     String?
+  ownerId         String?
+  owner           User?               @relation("WorkPackageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  position        Int                 @default(0)
+  plannedStart    DateTime?           @db.Date
+  plannedEnd      DateTime?           @db.Date
+  actualStart     DateTime?           @db.Date
+  actualEnd       DateTime?           @db.Date
+  notes           String?
+  archivedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  members         WorkPackageMember[]
+  tasks           Task[]
+  milestones      Milestone[]
+  budgetRevisions BudgetRevision[]
+  costItems       CostItem[]
+  billing         BillingMilestone[]
 
   @@index([projectId, position])
   @@map("work_package")
@@ -592,4 +607,300 @@ model CrmStageSetting {
   updatedAt   DateTime         @updatedAt
 
   @@map("crm_stage_setting")
+}
+
+// ─── Lot 5 : finance et gouvernance ─────────────────────────────────────────
+// Montants HT en Decimal(12,2). Prévu ≠ engagé ≠ facturé ≠ payé : statuts distincts (§10.1).
+
+enum CostStatus {
+  PREVU
+  ENGAGE
+  FACTURE
+  PAYE
+  ANNULE
+}
+
+enum PricingMode {
+  FORFAIT
+  TEMPS
+  FRAIS
+}
+
+enum RecordSource {
+  MANUEL
+  IMPORT
+}
+
+enum BillingKind {
+  ACOMPTE
+  INTERMEDIAIRE
+  SOLDE
+  AUTRE
+}
+
+/// Statut saisi. « Partiellement encaissé », « encaissé » et « en retard » sont calculés.
+enum BillingStatus {
+  ATTENDU
+  FACTURE
+  ANNULE
+}
+
+enum ContractStatus {
+  BROUILLON
+  ACTIF
+  SUSPENDU
+  RESILIE
+  TERMINE
+}
+
+enum RevisionStatus {
+  APPLIQUEE
+  EN_ATTENTE
+  REFUSEE
+}
+
+enum DecisionKind {
+  BUDGET
+  PLANNING
+  PERIMETRE
+}
+
+enum DecisionStatus {
+  OUVERTE
+  APPROUVEE
+  REFUSEE
+  ANNULEE
+}
+
+enum VoteChoice {
+  POUR
+  CONTRE
+  ABSTENTION
+}
+
+enum ImportKind {
+  COUTS
+  ENCAISSEMENTS
+}
+
+enum ImportStatus {
+  BROUILLON
+  IMPORTE
+  ANNULE
+}
+
+/// Historique des budgets (projet si workPackageId est nul, sinon lot).
+model BudgetRevision {
+  id             String           @id @default(cuid())
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workPackageId  String?
+  workPackage    WorkPackage?     @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  isInitial      Boolean          @default(false)
+  plannedRevenue Decimal          @db.Decimal(12, 2)
+  plannedCost    Decimal          @db.Decimal(12, 2)
+  pricingMode    PricingMode?
+  reason         String?
+  status         RevisionStatus   @default(APPLIQUEE)
+  decisionId     String?          @unique
+  decision       DecisionRequest? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdAt      DateTime         @default(now())
+
+  @@index([projectId, workPackageId, createdAt])
+  @@map("budget_revision")
+}
+
+model CostItem {
+  id            String       @id @default(cuid())
+  projectId     String
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workPackageId String?
+  workPackage   WorkPackage? @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  supplier      String?
+  description   String
+  category      String?
+  pricingMode   PricingMode  @default(FRAIS)
+  quantity      Decimal?     @db.Decimal(12, 3)
+  unit          String?
+  unitRate      Decimal?     @db.Decimal(12, 2)
+  amount        Decimal      @db.Decimal(12, 2)
+  vatAmount     Decimal?     @db.Decimal(12, 2)
+  amountTTC     Decimal?     @db.Decimal(12, 2)
+  status        CostStatus   @default(PREVU)
+  committedAt   DateTime?    @db.Date
+  invoiceDate   DateTime?    @db.Date
+  dueDate       DateTime?    @db.Date
+  paidAt        DateTime?    @db.Date
+  documentRef   String?
+  rebillable    Boolean      @default(false)
+  source        RecordSource @default(MANUEL)
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  externalId    String?
+  archivedAt    DateTime?
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([projectId, status])
+  @@index([workPackageId])
+  @@index([importBatchId])
+  @@index([externalId])
+  @@map("cost_item")
+}
+
+model BillingMilestone {
+  id            String          @id @default(cuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workPackageId String?
+  workPackage   WorkPackage?    @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  label         String
+  kind          BillingKind     @default(AUTRE)
+  plannedDate   DateTime?       @db.Date
+  amount        Decimal         @db.Decimal(12, 2)
+  vatAmount     Decimal?        @db.Decimal(12, 2)
+  status        BillingStatus   @default(ATTENDU)
+  invoiceRef    String?
+  invoiceUrl    String?
+  invoicedAt    DateTime?       @db.Date
+  archivedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  payments      PaymentRecord[]
+
+  @@index([projectId, plannedDate])
+  @@index([invoiceRef])
+  @@map("billing_milestone")
+}
+
+model PaymentRecord {
+  id                 String            @id @default(cuid())
+  projectId          String
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  billingMilestoneId String?
+  billingMilestone   BillingMilestone? @relation(fields: [billingMilestoneId], references: [id], onDelete: SetNull)
+  amount             Decimal           @db.Decimal(12, 2)
+  receivedAt         DateTime          @db.Date
+  reference          String?
+  label              String?
+  source             RecordSource      @default(MANUEL)
+  importBatchId      String?
+  importBatch        ImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  externalId         String?
+  deletedAt          DateTime?
+  createdById        String
+  createdAt          DateTime          @default(now())
+
+  @@index([projectId, receivedAt])
+  @@index([billingMilestoneId])
+  @@index([importBatchId])
+  @@map("payment_record")
+}
+
+model RecurringContract {
+  id             String         @id @default(cuid())
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  projectId      String?
+  project        Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  label          String
+  monthlyAmount  Decimal        @db.Decimal(12, 2)
+  startDate      DateTime       @db.Date
+  endDate        DateTime?      @db.Date
+  durationMonths Int?
+  status         ContractStatus @default(ACTIF)
+  renewalDate    DateTime?      @db.Date
+  noticeDays     Int?
+  notes          String?
+  archivedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status])
+  @@map("recurring_contract")
+}
+
+/// Import CSV/Excel : brouillon (lignes brutes + correspondance) puis importé ou annulé.
+model ImportBatch {
+  id            String          @id @default(cuid())
+  kind          ImportKind?
+  fileName      String
+  fileHash      String
+  status        ImportStatus    @default(BROUILLON)
+  headers       Json
+  rows          Json
+  mapping       Json?
+  projectId     String?
+  report        Json?
+  rowCount      Int             @default(0)
+  importedCount Int             @default(0)
+  skippedCount  Int             @default(0)
+  createdById   String
+  createdBy     User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime        @default(now())
+  importedAt    DateTime?
+  cancelledAt   DateTime?
+  cancelReason  String?
+  costs         CostItem[]
+  payments      PaymentRecord[]
+
+  @@index([createdAt])
+  @@index([fileHash])
+  @@map("import_batch")
+}
+
+/// Seuils de gouvernance (§14.1) : valeurs non définies au départ, configurables et journalisées.
+model GovernanceSetting {
+  id                String   @id @default("default")
+  budgetOverrunPct  Int?
+  delayPct          Int?
+  delayMinDays      Int?
+  /// Nombre d'avis « pour » requis. Règle de majorité/quorum À CONFIRMER par les associés.
+  requiredApprovals Int      @default(2)
+  /// Si vrai, le changement n'est appliqué qu'après approbation.
+  blocking          Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+
+  @@map("governance_setting")
+}
+
+model DecisionRequest {
+  id                String          @id @default(cuid())
+  projectId         String
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  kind              DecisionKind
+  title             String
+  explanation       String
+  consequences      String?
+  before            Json?
+  after             Json?
+  status            DecisionStatus  @default(OUVERTE)
+  requiredApprovals Int
+  blocking          Boolean         @default(true)
+  createdById       String
+  createdBy         User            @relation("DecisionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime        @default(now())
+  decidedAt         DateTime?
+  votes             DecisionVote[]
+  budgetRevision    BudgetRevision?
+
+  @@index([status, createdAt])
+  @@index([projectId])
+  @@map("decision_request")
+}
+
+model DecisionVote {
+  id         String          @id @default(cuid())
+  decisionId String
+  decision   DecisionRequest @relation(fields: [decisionId], references: [id], onDelete: Restrict)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  choice     VoteChoice
+  comment    String?
+  createdAt  DateTime        @default(now())
+
+  @@unique([decisionId, userId])
+  @@map("decision_vote")
 }

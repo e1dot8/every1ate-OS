@@ -18,6 +18,10 @@ const protectedRoutes = [
   "/crm/clients",
   "/crm/reglages",
   "/crm/opportunites/nouvelle",
+  "/finance",
+  "/finance/imports/nouveau",
+  "/gouvernance",
+  "/cockpit",
 ];
 
 test.describe("contrôle d'accès côté serveur", () => {
@@ -33,6 +37,10 @@ test.describe("contrôle d'accès côté serveur", () => {
     await page.goto("/plus/associes");
     await expect(page).toHaveURL(/\/connexion/);
     await expect(page.getByText("@example.test")).toHaveCount(0);
+  });
+
+  test("la passe planifiée refuse un appel sans secret", async ({ request }) => {
+    expect((await request.post("/api/cron/scan")).status()).toBe(401);
   });
 
   test("l'inscription publique est fermée", async ({ request }) => {

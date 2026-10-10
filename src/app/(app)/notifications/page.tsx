@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Bell,
   CalendarClock,
+  FileSpreadsheet,
   Handshake,
   MessageSquare,
   OctagonAlert,
@@ -30,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   planning: CalendarClock,
   action: MessageSquare,
   relance: Handshake,
+  import: FileSpreadsheet,
 };
 
 async function List() {

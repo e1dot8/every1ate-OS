@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   Timer,
   UserPlus,
+  Wallet,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
@@ -49,6 +51,8 @@ async function Menu() {
   await requireUser();
   return (
     <Card className="gap-0 py-1">
+      <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, coûts, échéancier, imports, MRR" />
+      <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
       <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
       <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
       <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
@@ -79,7 +83,7 @@ export default function MorePage() {
         <Menu />
       </Suspense>
       <p className="text-sm text-muted-foreground">
-        Finance, Calendrier et Documents s&apos;ajouteront ici au fil des lots.
+        Calendrier et Documents s&apos;ajouteront ici au fil des lots.
       </p>
     </div>
   );

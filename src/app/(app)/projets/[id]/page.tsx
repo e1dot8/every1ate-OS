@@ -35,6 +35,7 @@ import { getProject, listAssociates, projectJournal } from "@/features/projects/
 import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay } from "@/lib/dates";
 import { saveReviewAction, toggleClosureAction } from "../actions";
+import { ProjectFinance } from "@/features/finance/components/project-finance";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Projet" };
@@ -43,6 +44,7 @@ const TABS = [
   { key: "vue", label: "Vue d'ensemble" },
   { key: "lots", label: "Lots" },
   { key: "taches", label: "Tâches" },
+  { key: "finance", label: "Finance" },
   { key: "cloture", label: "Clôture" },
   { key: "journal", label: "Journal" },
 ];
@@ -61,7 +63,7 @@ async function ProjectView({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ onglet?: string; deja?: string }>;
+  searchParams: Promise<{ onglet?: string; deja?: string; decision?: string }>;
 }) {
   await requireUser();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -105,6 +107,16 @@ async function ProjectView({
           </div>
         ) : null}
       </header>
+      {sp.decision ? (
+        <FormAlert
+          tone="warning"
+          title="Seuil de gouvernance dépassé : une décision collective est demandée."
+        >
+          <Link href={`/gouvernance/${sp.decision}`} className="font-bold underline">
+            Voir la demande de décision
+          </Link>
+        </FormAlert>
+      ) : null}
       {sp.deja ? (
         <FormAlert tone="info" title="Ce projet existait déjà pour cette opportunité : aucun doublon créé." />
       ) : null}
@@ -274,6 +286,7 @@ async function ProjectView({
         </div>
       ) : null}
 
+      {tab === "finance" ? <ProjectFinance projectId={id} archived={!!project.archivedAt} /> : null}
       {tab === "journal" ? <Journal projectId={id} /> : null}
     </div>
   );
@@ -373,7 +386,7 @@ export default function ProjectPage({ params, searchParams }: PageProps<"/projet
     <Suspense fallback={<PageLoading />}>
       <ProjectView
         params={params}
-        searchParams={searchParams as Promise<{ onglet?: string; deja?: string }>}
+        searchParams={searchParams as Promise<{ onglet?: string; deja?: string; decision?: string }>}
       />
     </Suspense>
   );

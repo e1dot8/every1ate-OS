@@ -44,3 +44,8 @@ export function formatMoney(cents: number, opts: { round?: boolean } = {}): stri
 export function percentOf(cents: number, percent: number): number {
   return Math.round((cents * percent) / 100);
 }
+
+/** Valeur Decimal → saisie de formulaire (« 1250,5 » → « 1250,50 »), vide si nulle. */
+export function moneyInput(value: { toString(): string } | null | undefined): string {
+  return value == null ? "" : centsToDecimal(toCents(value)).replace(".", ",");
+}

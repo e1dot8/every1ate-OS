@@ -12,6 +12,8 @@ import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { notify } from "@/features/notifications/service";
 import { suggestPriority } from "@/features/planning/rules";
+import { delayRuleTriggered } from "@/features/finance/calc";
+import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
 import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
 import {
   TASK_DONE_STATES,
@@ -232,6 +234,8 @@ export async function createProject(
         startDate: input.startDate,
         plannedEndDate:
           input.plannedEndDate ?? (computedEnd && computedEnd.getTime() > 0 ? computedEnd : null),
+        baselineEndDate:
+          input.plannedEndDate ?? (computedEnd && computedEnd.getTime() > 0 ? computedEnd : null),
         createdById: actor.id,
         closureItems: { create: CLOSURE_ITEMS.map((c, i) => ({ key: c.key, label: c.label, position: i })) },
       },
@@ -323,24 +327,57 @@ export async function updateProject(
   id: string,
   input: ProjectUpdate,
   actor: Actor,
-): Promise<ServiceResult<null>> {
+): Promise<ServiceResult<{ pendingDecision: string | null }>> {
   const db = getDb();
   const before = await db.project.findUnique({ where: { id } });
   if (!before || before.archivedAt) return failed("Projet introuvable.");
   if (input.startDate && input.plannedEndDate && input.plannedEndDate < input.startDate)
     return failed("La fin prévue précède le début.");
   const changes = diff(before, input);
-  if (!changes.changed) return done(null);
-  await db.project.update({ where: { id }, data: input });
+  if (!changes.changed) return done({ pendingDecision: null });
+
+  // Retard majeur (§14) : au-delà du seuil, une décision collective est demandée.
+  let pendingDecision: string | null = null;
+  let data = input;
+  const movedEnd = input.plannedEndDate?.getTime() !== before.plannedEndDate?.getTime();
+  if (movedEnd && input.plannedEndDate) {
+    const rules = await getGovernance();
+    const delay = delayRuleTriggered(
+      input.startDate ?? before.startDate,
+      before.baselineEndDate ?? before.plannedEndDate,
+      input.plannedEndDate,
+      rules,
+    );
+    if (delay.triggered) {
+      const decision = await createDecision(
+        {
+          projectId: id,
+          kind: "PLANNING",
+          title: `Retard majeur : ${before.name}`,
+          explanation: `Fin prévue repoussée de ${delay.days} jours (${delay.pct} % de la durée initiale).`,
+          consequences: rules.blocking
+            ? "La nouvelle date ne s'applique qu'après approbation."
+            : "La nouvelle date est appliquée ; la décision documente le retard.",
+          before: { plannedEndDate: before.plannedEndDate?.toISOString() ?? null },
+          after: { plannedEndDate: input.plannedEndDate.toISOString() },
+        },
+        actor,
+      );
+      await announceDecision(decision.id, actor);
+      pendingDecision = decision.id;
+      if (rules.blocking) data = { ...input, plannedEndDate: before.plannedEndDate };
+    }
+  }
+  await db.project.update({ where: { id }, data });
   await recordAudit({
     action: "project.updated",
     actorId: actor.id,
     projectId: id,
     targetType: "project",
     targetId: id,
-    ...changes,
+    ...diff(before, data),
   });
-  return done(null);
+  return done({ pendingDecision });
 }
 
 export async function changeProjectStatus(

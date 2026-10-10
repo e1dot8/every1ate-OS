@@ -148,7 +148,9 @@ export async function updateProjectAction(_prev: FormState, formData: FormData):
   const result = await updateProject(projectId, { ...data, phase: data.phase as ProjectPhase }, user);
   if (!result.ok) return failure(result.error, formData);
   revalidatePath(`/projets/${projectId}`);
-  redirect(`/projets/${projectId}`);
+  redirect(
+    `/projets/${projectId}${result.data.pendingDecision ? `?decision=${result.data.pendingDecision}` : ""}`,
+  );
 }
 
 const statusSchema = z.object({

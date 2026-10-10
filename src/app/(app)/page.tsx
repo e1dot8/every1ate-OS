@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus, Timer } from "lucide-react";
+import { Gauge, Plus, Timer } from "lucide-react";
 import { EmptyState, TaskRow, isLate } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,11 @@ async function Dashboard() {
         <Button asChild>
           <Link href="/projets/nouveau">
             <Plus aria-hidden="true" /> Nouveau projet
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/cockpit">
+            <Gauge aria-hidden="true" /> Cockpit agence
           </Link>
         </Button>
         <Button asChild variant="outline">
