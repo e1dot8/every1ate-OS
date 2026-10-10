@@ -61,6 +61,10 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
 
 ## Déployer sur Netlify (première fois)
 
+> **Crédits** : une mise en production coûte 15 crédits Netlify. Elle n'est lancée que si le
+> message du dernier commit contient `[deploy]` (voir [ADR-0007](docs/adr/0007-deploiement-econome.md)).
+> Les deploy previews et branch deploys sont gratuits et ne sont jamais bloqués.
+
 1. **Neon** : créer un projet, région _AWS Europe Central (Frankfurt)_. Créer une branche `preview`.
    Noter pour chaque branche l'URL _pooled_ et l'URL _direct_.
 2. **Netlify** : _Add new site → Import an existing project → GitHub →_ `every1ate-os`, branche `main`.
@@ -69,7 +73,7 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
    - `DATABASE_URL` : production = URL pooled de `main` ; deploy previews / branch deploys = URL pooled de `preview`.
    - `DIRECT_DATABASE_URL` : production = URL directe de `main` (migrations au build).
    - Cocher _Contains secret values_ pour les deux.
-4. Déployer. Vérifier `https://<site>.netlify.app/api/health` → `{"status":"ok",...}`.
+4. Pousser un commit dont le message contient `[deploy]`. Vérifier `https://<site>.netlify.app/api/health` → `{"status":"ok",...}`.
 5. Pour les deploy previews : appliquer les migrations sur la branche `preview`
    (`DIRECT_DATABASE_URL=<url preview> pnpm db:deploy`).
 

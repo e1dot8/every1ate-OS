@@ -4,6 +4,11 @@
 [build]
   command = "pnpm run build:netlify"   # prisma generate + migrate deploy + next build
   publish = ".next"
+  # Garde-fou crédits (ADR-0007) : un déploiement de PRODUCTION coûte 15 crédits.
+  # Il n'est lancé que si le dernier commit contient « [deploy] ». Sinon, Netlify
+  # annule le build (exit 0 = ignorer), ce qui ne consomme aucun crédit.
+  # Deploy previews et branch deploys (gratuits) ne sont jamais bloqués.
+  ignore = "bash scripts/netlify-ignore.sh"
 
 [build.environment]
   NODE_VERSION = "22"
