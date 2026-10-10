@@ -1,6 +1,7 @@
 # ADR-0015 — PWA, sauvegardes et durcissement (lot 7)
 
 ## PWA et hors ligne
+
 - Service worker servi par `app/sw.js/route.ts` (jamais mis en cache, exclu du proxy d'authentification).
 - **Cache limité aux ressources statiques publiques** (JS/CSS/polices/icônes). Aucune page, aucune
   réponse d'API, aucune donnée privée ou financière n'est stockée sur l'appareil : c'est le choix
@@ -12,11 +13,13 @@
 - La consultation hors ligne de données récentes est une évolution distincte, non incluse.
 
 ## Sauvegardes
+
 Voir `docs/SAUVEGARDES.md` : PITR Neon + copie quotidienne chiffrée (GitHub Actions) avec test
 de restauration automatique ; scripts `backup.sh`, `restore.sh` (refuse une base non vide, vérifie
 l'empreinte), `restore-test.sh`.
 
 ## Durcissement
+
 - CSP en production sans ressource externe (`object-src 'none'`, `frame-ancestors 'none'`,
   `form-action 'self'`). `'unsafe-inline'` reste requis par l'hydratation Next.js sans nonce.
 - Server Actions : origine vérifiée par Next.js ; API d'authentification : `trustedOrigins`.
