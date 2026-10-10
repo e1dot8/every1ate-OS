@@ -11,8 +11,8 @@ export type NavItem = {
 /** Navigation principale (cahier des charges §4.1). Une entrée sans écran réel reste désactivée. */
 export const primaryNav: NavItem[] = [
   { label: "Accueil", href: "/", icon: Home },
-  { label: "Tâches", href: "/taches", icon: CheckSquare, comingInLot: 2 },
-  { label: "Projets", href: "/projets", icon: FolderKanban, comingInLot: 2 },
+  { label: "Tâches", href: "/taches", icon: CheckSquare },
+  { label: "Projets", href: "/projets", icon: FolderKanban },
   { label: "CRM", href: "/crm", icon: Handshake, comingInLot: 4 },
   { label: "Plus", href: "/plus", icon: MoreHorizontal },
 ];

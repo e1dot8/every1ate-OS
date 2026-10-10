@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Info, OctagonAlert, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, Info, OctagonAlert, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 /**
@@ -10,6 +10,7 @@ const tones = {
   warning: AlertTriangle,
   info: Info,
   danger: OctagonAlert,
+  neutral: Circle,
 } satisfies Record<string, LucideIcon>;
 
 export type StatusTone = keyof typeof tones;
@@ -17,7 +18,7 @@ export type StatusTone = keyof typeof tones;
 export function StatusBadge({ tone, label }: { tone: StatusTone; label: string }) {
   const Icon = tones[tone];
   return (
-    <Badge variant={tone}>
+    <Badge variant={tone === "neutral" ? "outline" : tone}>
       <Icon aria-hidden="true" />
       {label}
     </Badge>

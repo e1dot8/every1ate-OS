@@ -38,6 +38,15 @@ model User {
 
   invitationsSent Invitation[] @relation("InvitedBy")
 
+  projectsOwned      Project[]           @relation("ProjectOwner")
+  projectsCreated    Project[]           @relation("ProjectCreator")
+  workPackagesOwned  WorkPackage[]       @relation("WorkPackageOwner")
+  workPackageMembers WorkPackageMember[]
+  tasksOwned         Task[]              @relation("TaskOwner")
+  tasksCreated       Task[]              @relation("TaskCreator")
+  taskContributions  TaskContributor[]
+  closureItemsDone   ClosureItem[]
+
   @@map("user")
 }
 
@@ -126,6 +135,8 @@ model AuditEvent {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
   actorId    String?
+  /// Projet concerné (pour le journal d'un projet), le cas échéant.
+  projectId  String?
   action     String
   targetType String?
   targetId   String?
@@ -138,6 +149,7 @@ model AuditEvent {
   @@index([createdAt])
   @@index([action, targetId, createdAt])
   @@index([actorId])
+  @@index([projectId, createdAt])
   @@map("audit_event")
 }
 
@@ -153,4 +165,202 @@ model EmailOutbox {
 
   @@index([to, createdAt])
   @@map("email_outbox")
+}
+
+// ─── Lot 2 : projets, lots, tâches ──────────────────────────────────────────
+// Rien n'est supprimé : les objets métier s'archivent (archivedAt) et se restaurent.
+
+enum ProjectPhase {
+  RECETTE
+  PREPARATION
+  CUISSON
+  DRESSAGE
+  SERVICE
+}
+
+enum ProjectStatus {
+  A_PREPARER
+  ACTIF
+  EN_ATTENTE
+  BLOQUE
+  TERMINE
+  ARCHIVE
+}
+
+enum TaskStatus {
+  A_FAIRE
+  EN_COURS
+  EN_REVUE
+  TERMINE
+  EN_ATTENTE
+  BLOQUE
+  ANNULE
+}
+
+enum Priority {
+  BASSE
+  NORMALE
+  HAUTE
+  URGENTE
+}
+
+/// Client (version minimale au lot 2, enrichie au lot 4 par le CRM).
+model Client {
+  id         String    @id @default(cuid())
+  name       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  projects   Project[]
+
+  @@index([name])
+  @@map("client")
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  name            String
+  description     String?
+  clientId        String?
+  client          Client?       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  templateKey     String?
+  ownerId         String
+  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  phase           ProjectPhase  @default(RECETTE)
+  status          ProjectStatus @default(A_PREPARER)
+  statusReason    String?
+  startDate       DateTime?     @db.Date
+  plannedEndDate  DateTime?     @db.Date
+  actualStartDate DateTime?     @db.Date
+  actualEndDate   DateTime?     @db.Date
+  closedAt        DateTime?
+  closedById      String?
+  closingReview   String?
+  archivedAt      DateTime?
+  createdById     String
+  createdBy       User          @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  workPackages    WorkPackage[]
+  tasks           Task[]
+  closureItems    ClosureItem[]
+
+  @@index([status, archivedAt])
+  @@index([ownerId])
+  @@index([clientId])
+  @@map("project")
+}
+
+/// Lot : périmètre de travail autonome rattaché à un projet.
+model WorkPackage {
+  id           String              @id @default(cuid())
+  projectId    String
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  name         String
+  description  String?
+  ownerId      String?
+  owner        User?               @relation("WorkPackageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  position     Int                 @default(0)
+  plannedStart DateTime?           @db.Date
+  plannedEnd   DateTime?           @db.Date
+  actualStart  DateTime?           @db.Date
+  actualEnd    DateTime?           @db.Date
+  notes        String?
+  archivedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  members      WorkPackageMember[]
+  tasks        Task[]
+
+  @@index([projectId, position])
+  @@map("work_package")
+}
+
+model WorkPackageMember {
+  workPackageId String
+  workPackage   WorkPackage @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workPackageId, userId])
+  @@map("work_package_member")
+}
+
+model Task {
+  id                String            @id @default(cuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workPackageId     String?
+  workPackage       WorkPackage?      @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  title             String
+  description       String?
+  status            TaskStatus        @default(A_FAIRE)
+  ownerId           String?
+  owner             User?             @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  priority          Priority          @default(NORMALE)
+  startDate         DateTime?         @db.Date
+  dueDate           DateTime?         @db.Date
+  estimatedMinutes  Int?
+  blockedReason     String?
+  blockedNextAction String?
+  blockedReviewDate DateTime?         @db.Date
+  cancelReason      String?
+  position          Int               @default(0)
+  completedAt       DateTime?
+  archivedAt        DateTime?
+  createdById       String
+  createdBy         User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  contributors      TaskContributor[]
+  dependsOn         TaskDependency[]  @relation("Successor")
+  requiredBy        TaskDependency[]  @relation("Predecessor")
+
+  @@index([projectId, archivedAt])
+  @@index([ownerId, status])
+  @@index([dueDate])
+  @@index([workPackageId, position])
+  @@map("task")
+}
+
+model TaskContributor {
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@map("task_contributor")
+}
+
+/// « taskId attend dependsOnId » (fin → début).
+model TaskDependency {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation("Successor", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId String
+  dependsOn   Task     @relation("Predecessor", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([taskId, dependsOnId])
+  @@index([dependsOnId])
+  @@map("task_dependency")
+}
+
+/// Checklist de clôture (§14.3).
+model ClosureItem {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key         String
+  label       String
+  position    Int
+  checked     Boolean   @default(false)
+  checkedAt   DateTime?
+  checkedById String?
+  checkedBy   User?     @relation(fields: [checkedById], references: [id], onDelete: SetNull)
+  note        String?
+
+  @@unique([projectId, key])
+  @@map("closure_item")
 }

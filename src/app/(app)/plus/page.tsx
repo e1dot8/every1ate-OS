@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ChevronRight, LogOut, Palette, ShieldCheck, UserPlus, type LucideIcon } from "lucide-react";
+import { Archive, ChevronRight, LogOut, Palette, ShieldCheck, UserPlus, type LucideIcon } from "lucide-react";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/session";
@@ -45,6 +45,7 @@ async function Menu() {
         detail="Mot de passe, appareils connectés"
       />
       <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
+      <Row href="/plus/archives" icon={Archive} title="Archives" detail="Projets, lots et tâches archivés" />
       <Row href="/design" icon={Palette} title="Design system" detail="Tokens et composants de l'interface" />
       <form action={signOutAction}>
         <button type="submit" className={`${rowClass} cursor-pointer font-bold hover:bg-muted/60`}>

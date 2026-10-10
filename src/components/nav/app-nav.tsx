@@ -48,10 +48,15 @@ function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; la
   );
 }
 
-/** Barre fixe en bas sur mobile, rail latéral sur ordinateur. */
+/** Navigation active selon l'URL (lue côté client, sous Suspense). */
 export function AppNav() {
-  const pathname = usePathname();
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  return <AppNavShell pathname={usePathname()} />;
+}
+
+/** Barre fixe en bas sur mobile, rail latéral sur ordinateur. */
+export function AppNavShell({ pathname }: { pathname: string }) {
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : !!pathname && pathname.startsWith(href);
 
   return (
     <>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { FormAlert } from "@/components/forms/form-alert";
 import { TextLink } from "@/components/ui/text-link";
@@ -8,6 +9,7 @@ import { AcceptInvitationForm } from "./accept-invitation-form";
 export const metadata: Metadata = { title: "Activer mon compte" };
 
 async function Invitation({ params }: { params: Promise<{ token: string }> }) {
+  await connection(); // lecture à la requête : l'expiration dépend de l'heure courante
   const { token } = await params;
   const invitation = await findValidInvitation(token);
 

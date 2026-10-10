@@ -3,8 +3,20 @@ import { createHash } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db/client";
 
-/** Actions journalisées. Toute nouvelle action sensible s'ajoute ici. */
+/** Actions journalisées. Les actions métier suivent le format « objet.verbe ». */
 export type AuditAction =
+  | `project.${string}`
+  | `lot.${string}`
+  | `task.${string}`
+  | `client.${string}`
+  | `time.${string}`
+  | `opportunity.${string}`
+  | `finance.${string}`
+  | `import.${string}`
+  | `governance.${string}`
+  | `calendar.${string}`
+  | `file.${string}`
+  | `settings.${string}`
   | "auth.sign_in.success"
   | "auth.sign_in.failure"
   | "auth.sign_in.blocked"
@@ -21,6 +33,7 @@ export type AuditAction =
 export type AuditEntry = {
   action: AuditAction;
   actorId?: string | null;
+  projectId?: string | null;
   targetType?: string;
   targetId?: string;
   before?: Prisma.InputJsonValue;
@@ -44,6 +57,7 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
     data: {
       action: entry.action,
       actorId: entry.actorId ?? null,
+      projectId: entry.projectId ?? null,
       targetType: entry.targetType,
       targetId: entry.targetId,
       before: entry.before,
@@ -53,4 +67,24 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
       userAgent: entry.userAgent?.slice(0, 300) ?? null,
     },
   });
+}
+
+/** Valeurs avant/après limitées aux champs réellement modifiés. */
+export function diff<T extends Record<string, unknown>>(before: T, after: Partial<T>) {
+  const b: Record<string, unknown> = {};
+  const a: Record<string, unknown> = {};
+  for (const key of Object.keys(after)) {
+    const x = before[key];
+    const y = after[key];
+    const norm = (v: unknown) => (v instanceof Date ? v.toISOString() : (v ?? null));
+    if (JSON.stringify(norm(x)) !== JSON.stringify(norm(y))) {
+      b[key] = norm(x);
+      a[key] = norm(y);
+    }
+  }
+  return {
+    before: b as Prisma.InputJsonObject,
+    after: a as Prisma.InputJsonObject,
+    changed: Object.keys(a).length > 0,
+  };
 }

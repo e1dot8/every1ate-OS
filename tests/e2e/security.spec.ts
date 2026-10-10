@@ -2,7 +2,17 @@ import { expect, test } from "@playwright/test";
 import { withDb } from "./support/db";
 import { STRONG_PASSWORD, activateAssociate } from "./support/flows";
 
-const protectedRoutes = ["/", "/plus", "/plus/securite", "/plus/associes", "/design"];
+const protectedRoutes = [
+  "/",
+  "/plus",
+  "/plus/securite",
+  "/plus/associes",
+  "/design",
+  "/projets",
+  "/projets/nouveau",
+  "/taches",
+  "/plus/archives",
+];
 
 test.describe("contrôle d'accès côté serveur", () => {
   for (const route of protectedRoutes) {

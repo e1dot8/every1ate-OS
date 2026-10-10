@@ -29,12 +29,13 @@ test.describe("socle public", () => {
 });
 
 test.describe("socle connecté", () => {
-  test("navigation : Accueil et Plus actifs, sections futures désactivées", async ({ page }) => {
+  test("navigation : sections livrées actives, sections futures désactivées", async ({ page }) => {
     await activateAssociate(page);
     const nav = page.getByRole("navigation", { name: "Navigation principale" }).filter({ visible: true });
     await expect(nav.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
-    await expect(nav.getByRole("link", { name: "Plus" })).toBeVisible();
-    for (const label of ["Tâches", "Projets", "CRM"]) {
+    for (const label of ["Tâches", "Projets", "Plus"])
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+    for (const label of ["CRM"]) {
       await expect(nav.getByText(label, { exact: true })).toBeVisible();
       await expect(nav.getByRole("link", { name: label })).toHaveCount(0);
     }
