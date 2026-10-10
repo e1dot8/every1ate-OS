@@ -114,7 +114,7 @@ export function Gantt(props: {
     const el = scroller.current;
     if (!el) return;
     const anchor = firstStart && d(firstStart) > today ? d(firstStart) : today;
-    el.scrollLeft = Math.max(0, daysBetween(rangeStart, anchor) * dayW - 2 * dayW);
+    el.scrollLeft = Math.max(0, daysBetween(rangeStart, anchor) * dayW - 7 * dayW); // une semaine de contexte
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayW, firstStart]);
 
