@@ -18,6 +18,7 @@ import { getDb } from "@/lib/db/client";
 import { formatDateTime, formatDay } from "@/lib/dates";
 import { archiveAction, deleteCommentAction, removeDependencyAction } from "../../projets/actions";
 import { CommentForm } from "@/features/planning/components/comment-form";
+import { DocumentsPanel } from "@/features/documents/components/documents-panel";
 import { listComments, taskPrioritySuggestion } from "@/features/planning/service";
 import { formatMinutes } from "@/features/planning/rules";
 import { ManualTimeForm, TimerControl } from "@/features/time/components/timer";
@@ -262,6 +263,7 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
               />
             ) : null}
           </Card>
+          <DocumentsPanel target={{ taskId: id }} back={`/taches/${id}`} readOnly={!!task.archivedAt} />
           <Card className="gap-3" id="commentaires">
             <CardTitle>Commentaires</CardTitle>
             <ol className="flex flex-col gap-3">

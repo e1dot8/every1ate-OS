@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Archive, ExternalLink, FolderKanban, Pencil, Trophy } from "lucide-react";
+import { Archive, CalendarPlus, ExternalLink, FolderKanban, Pencil, Trophy } from "lucide-react";
 import { Avatar, BackLink } from "@/components/app/bits";
 import { FormAlert } from "@/components/forms/form-alert";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -43,11 +43,18 @@ async function OpportunityView({ params }: { params: Promise<{ id: string }> }) 
             {opp.contact ? ` · ${opp.contact.firstName} ${opp.contact.lastName}` : ""}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/crm/opportunites/${id}/modifier`}>
-            <Pencil aria-hidden="true" /> Modifier
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/calendrier/nouveau?opportunite=${id}&client=${opp.client.id}`}>
+              <CalendarPlus aria-hidden="true" /> Réunion
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/crm/opportunites/${id}/modifier`}>
+              <Pencil aria-hidden="true" /> Modifier
+            </Link>
+          </Button>
+        </div>
       </header>
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge tone={tone} label={stageLabels[opp.stage]} />

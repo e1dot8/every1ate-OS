@@ -10,7 +10,8 @@ import { comparePriority, formatMinutes, isDueSoon } from "@/features/planning/r
 import { listTasksForUser } from "@/features/projects/service";
 import { userTotals } from "@/features/time/service";
 import { requireUser } from "@/lib/auth/session";
-import { todayDate } from "@/lib/dates";
+import { formatDateTime, todayDate } from "@/lib/dates";
+import { upcomingEvents } from "@/features/calendar/service";
 
 export const metadata: Metadata = { title: "Mon espace" };
 
@@ -43,7 +44,11 @@ function Section({ title, children, href }: { title: string; children: React.Rea
 async function Dashboard() {
   const user = await requireUser();
   const today = todayDate();
-  const [tasks, totals] = await Promise.all([listTasksForUser(user.id), userTotals(user.id)]);
+  const [tasks, totals, events] = await Promise.all([
+    listTasksForUser(user.id),
+    userTotals(user.id),
+    upcomingEvents(user.id),
+  ]);
   const late = tasks.filter((t) => isLate(t));
   const soon = tasks.filter((t) => isDueSoon(t.dueDate, today));
   const stuck = tasks.filter((t) => t.status === "BLOQUE" || t.status === "EN_ATTENTE");
@@ -127,8 +132,22 @@ async function Dashboard() {
             <EmptyState title="Aucune tâche bloquée." />
           )}
         </Section>
-        <Section title="Prochains rendez-vous">
-          <p className="text-sm text-muted-foreground">Le calendrier interne arrive bientôt.</p>
+        <Section title="Prochains rendez-vous" href="/calendrier">
+          {events.length ? (
+            <ul className="flex flex-col gap-1.5 text-sm">
+              {events.map((e) => (
+                <li key={e.id}>
+                  <span className="text-muted-foreground">{formatDateTime(e.startsAt)} · </span>
+                  <Link href={`/calendrier/${e.id}`} className="font-bold hover:underline">
+                    {e.title}
+                  </Link>
+                  {e.location ? <span className="text-muted-foreground"> · {e.location}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState title="Aucun rendez-vous dans les 14 jours." />
+          )}
         </Section>
       </div>
     </>

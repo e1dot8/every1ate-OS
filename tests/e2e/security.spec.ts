@@ -22,6 +22,9 @@ const protectedRoutes = [
   "/finance/imports/nouveau",
   "/gouvernance",
   "/cockpit",
+  "/calendrier",
+  "/calendrier/abonnement",
+  "/documents",
 ];
 
 test.describe("contrôle d'accès côté serveur", () => {

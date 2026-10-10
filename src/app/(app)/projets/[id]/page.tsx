@@ -36,6 +36,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay } from "@/lib/dates";
 import { saveReviewAction, toggleClosureAction } from "../actions";
 import { ProjectFinance } from "@/features/finance/components/project-finance";
+import { DocumentsPanel } from "@/features/documents/components/documents-panel";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Projet" };
@@ -45,6 +46,7 @@ const TABS = [
   { key: "lots", label: "Lots" },
   { key: "taches", label: "Tâches" },
   { key: "finance", label: "Finance" },
+  { key: "documents", label: "Documents" },
   { key: "cloture", label: "Clôture" },
   { key: "journal", label: "Journal" },
 ];
@@ -287,6 +289,13 @@ async function ProjectView({
       ) : null}
 
       {tab === "finance" ? <ProjectFinance projectId={id} archived={!!project.archivedAt} /> : null}
+      {tab === "documents" ? (
+        <DocumentsPanel
+          target={{ projectId: id }}
+          back={`/projets/${id}?onglet=documents`}
+          readOnly={!!project.archivedAt}
+        />
+      ) : null}
       {tab === "journal" ? <Journal projectId={id} /> : null}
     </div>
   );

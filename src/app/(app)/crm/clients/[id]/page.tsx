@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ExternalLink, Mail, Pencil, Phone, Plus } from "lucide-react";
+import { CalendarPlus, ExternalLink, Mail, Pencil, Phone, Plus } from "lucide-react";
 import { BackLink, ProjectStatusBadge } from "@/components/app/bits";
 import { PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { stageLabels } from "@/features/crm/rules";
 import { getClient } from "@/features/crm/service";
+import { DocumentsPanel } from "@/features/documents/components/documents-panel";
 import { requireUser } from "@/lib/auth/session";
 import { formatDay } from "@/lib/dates";
 import { formatMoney, toCents } from "@/lib/money";
@@ -45,6 +46,11 @@ async function ClientView({ params }: { params: Promise<{ id: string }> }) {
           <Button asChild variant="outline">
             <Link href={`/crm/clients/${id}/modifier`}>
               <Pencil aria-hidden="true" /> Modifier
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/calendrier/nouveau?client=${id}`}>
+              <CalendarPlus aria-hidden="true" /> Réunion
             </Link>
           </Button>
           <Button asChild>
@@ -131,6 +137,7 @@ async function ClientView({ params }: { params: Promise<{ id: string }> }) {
           </ul>
         </Card>
       </div>
+      <DocumentsPanel target={{ clientId: id }} back={`/crm/clients/${id}`} />
       <p className="text-xs text-muted-foreground">Fiche créée le {formatDay(client.createdAt)}.</p>
     </>
   );

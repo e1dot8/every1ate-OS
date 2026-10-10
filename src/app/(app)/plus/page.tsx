@@ -5,7 +5,9 @@ import {
   Archive,
   Bell,
   Building2,
+  CalendarDays,
   ChevronRight,
+  FileText,
   LogOut,
   Palette,
   ShieldCheck,
@@ -51,6 +53,13 @@ async function Menu() {
   await requireUser();
   return (
     <Card className="gap-0 py-1">
+      <Row
+        href="/calendrier"
+        icon={CalendarDays}
+        title="Calendrier"
+        detail="Réunions, échéances, abonnement Google/Apple"
+      />
+      <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
       <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, coûts, échéancier, imports, MRR" />
       <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
       <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
@@ -82,9 +91,6 @@ export default function MorePage() {
       <Suspense fallback={<PageLoading />}>
         <Menu />
       </Suspense>
-      <p className="text-sm text-muted-foreground">
-        Calendrier et Documents s&apos;ajouteront ici au fil des lots.
-      </p>
     </div>
   );
 }

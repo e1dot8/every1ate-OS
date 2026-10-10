@@ -55,6 +55,10 @@ model User {
   decisionsRequested DecisionRequest[]     @relation("DecisionAuthor")
   decisionVotes      DecisionVote[]
   importBatches      ImportBatch[]
+  eventsOrganized    CalendarEvent[]       @relation("EventOwner")
+  eventAttendances   EventAttendee[]
+  calendarFeed       CalendarFeed?
+  filesAdded         FileReference[]
 
   @@map("user")
 }
@@ -229,6 +233,8 @@ model Client {
   contacts      ClientContact[]
   opportunities Opportunity[]
   contracts     RecurringContract[]
+  events        CalendarEvent[]
+  files         FileReference[]
 
   @@index([name])
   @@map("client")
@@ -271,6 +277,8 @@ model Project {
   payments        PaymentRecord[]
   contracts       RecurringContract[]
   decisions       DecisionRequest[]
+  events          CalendarEvent[]
+  files           FileReference[]
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -302,6 +310,7 @@ model WorkPackage {
   budgetRevisions BudgetRevision[]
   costItems       CostItem[]
   billing         BillingMilestone[]
+  fileReferences  FileReference[]
 
   @@index([projectId, position])
   @@map("work_package")
@@ -351,6 +360,7 @@ model Task {
   requiredBy        TaskDependency[]  @relation("Predecessor")
   timeEntries       TimeEntry[]
   comments          TaskComment[]
+  files             FileReference[]
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -572,6 +582,7 @@ model Opportunity {
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   activities        OpportunityActivity[]
+  events            CalendarEvent[]
 
   @@index([stage, archivedAt])
   @@index([ownerId])
@@ -903,4 +914,117 @@ model DecisionVote {
 
   @@unique([decisionId, userId])
   @@map("decision_vote")
+}
+
+// ─── Lot 6 : calendrier et documents ───────────────────────────────────────
+
+/// Par défaut, les autres associés ne voient qu'un créneau « occupé » (§11.1).
+enum EventVisibility {
+  OCCUPE
+  PARTAGE
+}
+
+enum FileKind {
+  DOCUMENT
+  DOSSIER
+  MEDIA
+  AUTRE
+}
+
+enum FileStatus {
+  NON_VERIFIE
+  OK
+  INTROUVABLE
+  ERREUR
+}
+
+model CalendarEvent {
+  id            String          @id @default(cuid())
+  title         String
+  description   String?
+  location      String?
+  /// Instants en UTC ; affichage et saisie en Europe/Paris.
+  startsAt      DateTime
+  endsAt        DateTime
+  allDay        Boolean         @default(false)
+  visibility    EventVisibility @default(OCCUPE)
+  ownerId       String
+  owner         User            @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  projectId     String?
+  project       Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  opportunityId String?
+  opportunity   Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  /// Verrou optimiste : détecte les modifications concurrentes.
+  version       Int             @default(1)
+  cancelledAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  attendees     EventAttendee[]
+
+  @@index([startsAt, endsAt])
+  @@index([ownerId])
+  @@index([projectId])
+  @@map("calendar_event")
+}
+
+model EventAttendee {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@map("event_attendee")
+}
+
+/// Flux ICS personnel en lecture seule (abonnement Google/Apple). Seule l'empreinte du jeton est stockée.
+model CalendarFeed {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique
+  includeTasks Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastAccessAt DateTime?
+  accessCount  Int       @default(0)
+
+  @@map("calendar_feed")
+}
+
+/// Référence vers un document externe (Google Drive…) : le fichier n'est pas copié (§12.1).
+model FileReference {
+  id            String       @id @default(cuid())
+  title         String
+  url           String
+  kind          FileKind     @default(DOCUMENT)
+  provider      String       @default("google_drive")
+  externalId    String?
+  ownerLabel    String?
+  documentDate  DateTime?    @db.Date
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  workPackageId String?
+  workPackage   WorkPackage? @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  taskId        String?
+  task          Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  status        FileStatus   @default(NON_VERIFIE)
+  statusDetail  String?
+  lastCheckedAt DateTime?
+  addedById     String
+  addedBy       User         @relation(fields: [addedById], references: [id], onDelete: Restrict)
+  archivedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([clientId])
+  @@index([externalId])
+  @@map("file_reference")
 }
