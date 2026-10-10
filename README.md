@@ -3,6 +3,7 @@
 Outil interne de pilotage de l'agence EVERY1.ATE : projets, CRM, finance, temps, calendrier.
 Application privée, PWA mobile-first. Spécification : [`docs/CAHIER_DES_CHARGES.md`](docs/CAHIER_DES_CHARGES.md).
 Décisions techniques : [`docs/adr/`](docs/adr/README.md).
+Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8yJOZKCV4X) (une page par lot).
 
 **État : lot 0, socle technique** (application minimale, base de données, design system initial, CI).
 

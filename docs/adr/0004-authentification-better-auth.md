@@ -1,6 +1,6 @@
 # ADR-0004 — Authentification : Better Auth + MFA TOTP
 
-- **Statut** : Acceptée — 10/10/2026 (implémentation au lot 1)
+- **Statut** : Acceptée — 10/10/2026, **partie MFA remplacée par [ADR-0008](0008-mfa-retiree-v1.md)**
 
 ## Contexte
 

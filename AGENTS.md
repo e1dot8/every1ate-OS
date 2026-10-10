@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Règles du projet Every1.ate OS
 
 1. Lire `docs/CAHIER_DES_CHARGES.md` et `docs/adr/` avant toute modification.
-2. Un lot à la fois. Avant chaque lot : présenter fichiers et migrations prévus, attendre l'accord.
+2. Un lot à la fois. Avant chaque lot : maquette Figma (mobile + ordinateur, ADR-0009), fichiers et migrations prévus, puis attendre l'accord.
 3. Toute mutation : validation serveur (Zod) + contrôle d'accès côté serveur. Masquer un bouton ne protège rien.
 4. Opérations financières et modifications sensibles : journal d'audit (avant/après, auteur, date).
 5. Migrations Prisma versionnées uniquement. Jamais de `migrate reset` / `db push` en production.

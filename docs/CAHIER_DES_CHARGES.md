@@ -5,7 +5,8 @@
 **Version :** 1.0 --- document de référence pour Claude Code\
 **Date :** 10 octobre 2026\
 **Statut :** spécification de départ à valider techniquement avant mise
-en production
+en production\
+**Modifications :** 10/10/2026 — MFA retirée de la V1 (ADR-0008) ; maquette Figma obligatoire pour chaque lot (ADR-0009).
 
 ------------------------------------------------------------------------
 
@@ -669,7 +670,7 @@ complétée. Le responsable global confirme la clôture.
 
 -   Connexion sécurisée par e-mail.
 -   Réinitialisation de mot de passe.
--   MFA obligatoire pour les associés.
+-   ~~MFA obligatoire pour les associés.~~ **Modifié le 10/10/2026 : pas de MFA en V1** (ADR-0008). Compensations : mots de passe robustes, limitation des tentatives, sessions révocables, journal d'audit.
 -   Invitations contrôlées pour les nouveaux comptes.
 -   Gestion des sessions et révocation.
 -   Limitation des tentatives et protection contre les abus.
@@ -840,7 +841,7 @@ leur identifiant externe si disponible.
 
 -   Un associé autorisé peut se connecter et réinitialiser son mot de
     passe.
--   La MFA est requise pour chaque associé.
+-   ~~La MFA est requise pour chaque associé.~~ Pas de MFA en V1 (ADR-0008) : la connexion par e-mail et mot de passe est protégée par la limitation des tentatives.
 -   Une requête non autorisée vers une ressource protégée est rejetée
     côté serveur.
 -   Les secrets ne sont jamais exposés dans le client ou les logs.
@@ -929,7 +930,7 @@ leur identifiant externe si disponible.
 
 ### Tests end-to-end
 
--   Connexion MFA d'un associé.
+-   Connexion d'un associé (e-mail + mot de passe).
 -   Création d'un projet à partir d'un modèle.
 -   Création d'un lot et d'une tâche.
 -   Déplacement d'une tâche dans la roadmap.
@@ -971,7 +972,7 @@ base et tests.
 
 -   Tokens visuels, typographies, composants.
 -   Layout desktop/mobile et barre inférieure.
--   Connexion, MFA et gestion de session.
+-   Connexion et gestion de session (sans MFA, ADR-0008).
 -   Permissions serveur et audit de base.
 
 **Critère de sortie :** les trois associés peuvent se connecter de façon
@@ -1087,7 +1088,7 @@ et règles de calcul validés par l'agence/comptable.
 ## 25. Définition de « prêt à utiliser »
 
 La V1 est considérée comme prête pour le pilote interne lorsque : - les
-trois associés peuvent se connecter avec MFA ; - les projets, lots,
+trois associés peuvent se connecter de façon sécurisée (sans MFA, ADR-0008) ; - les projets, lots,
 tâches, dépendances et roadmap fonctionnent de bout en bout ; - le CRM
 permet de gérer une opportunité jusqu'à sa conversion en projet ; -
 budgets, coûts, échéanciers, imports et marges sont cohérents et testés
