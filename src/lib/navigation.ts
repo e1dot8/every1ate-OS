@@ -14,5 +14,5 @@ export const primaryNav: NavItem[] = [
   { label: "Tâches", href: "/taches", icon: CheckSquare, comingInLot: 2 },
   { label: "Projets", href: "/projets", icon: FolderKanban, comingInLot: 2 },
   { label: "CRM", href: "/crm", icon: Handshake, comingInLot: 4 },
-  { label: "Plus", href: "/plus", icon: MoreHorizontal, comingInLot: 1 },
+  { label: "Plus", href: "/plus", icon: MoreHorizontal },
 ];

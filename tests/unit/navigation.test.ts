@@ -8,6 +8,6 @@ describe("navigation principale", () => {
 
   it("n'active que les sections réellement livrées", () => {
     const enabled = primaryNav.filter((item) => item.comingInLot === undefined).map((item) => item.href);
-    expect(enabled).toEqual(["/"]);
+    expect(enabled).toEqual(["/", "/plus"]);
   });
 });

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Arimo, Courier_Prime } from "next/font/google";
-import { AppNav } from "@/components/nav/app-nav";
 import "./globals.css";
 
 const arimo = Arimo({ variable: "--font-arimo", subsets: ["latin"], display: "swap" });
@@ -38,15 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Aller au contenu
         </a>
-        <div className="md:flex">
-          <AppNav />
-          <main
-            id="contenu"
-            className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] md:px-8 md:pb-10"
-          >
-            {children}
-          </main>
-        </div>
+        {children}
       </body>
     </html>
   );

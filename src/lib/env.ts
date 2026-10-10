@@ -13,12 +13,36 @@ const postgresUrl = z
     message: "doit être une URL postgresql://",
   });
 
-export const serverEnvSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: postgresUrl,
-  DIRECT_DATABASE_URL: postgresUrl.optional(),
-  APP_URL: z.url().optional(),
-});
+export const serverEnvSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    DATABASE_URL: postgresUrl,
+    DIRECT_DATABASE_URL: postgresUrl.optional(),
+    /** URL publique de l'application. Netlify fournit URL ; en local, localhost. */
+    APP_URL: z.url().optional(),
+    URL: z.url().optional(),
+    BETTER_AUTH_SECRET: z.string().min(32, { message: "doit contenir au moins 32 caractères" }),
+    /** resend = envoi réel ; outbox = stockage local (développement et tests). */
+    EMAIL_TRANSPORT: z.enum(["resend", "outbox"]).optional(),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(3).default("Every1.ate OS <notifications@every1ate.com>"),
+    /** Vérification des mots de passe dans les fuites connues (Have I Been Pwned). */
+    PASSWORD_BREACH_CHECK: z.enum(["on", "off"]).default("on"),
+  })
+  .superRefine((env, ctx) => {
+    if (env.EMAIL_TRANSPORT === "resend" && !env.RESEND_API_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["RESEND_API_KEY"],
+        message: "requise quand EMAIL_TRANSPORT=resend",
+      });
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    appUrl: (env.APP_URL ?? env.URL ?? "http://localhost:3000").replace(/\/$/, ""),
+    emailTransport: env.EMAIL_TRANSPORT ?? (env.RESEND_API_KEY ? "resend" : "outbox"),
+  }));
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 

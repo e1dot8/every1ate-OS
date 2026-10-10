@@ -19,13 +19,15 @@
     "db:deploy": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:seed": "prisma db seed",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:bundle"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check:bundle",
+    "invite": "node --conditions=react-server --import tsx scripts/invite.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@radix-ui/react-label": "2.1.16",
     "@radix-ui/react-slot": "1.4.0",
+    "better-auth": "1.7.7",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "1.54.0",

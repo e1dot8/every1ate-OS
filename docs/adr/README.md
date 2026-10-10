@@ -13,3 +13,4 @@ Une décision n'est jamais réécrite : on en crée une nouvelle qui remplace l'
 | [0006](0006-stockage-objet.md)               | Stockage objet des médias lourds               | En attente (V2) |
 | [0008](0008-mfa-retiree-v1.md)               | Pas de MFA en V1                               | Acceptée        |
 | [0009](0009-maquette-figma-par-lot.md)       | Une maquette Figma pour chaque lot             | Acceptée        |
+| [0010](0010-securite-connexion.md)           | Détails de sécurité de la connexion            | Acceptée        |

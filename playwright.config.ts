@@ -10,6 +10,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  timeout: 45_000,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL, trace: "retain-on-failure", launchOptions: { executablePath } },
   projects: [
@@ -22,7 +23,15 @@ export default defineConfig({
     : {
         command: `pnpm start --port ${port}`,
         url: `${baseURL}/api/health`,
-        reuseExistingServer: !process.env.CI,
+        // Jamais de réutilisation : un serveur déjà lancé n'aurait pas la configuration de test.
+        reuseExistingServer: false,
         timeout: 60_000,
+        // Configuration de test : e-mails stockés localement, aucun appel réseau externe.
+        env: {
+          APP_URL: baseURL,
+          BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-only-secret-0123456789abcdef0123456789",
+          EMAIL_TRANSPORT: "outbox",
+          PASSWORD_BREACH_CHECK: "off",
+        },
       },
 });

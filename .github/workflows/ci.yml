@@ -27,6 +27,10 @@ jobs:
       # Base jetable propre au job CI — aucune donnée réelle.
       DATABASE_URL: postgresql://e1:e1@localhost:5432/every1ate_os
       DIRECT_DATABASE_URL: postgresql://e1:e1@localhost:5432/every1ate_os
+      # Secret propre à la CI, sans valeur réelle.
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789
+      EMAIL_TRANSPORT: outbox
+      PASSWORD_BREACH_CHECK: "off"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

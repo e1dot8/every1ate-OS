@@ -5,7 +5,7 @@ Application privée, PWA mobile-first. Spécification : [`docs/CAHIER_DES_CHARGE
 Décisions techniques : [`docs/adr/`](docs/adr/README.md).
 Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8yJOZKCV4X) (une page par lot).
 
-**État : lot 0, socle technique** (application minimale, base de données, design system initial, CI).
+**État : lot 1, connexion sécurisée** (invitations, connexion, mot de passe oublié, appareils connectés, journal d'audit).
 
 ## Stack
 
@@ -41,8 +41,17 @@ pnpm install
 cp .env.example .env          # puis renseigner DATABASE_URL
 pnpm db:migrate               # applique les migrations sur la base locale
 pnpm db:seed                  # données techniques uniquement
+pnpm invite vous@exemple.fr Prénom   # crée le premier compte (lien affiché dans le terminal)
 pnpm dev                      # http://localhost:3000
 ```
+
+En local, aucun e-mail ne part : ils sont enregistrés dans la table `email_outbox` et affichés dans le terminal.
+
+## Comptes et connexion
+
+- Pas d'inscription publique : un compte naît d'une **invitation** (Plus › Associés, ou `pnpm invite` pour le tout premier).
+- Connexion par e-mail et mot de passe (pas de MFA en V1, voir [ADR-0008](docs/adr/0008-mfa-retiree-v1.md)).
+- Détails de sécurité : [ADR-0010](docs/adr/0010-securite-connexion.md).
 
 ## Commandes de vérification
 
@@ -73,9 +82,13 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
 3. **Variables** (_Site configuration → Environment variables_), avec des valeurs par contexte :
    - `DATABASE_URL` : production = URL pooled de `main` ; deploy previews / branch deploys = URL pooled de `preview`.
    - `DIRECT_DATABASE_URL` : production = URL directe de `main` (migrations au build).
+   - `BETTER_AUTH_SECRET` : valeur aléatoire (`openssl rand -base64 32`), différente par contexte.
+   - `APP_URL` : URL publique du contexte (domaine final en production).
+   - `RESEND_API_KEY` et `EMAIL_FROM` : envoi réel des invitations et réinitialisations.
    - Cocher _Contains secret values_ pour les deux.
 4. Pousser un commit dont le message contient `[deploy]`. Vérifier `https://<site>.netlify.app/api/health` → `{"status":"ok",...}`.
-5. Pour les deploy previews : appliquer les migrations sur la branche `preview`
+5. Créer le premier compte : `DATABASE_URL=<url production> APP_URL=<url> RESEND_API_KEY=<clé> pnpm invite <email> <prénom>`.
+6. Pour les deploy previews : appliquer les migrations sur la branche `preview`
    (`DIRECT_DATABASE_URL=<url preview> pnpm db:deploy`).
 
 Les migrations de production s'exécutent au build (`prisma migrate deploy`) : elles appliquent

@@ -19,3 +19,138 @@ model SystemInfo {
 
   @@map("system_info")
 }
+
+// ─── Authentification (Better Auth) ─────────────────────────────────────────
+// Champs imposés par Better Auth : ne pas renommer sans adapter src/lib/auth/auth.ts.
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  /// V1 : « associe » uniquement. V2 : collaborateur, prestataire, client.
+  role          String    @default("associe")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  invitationsSent Invitation[] @relation("InvitedBy")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  /// Empreinte scrypt (jamais le mot de passe en clair).
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// Compteurs de limitation des requêtes vers /api/auth (stockage partagé entre fonctions serverless).
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rate_limit")
+}
+
+// ─── Invitations ────────────────────────────────────────────────────────────
+
+/// Seul moyen de créer un compte. Le jeton n'est jamais stocké en clair (SHA-256).
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  name        String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  invitedById String?
+  invitedBy   User?     @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([email])
+  @@map("invitation")
+}
+
+// ─── Journal d'audit ────────────────────────────────────────────────────────
+
+/// Journal en ajout seul : un trigger PostgreSQL interdit UPDATE et DELETE.
+/// Pas de clé étrangère vers user : le journal survit à toute évolution des comptes.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  before     Json?
+  after      Json?
+  reason     String?
+  ip         String?
+  userAgent  String?
+
+  @@index([createdAt])
+  @@index([action, targetId, createdAt])
+  @@index([actorId])
+  @@map("audit_event")
+}
+
+// ─── E-mails (développement et tests) ───────────────────────────────────────
+
+/// Boîte d'envoi locale utilisée quand EMAIL_TRANSPORT=outbox (aucun envoi réel).
+model EmailOutbox {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([to, createdAt])
+  @@map("email_outbox")
+}

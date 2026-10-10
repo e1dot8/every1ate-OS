@@ -17,7 +17,7 @@ function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; la
       <span
         aria-disabled="true"
         title={`Disponible au lot ${item.comingInLot}`}
-        className={cn(base, "cursor-not-allowed text-muted-foreground/70")}
+        className={cn(base, "cursor-not-allowed text-muted-foreground/45")}
       >
         <Icon aria-hidden="true" className="size-5" />
         <span>{item.label}</span>

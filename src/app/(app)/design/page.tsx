@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { Annotation } from "@/components/ui/annotation";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { requireUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Design system" };
 
@@ -30,7 +32,23 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
+/** Page réservée aux associés connectés. */
+async function Gate({ children }: { children: React.ReactNode }) {
+  await requireUser();
+  return children;
+}
+
 export default function DesignSystemPage() {
+  return (
+    <Suspense>
+      <Gate>
+        <DesignSystem />
+      </Gate>
+    </Suspense>
+  );
+}
+
+function DesignSystem() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-2">
