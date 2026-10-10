@@ -12,6 +12,12 @@ const protectedRoutes = [
   "/projets/nouveau",
   "/taches",
   "/plus/archives",
+  "/temps",
+  "/notifications",
+  "/crm",
+  "/crm/clients",
+  "/crm/reglages",
+  "/crm/opportunites/nouvelle",
 ];
 
 test.describe("contrôle d'accès côté serveur", () => {

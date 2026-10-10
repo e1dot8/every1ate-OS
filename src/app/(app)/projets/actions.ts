@@ -69,6 +69,7 @@ const wizardSchema = z.object({
   templateKey: z.string().min(1),
   startDate: z.string().min(1, "Date de début requise."),
   plannedEndDate: z.string().nullable().optional(),
+  opportunityId: z.string().nullable().optional(),
   lots: z
     .array(
       z.object({
@@ -120,7 +121,8 @@ export async function createProjectAction(_prev: FormState, formData: FormData):
   );
   if (!result.ok) return { status: "error", message: result.error };
   revalidatePath("/projets");
-  redirect(`/projets/${result.data.id}`);
+  if (parsed.data.opportunityId) revalidatePath(`/crm/opportunites/${parsed.data.opportunityId}`);
+  redirect(`/projets/${result.data.id}${result.data.existing ? "?deja=1" : ""}`);
 }
 
 // ─── Projet ─────────────────────────────────────────────────────────────────

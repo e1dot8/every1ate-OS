@@ -29,16 +29,12 @@ test.describe("socle public", () => {
 });
 
 test.describe("socle connecté", () => {
-  test("navigation : sections livrées actives, sections futures désactivées", async ({ page }) => {
+  test("navigation : les cinq sections principales sont actives", async ({ page }) => {
     await activateAssociate(page);
     const nav = page.getByRole("navigation", { name: "Navigation principale" }).filter({ visible: true });
     await expect(nav.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
-    for (const label of ["Tâches", "Projets", "Plus"])
+    for (const label of ["Tâches", "Projets", "CRM", "Plus"])
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
-    for (const label of ["CRM"]) {
-      await expect(nav.getByText(label, { exact: true })).toBeVisible();
-      await expect(nav.getByRole("link", { name: label })).toHaveCount(0);
-    }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

@@ -35,21 +35,26 @@ export function ProjectWizard({
   clients,
   currentUserId,
   today,
+  initial,
+  opportunityId,
 }: {
   associates: Opt[];
   clients: Opt[];
   currentUserId: string;
   today: string;
+  /** Préremplissage (conversion depuis le CRM). */
+  initial?: { name: string; clientId: string; description: string };
+  opportunityId?: string;
 }) {
   const [step, setStep] = useState(1);
   const [templateKey, setTemplateKey] = useState(TEMPLATES[0].key);
   const [info, setInfo] = useState({
-    name: "",
-    clientId: "",
+    name: initial?.name ?? "",
+    clientId: initial?.clientId ?? "",
     newClientName: "",
     ownerId: currentUserId,
     startDate: today,
-    description: "",
+    description: initial?.description ?? "",
   });
   const [lots, setLots] = useState<DraftLot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +95,7 @@ export function ProjectWizard({
     newClientName: info.clientId === "__new" ? info.newClientName : null,
     templateKey,
     plannedEndDate: null,
+    opportunityId: opportunityId ?? null,
     lots: (lots ?? [])
       .filter((l) => l.keep && l.name.trim())
       .map((l) => ({
@@ -105,7 +111,9 @@ export function ProjectWizard({
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="font-annotation text-sm text-pen-strong">Nouveau projet · étape {step}/3</p>
+      <p className="font-annotation text-sm text-pen-strong">
+        {opportunityId ? "Conversion en projet" : "Nouveau projet"} · étape {step}/3
+      </p>
 
       {step === 1 ? (
         <section className="flex flex-col gap-5" aria-labelledby="titre-etape">

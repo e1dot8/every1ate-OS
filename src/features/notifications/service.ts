@@ -6,10 +6,20 @@ import { notificationEmail } from "@/lib/email/templates";
 import { getServerEnv } from "@/lib/env";
 import { formatDay, todayDate } from "@/lib/dates";
 import { isDueSoon, overdueLevel, suggestPriority } from "@/features/planning/rules";
+import { dueFollowUps } from "@/features/crm/service";
 
 export type NotificationInput = {
   userId: string;
-  kind: "assignation" | "echeance" | "retard" | "escalade" | "blocage" | "planning" | "action" | "import";
+  kind:
+    | "assignation"
+    | "echeance"
+    | "retard"
+    | "escalade"
+    | "blocage"
+    | "planning"
+    | "action"
+    | "import"
+    | "relance";
   title: string;
   body?: string;
   href?: string;
@@ -86,7 +96,22 @@ export async function runScheduledScan(now = new Date()) {
       requiredBy: { select: { task: { select: { status: true } } } },
     },
   });
-  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0 };
+  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0, relances: 0 };
+  for (const o of await dueFollowUps(today)) {
+    if (
+      await notify({
+        userId: o.ownerId,
+        kind: "relance",
+        title: `Relance commerciale : ${o.title}`,
+        body: o.nextAction
+          ? `${o.nextAction} (prévue le ${formatDay(o.nextActionDate)})`
+          : `Prévue le ${formatDay(o.nextActionDate)}`,
+        href: `/crm/opportunites/${o.id}`,
+        dedupeKey: `relance:${o.id}:${o.nextActionDate?.toISOString().slice(0, 10)}`,
+      })
+    )
+      counts.relances++;
+  }
   for (const t of tasks) {
     const due = t.dueDate ? t.dueDate.toISOString().slice(0, 10) : "";
     const href = `/taches/${t.id}`;

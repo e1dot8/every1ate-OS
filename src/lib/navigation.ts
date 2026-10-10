@@ -13,6 +13,6 @@ export const primaryNav: NavItem[] = [
   { label: "Accueil", href: "/", icon: Home },
   { label: "Tâches", href: "/taches", icon: CheckSquare },
   { label: "Projets", href: "/projets", icon: FolderKanban },
-  { label: "CRM", href: "/crm", icon: Handshake, comingInLot: 4 },
+  { label: "CRM", href: "/crm", icon: Handshake },
   { label: "Plus", href: "/plus", icon: MoreHorizontal },
 ];

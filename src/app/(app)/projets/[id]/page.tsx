@@ -61,7 +61,7 @@ async function ProjectView({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ onglet?: string }>;
+  searchParams: Promise<{ onglet?: string; deja?: string }>;
 }) {
   await requireUser();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -105,6 +105,17 @@ async function ProjectView({
           </div>
         ) : null}
       </header>
+      {sp.deja ? (
+        <FormAlert tone="info" title="Ce projet existait déjà pour cette opportunité : aucun doublon créé." />
+      ) : null}
+      {project.opportunity ? (
+        <p className="text-sm text-muted-foreground">
+          Issu de l&apos;opportunité{" "}
+          <Link href={`/crm/opportunites/${project.opportunity.id}`} className="font-bold underline">
+            {project.opportunity.title}
+          </Link>
+        </p>
+      ) : null}
       <PhaseSteps phase={project.phase} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <ProjectStatusBadge status={project.status} />
@@ -360,7 +371,10 @@ async function Journal({ projectId }: { projectId: string }) {
 export default function ProjectPage({ params, searchParams }: PageProps<"/projets/[id]">) {
   return (
     <Suspense fallback={<PageLoading />}>
-      <ProjectView params={params} searchParams={searchParams as Promise<{ onglet?: string }>} />
+      <ProjectView
+        params={params}
+        searchParams={searchParams as Promise<{ onglet?: string; deja?: string }>}
+      />
     </Suspense>
   );
 }

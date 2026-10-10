@@ -23,4 +23,5 @@
    répond 503. Coût : une requête courte par heure.
 
 ## À configurer en production
+
 - `CRON_SECRET` (32 caractères minimum) dans les variables Netlify.

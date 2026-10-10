@@ -88,6 +88,7 @@ export async function getProject(id: string) {
     include: {
       client: { select: { id: true, name: true } },
       owner: { select: userSelect },
+      opportunity: { select: { id: true, title: true } },
       closureItems: { orderBy: { position: "asc" }, include: { checkedBy: { select: userSelect } } },
       workPackages: {
         where: { archivedAt: null },
@@ -179,6 +180,8 @@ export type NewProjectInput = {
   templateKey: string;
   startDate: Date;
   plannedEndDate?: Date | null;
+  /** Conversion depuis une opportunité gagnée : lien conservé, jamais de doublon (§9.4). */
+  opportunityId?: string | null;
   lots: {
     name: string;
     tasks: { title: string; startDate: Date | null; dueDate: Date | null; after?: string | null }[];
@@ -188,13 +191,31 @@ export type NewProjectInput = {
 export async function createProject(
   input: NewProjectInput,
   actor: Actor,
-): Promise<ServiceResult<{ id: string }>> {
+): Promise<ServiceResult<{ id: string; existing?: boolean }>> {
   const db = getDb();
   if (!(await db.user.findFirst({ where: { id: input.ownerId, role: "associe" } })))
     return failed("Responsable global invalide.");
   if (!getTemplate(input.templateKey)) return failed("Modèle inconnu.");
 
-  const project = await db.$transaction(async (tx) => {
+  type Created = {
+    id: string;
+    name: string;
+    ownerId: string;
+    templateKey: string | null;
+    existing?: boolean;
+  };
+  const project = await db.$transaction(async (tx): Promise<Created | { error: string }> => {
+    if (input.opportunityId) {
+      // Verrou sur l'opportunité : deux envois simultanés ne créent qu'un seul projet.
+      const rows = await tx.$queryRaw<{ projectId: string | null; stage: string }[]>`
+        SELECT "projectId", "stage" FROM "opportunity" WHERE "id" = ${input.opportunityId} FOR UPDATE`;
+      if (!rows.length) return { error: "Opportunité introuvable." };
+      if (rows[0].stage !== "GAGNE") return { error: "Seule une opportunité « Gagné » peut être convertie." };
+      if (rows[0].projectId) {
+        const existing = await tx.project.findUniqueOrThrow({ where: { id: rows[0].projectId } });
+        return { ...existing, existing: true };
+      }
+    }
     let clientId = input.clientId ?? null;
     if (!clientId && input.newClientName?.trim()) {
       clientId = (await tx.client.create({ data: { name: input.newClientName.trim() } })).id;
@@ -255,16 +276,34 @@ export async function createProject(
           });
       }
     }
+    if (input.opportunityId) {
+      await tx.opportunity.update({ where: { id: input.opportunityId }, data: { projectId: created.id } });
+      await tx.opportunityActivity.create({
+        data: {
+          opportunityId: input.opportunityId,
+          kind: "NOTE",
+          authorId: actor.id,
+          body: `Converti en projet « ${created.name} »`,
+        },
+      });
+    }
     return created;
   });
 
+  if ("error" in project) return failed(project.error);
+  if (project.existing) return done({ id: project.id, existing: true });
   await recordAudit({
     action: "project.created",
     actorId: actor.id,
     projectId: project.id,
     targetType: "project",
     targetId: project.id,
-    after: { name: project.name, ownerId: project.ownerId, templateKey: project.templateKey },
+    after: {
+      name: project.name,
+      ownerId: project.ownerId,
+      templateKey: project.templateKey,
+      ...(input.opportunityId ? { opportunityId: input.opportunityId } : {}),
+    },
   });
   return done({ id: project.id });
 }

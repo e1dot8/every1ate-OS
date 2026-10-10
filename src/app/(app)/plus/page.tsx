@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import {
   Archive,
   Bell,
+  Building2,
   ChevronRight,
   LogOut,
   Palette,
@@ -48,6 +49,7 @@ async function Menu() {
   await requireUser();
   return (
     <Card className="gap-0 py-1">
+      <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
       <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
       <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
       <Row
@@ -77,7 +79,7 @@ export default function MorePage() {
         <Menu />
       </Suspense>
       <p className="text-sm text-muted-foreground">
-        Finance, Calendrier, Clients et Documents s&apos;ajouteront ici au fil des lots.
+        Finance, Calendrier et Documents s&apos;ajouteront ici au fil des lots.
       </p>
     </div>
   );
