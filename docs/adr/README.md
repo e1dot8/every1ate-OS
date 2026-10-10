@@ -1,0 +1,13 @@
+# Décisions d'architecture (ADR)
+
+Une décision = un fichier. Statuts : **Acceptée**, **En attente**, **Remplacée par ADR-XXXX**.
+Une décision n'est jamais réécrite : on en crée une nouvelle qui remplace l'ancienne.
+
+| #                                            | Décision                                | Statut          |
+| -------------------------------------------- | --------------------------------------- | --------------- |
+| [0001](0001-depot-prive-separe.md)           | Dépôt privé séparé du site vitrine      | Acceptée        |
+| [0002](0002-stack-et-versions.md)            | Stack et versions bloquées              | Acceptée        |
+| [0003](0003-base-de-donnees-neon.md)         | PostgreSQL hébergé sur Neon (UE)        | Acceptée        |
+| [0004](0004-authentification-better-auth.md) | Authentification Better Auth + MFA TOTP | Acceptée        |
+| [0005](0005-emails-resend.md)                | E-mails transactionnels via Resend      | Acceptée        |
+| [0006](0006-stockage-objet.md)               | Stockage objet des médias lourds        | En attente (V2) |

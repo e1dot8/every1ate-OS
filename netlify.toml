@@ -1,0 +1,23 @@
+# Every1.ate OS — déploiement Netlify (site distinct du site vitrine).
+# Next.js est détecté automatiquement par le runtime Next.js de Netlify (OpenNext).
+
+[build]
+  command = "pnpm run build:netlify"   # prisma generate + migrate deploy + next build
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Les migrations s'exécutent pendant le build : elles n'appliquent que les
+  # migrations versionnées (jamais de reset). DATABASE_URL / DIRECT_DATABASE_URL
+  # sont définies par contexte dans l'interface Netlify (production ≠ previews).
+
+# Les deploy previews et branch deploys ne migrent PAS la base :
+# ils utilisent leur propre base (branche Neon) définie dans Netlify.
+[context.deploy-preview]
+  command = "pnpm run build"
+
+[context.branch-deploy]
+  command = "pnpm run build"
+
+[functions]
+  directory = "netlify/functions"

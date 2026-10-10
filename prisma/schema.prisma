@@ -1,0 +1,21 @@
+// Every1.ate OS — schéma Prisma.
+// Lot 0 : une seule table technique. Les entités métier arrivent à partir du lot 1.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Paires clé/valeur techniques (version du socle, marqueurs d'initialisation).
+/// Ne contient jamais de secret ni de donnée métier.
+model SystemInfo {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_info")
+}
