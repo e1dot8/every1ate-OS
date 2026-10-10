@@ -46,6 +46,9 @@ model User {
   tasksCreated       Task[]              @relation("TaskCreator")
   taskContributions  TaskContributor[]
   closureItemsDone   ClosureItem[]
+  timeEntries        TimeEntry[]
+  taskComments       TaskComment[]
+  notifications      Notification[]
 
   @@map("user")
 }
@@ -244,6 +247,7 @@ model Project {
   workPackages    WorkPackage[]
   tasks           Task[]
   closureItems    ClosureItem[]
+  milestones      Milestone[]
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -271,6 +275,7 @@ model WorkPackage {
   updatedAt    DateTime            @updatedAt
   members      WorkPackageMember[]
   tasks        Task[]
+  milestones   Milestone[]
 
   @@index([projectId, position])
   @@map("work_package")
@@ -298,6 +303,9 @@ model Task {
   ownerId           String?
   owner             User?             @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   priority          Priority          @default(NORMALE)
+  /// Priorité fixée à la main : aucun calcul ne la remplace (§7.4).
+  priorityLocked    Boolean           @default(false)
+  impact            Impact            @default(MOYEN)
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
@@ -315,6 +323,8 @@ model Task {
   contributors      TaskContributor[]
   dependsOn         TaskDependency[]  @relation("Successor")
   requiredBy        TaskDependency[]  @relation("Predecessor")
+  timeEntries       TimeEntry[]
+  comments          TaskComment[]
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -363,4 +373,96 @@ model ClosureItem {
 
   @@unique([projectId, key])
   @@map("closure_item")
+}
+
+// ─── Lot 3 : roadmap, temps, priorités, notifications ──────────────────────
+
+enum Impact {
+  FAIBLE
+  MOYEN
+  FORT
+}
+
+enum TimeSource {
+  TIMER
+  MANUEL
+}
+
+model Milestone {
+  id            String       @id @default(cuid())
+  projectId     String
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  workPackageId String?
+  workPackage   WorkPackage? @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  name          String
+  date          DateTime     @db.Date
+  reachedAt     DateTime?
+  archivedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([projectId, date])
+  @@map("milestone")
+}
+
+/// Un seul chronomètre actif par utilisateur : index unique partiel (migration).
+model TimeEntry {
+  id              String     @id @default(cuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  taskId          String
+  task            Task       @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  projectId       String
+  /// Jour calendaire (Europe/Paris) auquel le temps est rattaché.
+  date            DateTime   @db.Date
+  startedAt       DateTime?
+  endedAt         DateTime?
+  durationMinutes Int?
+  source          TimeSource
+  comment         String?
+  deletedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([userId, date])
+  @@index([taskId])
+  @@index([projectId])
+  @@map("time_entry")
+}
+
+model TaskComment {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([taskId, createdAt])
+  @@map("task_comment")
+}
+
+/// Centre de notifications. La clé de dédoublonnage évite les alertes répétitives
+/// et la table conserve l'historique des alertes émises (§13.3).
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String?
+  href      String?
+  projectId String?
+  taskId    String?
+  dedupeKey String
+  emailedAt DateTime?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt])
+  @@map("notification")
 }

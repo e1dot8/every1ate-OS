@@ -58,3 +58,29 @@ export function formatDateTime(date: Date | null | undefined): string {
     timeZone: "Europe/Paris",
   }).format(date);
 }
+
+/** Lundi de la semaine d'une date calendrier. */
+export function startOfWeek(date: Date): Date {
+  const day = (date.getUTCDay() + 6) % 7;
+  return addDays(date, -day);
+}
+
+export function formatTime(date: Date | null | undefined): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Paris",
+  }).format(date);
+}
+
+/** « lundi 12 oct. » pour une date calendrier. */
+export function formatWeekday(date: Date): string {
+  const s = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}

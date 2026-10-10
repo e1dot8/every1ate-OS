@@ -4,6 +4,8 @@ const port = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
 // Permet d'utiliser un Chromium déjà installé (ex. environnement sans téléchargement).
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined;
+// Secret de test pour /api/cron/scan (jamais utilisé hors tests).
+const E2E_CRON_SECRET = "e2e-only-cron-secret-0123456789abcdef";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -32,6 +34,7 @@ export default defineConfig({
           BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-only-secret-0123456789abcdef0123456789",
           EMAIL_TRANSPORT: "outbox",
           PASSWORD_BREACH_CHECK: "off",
+          CRON_SECRET: E2E_CRON_SECRET,
         },
       },
 });

@@ -1,7 +1,17 @@
 import "server-only";
-import type { Prisma, ProjectPhase, ProjectStatus, TaskStatus, Priority } from "@/generated/prisma/client";
+import type {
+  Impact,
+  Prisma,
+  ProjectPhase,
+  ProjectStatus,
+  TaskStatus,
+  Priority,
+} from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
+import { todayDate } from "@/lib/dates";
+import { notify } from "@/features/notifications/service";
+import { suggestPriority } from "@/features/planning/rules";
 import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
 import {
   TASK_DONE_STATES,
@@ -537,7 +547,9 @@ export type TaskInput = {
   workPackageId: string | null;
   ownerId: string | null;
   contributorIds: string[];
-  priority: Priority;
+  /** « AUTO » : priorité suggérée, recalculée ; sinon valeur verrouillée (§7.4). */
+  priority: Priority | "AUTO";
+  impact: Impact;
   startDate: Date | null;
   dueDate: Date | null;
   estimatedMinutes: number | null;
@@ -557,7 +569,26 @@ export async function saveTask(
     !(await db.workPackage.findFirst({ where: { id: input.workPackageId, projectId } }))
   )
     return failed("Lot invalide.");
-  const { contributorIds, ...fields } = input;
+  const { contributorIds, priority: wanted, ...rest } = input;
+  const blockingCount = taskId
+    ? await db.taskDependency.count({
+        where: { dependsOnId: taskId, task: { status: { notIn: ["TERMINE", "ANNULE"] } } },
+      })
+    : 0;
+  const fields = {
+    ...rest,
+    priorityLocked: wanted !== "AUTO",
+    priority:
+      wanted === "AUTO"
+        ? suggestPriority({
+            impact: rest.impact,
+            dueDate: rest.dueDate,
+            today: todayDate(),
+            blockingCount,
+            done: false,
+          }).priority
+        : wanted,
+  };
   if (taskId) {
     const before = await db.task.findFirst({ where: { id: taskId, projectId } });
     if (!before) return failed("Tâche introuvable.");
@@ -581,6 +612,8 @@ export async function saveTask(
         targetId: taskId,
         ...changes,
       });
+    if (fields.ownerId && fields.ownerId !== before.ownerId)
+      await notifyAssignment(taskId, fields.ownerId, fields.title, projectId, actor);
     return done({ id: taskId });
   }
   const position = await db.task.count({ where: { projectId } });
@@ -603,7 +636,28 @@ export async function saveTask(
     targetId: task.id,
     after: { title: task.title, ownerId: task.ownerId },
   });
+  if (task.ownerId) await notifyAssignment(task.id, task.ownerId, task.title, projectId, actor);
   return done({ id: task.id });
+}
+
+async function notifyAssignment(
+  taskId: string,
+  ownerId: string,
+  title: string,
+  projectId: string,
+  actor: Actor,
+) {
+  if (ownerId === actor.id) return;
+  const author = await getDb().user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  await notify({
+    userId: ownerId,
+    kind: "assignation",
+    title: `${author?.name ?? "Un associé"} vous a assigné « ${title} »`,
+    href: `/taches/${taskId}`,
+    projectId,
+    taskId,
+    dedupeKey: `assignation:${taskId}:${Date.now()}`,
+  });
 }
 
 export async function changeTaskStatus(
@@ -647,6 +701,27 @@ export async function changeTaskStatus(
     after: { status: to },
     reason: details.reason ?? undefined,
   });
+  if (to === "BLOQUE") {
+    // Tâche bloquée : responsable de la tâche et responsable global, aussi par e-mail.
+    const project = await db.project.findUnique({
+      where: { id: task.projectId },
+      select: { ownerId: true, name: true },
+    });
+    const people = new Set([task.ownerId, project?.ownerId].filter(Boolean) as string[]);
+    people.delete(actor.id);
+    for (const userId of people)
+      await notify({
+        userId,
+        kind: "blocage",
+        title: `Tâche bloquée : ${task.title}`,
+        body: `${details.reason ?? ""}${project ? ` (${project.name})` : ""}`,
+        href: `/taches/${taskId}`,
+        projectId: task.projectId,
+        taskId,
+        dedupeKey: `blocage:${taskId}:${Date.now()}`,
+        email: true,
+      });
+  }
   return done(null);
 }
 

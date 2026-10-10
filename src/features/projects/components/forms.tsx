@@ -15,7 +15,13 @@ import {
   saveTaskAction,
   updateProjectAction,
 } from "@/app/(app)/projets/actions";
-import { PHASES, priorityLabels, projectStatusLabels, taskStatusLabels } from "@/features/projects/labels";
+import {
+  PHASES,
+  impactLabels,
+  priorityLabels,
+  projectStatusLabels,
+  taskStatusLabels,
+} from "@/features/projects/labels";
 
 type Opt = { value: string; label: string };
 type Action = (prev: FormState, data: FormData) => Promise<FormState>;
@@ -238,6 +244,8 @@ export function TaskForm(props: {
     ownerId: string | null;
     contributorIds: string[];
     priority: string;
+    priorityLocked: boolean;
+    impact: string;
     startDate: string;
     dueDate: string;
     estimatedHours: string;
@@ -270,12 +278,25 @@ export function TaskForm(props: {
           options={[{ value: "", label: "Non assignée" }, ...props.associates]}
         />
         <SelectField
-          name="priority"
-          label="Priorité"
-          defaultValue={t?.priority ?? "NORMALE"}
-          options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))}
+          name="impact"
+          label="Impact"
+          defaultValue={t?.impact ?? "MOYEN"}
+          options={Object.entries(impactLabels).map(([value, label]) => ({ value, label }))}
         />
       </div>
+      <SelectField
+        name="priority"
+        label="Priorité"
+        hint="Automatique : calculée selon l'impact, l'échéance, le retard et les tâches bloquées. Une valeur choisie est verrouillée."
+        defaultValue={t ? (t.priorityLocked ? t.priority : "AUTO") : "AUTO"}
+        options={[
+          { value: "AUTO", label: "Automatique (suggérée)" },
+          ...Object.entries(priorityLabels).map(([value, label]) => ({
+            value,
+            label: `${label} (verrouillée)`,
+          })),
+        ]}
+      />
       <CheckboxGroup
         name="contributorIds"
         label="Contributeurs"

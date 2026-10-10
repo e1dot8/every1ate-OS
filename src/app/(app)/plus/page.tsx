@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Archive, ChevronRight, LogOut, Palette, ShieldCheck, UserPlus, type LucideIcon } from "lucide-react";
+import {
+  Archive,
+  Bell,
+  ChevronRight,
+  LogOut,
+  Palette,
+  ShieldCheck,
+  Timer,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/session";
@@ -38,6 +48,8 @@ async function Menu() {
   await requireUser();
   return (
     <Card className="gap-0 py-1">
+      <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
+      <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
       <Row
         href="/plus/securite"
         icon={ShieldCheck}
@@ -65,7 +77,7 @@ export default function MorePage() {
         <Menu />
       </Suspense>
       <p className="text-sm text-muted-foreground">
-        Finance, Calendrier, Temps, Clients, Documents et Archives s&apos;ajouteront ici au fil des lots.
+        Finance, Calendrier, Clients et Documents s&apos;ajouteront ici au fil des lots.
       </p>
     </div>
   );

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Priority, ProjectPhase, ProjectStatus, TaskStatus } from "@/generated/prisma/enums";
+import type { Impact, Priority, ProjectPhase, ProjectStatus, TaskStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth/session";
 import { parseDateInput } from "@/lib/dates";
 import { keptValues, validationError, type FormState } from "@/lib/forms";
@@ -21,6 +21,7 @@ import {
   toggleClosureItem,
   updateProject,
 } from "@/features/projects/service";
+import { addComment, deleteComment } from "@/features/planning/service";
 
 const PHASES = ["RECETTE", "PREPARATION", "CUISSON", "DRESSAGE", "SERVICE"] as const;
 const PROJECT_STATUSES = ["A_PREPARER", "ACTIF", "EN_ATTENTE", "BLOQUE", "TERMINE", "ARCHIVE"] as const;
@@ -33,7 +34,8 @@ const TASK_STATUSES = [
   "BLOQUE",
   "ANNULE",
 ] as const;
-const PRIORITIES = ["BASSE", "NORMALE", "HAUTE", "URGENTE"] as const;
+const PRIORITIES = ["AUTO", "BASSE", "NORMALE", "HAUTE", "URGENTE"] as const;
+const IMPACTS = ["FAIBLE", "MOYEN", "FORT"] as const;
 
 const optionalText = z
   .string()
@@ -251,6 +253,7 @@ const taskSchema = z.object({
     .optional()
     .transform((v) => v || null),
   priority: z.enum(PRIORITIES),
+  impact: z.enum(IMPACTS).default("MOYEN"),
   startDate: dateInput,
   dueDate: dateInput,
   estimatedHours: z
@@ -275,7 +278,8 @@ export async function saveTaskAction(_prev: FormState, formData: FormData): Prom
     taskId || null,
     {
       ...data,
-      priority: data.priority as Priority,
+      priority: data.priority as Priority | "AUTO",
+      impact: data.impact as Impact,
       estimatedMinutes: estimatedHours,
       contributorIds: formData.getAll("contributorIds").map(String),
     },
@@ -349,4 +353,27 @@ export async function restoreProjectAction(formData: FormData) {
   await changeProjectStatus(projectId, "TERMINE", null, user);
   revalidatePath("/plus/archives");
   revalidatePath("/projets");
+}
+
+// ─── Commentaires ───────────────────────────────────────────────────────────
+
+const commentSchema = z.object({
+  taskId: z.string().min(1),
+  body: z.string().trim().min(1, "Écrivez un commentaire.").max(5000),
+});
+
+export async function addCommentAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = commentSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return validationError(parsed.error, formData);
+  const result = await addComment(parsed.data.taskId, parsed.data.body, user);
+  if (!result.ok) return failure(result.error, formData);
+  revalidatePath(`/taches/${parsed.data.taskId}`);
+  return { status: "success", message: "Commentaire publié." };
+}
+
+export async function deleteCommentAction(formData: FormData) {
+  const user = await requireUser();
+  const result = await deleteComment(String(formData.get("commentId")), user);
+  if (result.ok) revalidatePath(`/taches/${result.data.taskId}`);
 }

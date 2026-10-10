@@ -45,6 +45,8 @@ async function EditTask({ params }: { params: Promise<{ id: string }> }) {
             ownerId: task.ownerId,
             contributorIds: task.contributors.map((c) => c.userId),
             priority: task.priority,
+            priorityLocked: task.priorityLocked,
+            impact: task.impact,
             startDate: toDateInput(task.startDate),
             dueDate: toDateInput(task.dueDate),
             estimatedHours: task.estimatedMinutes

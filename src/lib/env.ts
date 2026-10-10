@@ -28,6 +28,8 @@ export const serverEnvSchema = z
     EMAIL_FROM: z.string().min(3).default("Every1.ate OS <notifications@every1ate.com>"),
     /** Vérification des mots de passe dans les fuites connues (Have I Been Pwned). */
     PASSWORD_BREACH_CHECK: z.enum(["on", "off"]).default("on"),
+    /** Secret partagé avec la fonction planifiée Netlify (escalades, priorités). */
+    CRON_SECRET: z.string().min(32, { message: "doit contenir au moins 32 caractères" }).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.EMAIL_TRANSPORT === "resend" && !env.RESEND_API_KEY) {

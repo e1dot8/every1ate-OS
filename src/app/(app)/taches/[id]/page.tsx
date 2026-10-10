@@ -16,12 +16,18 @@ import { getTask } from "@/features/projects/service";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { formatDateTime, formatDay } from "@/lib/dates";
-import { archiveAction, removeDependencyAction } from "../../projets/actions";
+import { archiveAction, deleteCommentAction, removeDependencyAction } from "../../projets/actions";
+import { CommentForm } from "@/features/planning/components/comment-form";
+import { listComments, taskPrioritySuggestion } from "@/features/planning/service";
+import { formatMinutes } from "@/features/planning/rules";
+import { ManualTimeForm, TimerControl } from "@/features/time/components/timer";
+import { getActiveTimer, taskTime } from "@/features/time/service";
+import { toDateInput, todayDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Tâche" };
 
 async function TaskView({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const task = await getTask(id);
   if (!task) notFound();
@@ -38,6 +44,13 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
       take: 30,
     }),
   ]);
+  const [suggestion, comments, time, active] = await Promise.all([
+    taskPrioritySuggestion(id),
+    listComments(id),
+    taskTime(id),
+    getActiveTimer(user.id),
+  ]);
+  const runningHere = active?.taskId === id ? active.startedAt!.toISOString() : null;
   const names = new Map(
     (await db.user.findMany({ select: { id: true, name: true } })).map((u) => [u.id, u.name]),
   );
@@ -78,7 +91,11 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
                 "Durée estimée",
                 task.estimatedMinutes ? `${Math.round((task.estimatedMinutes / 60) * 10) / 10} h` : "—",
               ],
-              ["Priorité", priorityLabels[task.priority]],
+              [
+                "Priorité",
+                `${priorityLabels[task.priority]}${task.priorityLocked ? " · verrouillée" : " · auto"}`,
+              ],
+              ["Temps passé", time.total ? formatMinutes(time.total) : "—"],
             ].map(([k, v]) => (
               <div
                 key={String(k)}
@@ -144,6 +161,61 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
               <TaskStatusForm taskId={id} status={task.status} />
             </Card>
           ) : null}
+          {suggestion && !task.archivedAt ? (
+            <Card className="gap-2">
+              <CardTitle>Priorité suggérée : {priorityLabels[suggestion.priority]}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {task.priorityLocked
+                  ? `Priorité verrouillée sur « ${priorityLabels[task.priority]} » : aucun calcul ne la remplace.`
+                  : "Priorité automatique : recalculée chaque heure à partir de ces critères."}
+              </p>
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="Détail du calcul">
+                {suggestion.reasons.map((r) => (
+                  <li key={r} className="font-annotation text-pen-strong">
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+          {!task.archivedAt ? (
+            <Card className="gap-3">
+              <CardTitle>Suivi du temps</CardTitle>
+              <TimerControl taskId={id} startedAt={runningHere} />
+              {active && !runningHere ? (
+                <p className="text-sm text-muted-foreground">
+                  Chronomètre en cours sur « {active.task.title} ».
+                </p>
+              ) : null}
+              <details className="group">
+                <summary className="min-h-tap cursor-pointer py-2 font-bold">
+                  Saisir du temps manuellement
+                </summary>
+                <ManualTimeForm taskId={id} today={toDateInput(todayDate())} />
+              </details>
+              {time.entries.length ? (
+                <ul className="flex flex-col gap-1 border-t pt-2 text-sm">
+                  {time.entries.slice(0, 10).map((e) => (
+                    <li key={e.id} className="flex gap-2">
+                      <span className="text-muted-foreground">{formatDay(e.date)}</span>
+                      <b>{e.user.name}</b>
+                      <span>
+                        {e.endedAt || e.source === "MANUEL"
+                          ? formatMinutes(e.durationMinutes ?? 0)
+                          : "en cours"}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {e.source === "TIMER" ? "chrono" : "saisie"}
+                      </span>
+                      {e.comment ? (
+                        <span className="truncate text-muted-foreground">— {e.comment}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </Card>
+          ) : null}
           <Card className="gap-3">
             <CardTitle>Dépendances</CardTitle>
             <ul className="flex flex-col gap-2">
@@ -189,6 +261,38 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
                   .map((o) => ({ value: o.id, label: o.title }))}
               />
             ) : null}
+          </Card>
+          <Card className="gap-3" id="commentaires">
+            <CardTitle>Commentaires</CardTitle>
+            <ol className="flex flex-col gap-3">
+              {comments.map((c) => (
+                <li key={c.id} className="flex flex-col gap-1 border-b pb-3 last:border-b-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Avatar name={c.author.name} />
+                    <b>{c.author.name}</b>
+                    <span className="text-muted-foreground">{formatDateTime(c.createdAt)}</span>
+                    {c.authorId === user.id ? (
+                      <form action={deleteCommentAction} className="ml-auto">
+                        <input type="hidden" name="commentId" value={c.id} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Supprimer mon commentaire"
+                        >
+                          <X aria-hidden="true" />
+                        </Button>
+                      </form>
+                    ) : null}
+                  </div>
+                  <p className="whitespace-pre-line">{c.body}</p>
+                </li>
+              ))}
+              {!comments.length ? (
+                <li className="text-sm text-muted-foreground">Aucun commentaire.</li>
+              ) : null}
+            </ol>
+            {!task.archivedAt ? <CommentForm taskId={id} /> : null}
           </Card>
           <Card className="gap-2">
             <CardTitle>Historique</CardTitle>

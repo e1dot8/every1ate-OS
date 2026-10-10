@@ -2,7 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { AlertOctagon, CalendarDays, Check, Layers, ListChecks, Pencil, Plus } from "lucide-react";
+import {
+  AlertOctagon,
+  CalendarDays,
+  Check,
+  GanttChart,
+  Layers,
+  ListChecks,
+  Pencil,
+  Plus,
+} from "lucide-react";
 import {
   Avatar,
   BackLink,
@@ -77,7 +86,12 @@ async function ProjectView({
           </p>
         </div>
         {!project.archivedAt ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/projets/${id}/roadmap`}>
+                <GanttChart aria-hidden="true" /> Roadmap
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href={`/projets/${id}/modifier`}>
                 <Pencil aria-hidden="true" /> Modifier

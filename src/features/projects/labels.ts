@@ -56,3 +56,9 @@ export const taskStatusTone: Record<TaskStatus, BadgeTone> = {
   BLOQUE: "danger",
   ANNULE: "neutral",
 };
+
+export const impactLabels: Record<"FAIBLE" | "MOYEN" | "FORT", string> = {
+  FAIBLE: "Faible",
+  MOYEN: "Moyen",
+  FORT: "Fort",
+};

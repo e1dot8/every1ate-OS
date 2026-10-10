@@ -32,3 +32,19 @@ export function resetPasswordEmail(input: { to: string; name: string; url: strin
       signature,
   };
 }
+
+export function notificationEmail(input: {
+  to: string;
+  name: string;
+  title: string;
+  body?: string;
+  url: string;
+}): EmailMessage {
+  return {
+    to: input.to,
+    subject: input.title,
+    text:
+      `Bonjour ${input.name},\n\n${input.title}\n${input.body ? `${input.body}\n` : ""}\nOuvrir : ${input.url}` +
+      signature,
+  };
+}
