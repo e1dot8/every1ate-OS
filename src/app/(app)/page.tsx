@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Gauge, Plus, Timer } from "lucide-react";
+import { Gauge } from "lucide-react";
 import { EmptyState, TaskRow, isLate } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
-import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { comparePriority, formatMinutes, isDueSoon } from "@/features/planning/rules";
 import { listTasksForUser } from "@/features/projects/service";
@@ -12,6 +11,8 @@ import { userTotals } from "@/features/time/service";
 import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, todayDate } from "@/lib/dates";
 import { upcomingEvents } from "@/features/calendar/service";
+import { BriefCard } from "@/features/brief/brief-card";
+import { getBrief } from "@/features/brief/service";
 
 export const metadata: Metadata = { title: "Mon espace" };
 
@@ -44,10 +45,11 @@ function Section({ title, children, href }: { title: string; children: React.Rea
 async function Dashboard() {
   const user = await requireUser();
   const today = todayDate();
-  const [tasks, totals, events] = await Promise.all([
+  const [tasks, totals, events, brief] = await Promise.all([
     listTasksForUser(user.id),
     userTotals(user.id),
     upcomingEvents(user.id),
+    getBrief(user.id),
   ]);
   const late = tasks.filter((t) => isLate(t));
   const soon = tasks.filter((t) => isDueSoon(t.dueDate, today));
@@ -62,24 +64,13 @@ async function Dashboard() {
     .slice(0, 5);
   return (
     <>
-      <PageHeader title={`Bonjour ${user.name}`} description={todayInParis()} />
-      <div className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link href="/projets/nouveau">
-            <Plus aria-hidden="true" /> Nouveau projet
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/cockpit">
-            <Gauge aria-hidden="true" /> Cockpit agence
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/temps">
-            <Timer aria-hidden="true" /> Saisir du temps
-          </Link>
-        </Button>
+      <div className="flex items-end justify-between gap-3">
+        <PageHeader title={`Bonjour ${user.name}`} description={todayInParis()} />
+        <Link href="/cockpit" className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted">
+          <Gauge aria-hidden="true" className="size-4" /> Cockpit
+        </Link>
       </div>
+      <BriefCard brief={brief} />
       <div className="grid grid-cols-3 gap-3">
         <Card className="gap-0.5 py-3">
           <p className="text-xs text-muted-foreground">En retard</p>

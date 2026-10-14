@@ -10,6 +10,7 @@ import type {
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
+import { toCents } from "@/lib/money";
 import { notify } from "@/features/notifications/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
@@ -858,6 +859,70 @@ export async function removeDependency(
     targetType: "task",
     targetId: taskId,
     before: { dependsOn: dep.dependsOn.title },
+  });
+  return done(null);
+}
+
+// ─── Clôture semi-automatique et satisfaction ─────────────────────────────
+
+/** Faits vérifiables pour la checklist de clôture (comptages, sans rien modifier). */
+export async function closureFacts(projectId: string) {
+  const db = getDb();
+  const [openTasks, costsNotPaid, billing, documents] = await Promise.all([
+    db.task.count({ where: { projectId, archivedAt: null, status: { notIn: ["TERMINE", "ANNULE"] } } }),
+    db.costItem.count({
+      where: { projectId, archivedAt: null, status: { in: ["PREVU", "ENGAGE", "FACTURE"] } },
+    }),
+    db.billingMilestone.findMany({
+      where: { projectId, archivedAt: null, status: { not: "ANNULE" } },
+      select: { amount: true, payments: { where: { deletedAt: null }, select: { amount: true } } },
+    }),
+    db.fileReference.count({ where: { projectId, archivedAt: null } }),
+  ]);
+  const billingNotCollected = billing.filter(
+    (b) => b.payments.reduce((n, p) => n + toCents(p.amount), 0) < toCents(b.amount),
+  ).length;
+  return { openTasks, costsNotPaid, billingNotCollected, documents };
+}
+
+/** Coche en une fois les points que les données confirment ; trace « vérifié automatiquement ». */
+export async function checkVerifiedClosureItems(
+  projectId: string,
+  keys: string[],
+  actor: Actor,
+): Promise<ServiceResult<{ checked: number }>> {
+  const db = getDb();
+  const items = await db.closureItem.findMany({ where: { projectId, key: { in: keys }, checked: false } });
+  const note = `Vérifié automatiquement le ${new Date().toISOString().slice(0, 10)}`;
+  for (const item of items) await toggleClosureItem(projectId, item.id, true, note, actor);
+  return done({ checked: items.length });
+}
+
+export async function saveSatisfaction(
+  projectId: string,
+  score: number | null,
+  note: string | null,
+  actor: Actor,
+): Promise<ServiceResult<null>> {
+  if (score != null && (!Number.isInteger(score) || score < 1 || score > 5))
+    return failed("Note entre 1 et 5.");
+  const db = getDb();
+  const before = await db.project.findUnique({
+    where: { id: projectId },
+    select: { clientSatisfaction: true, satisfactionNote: true },
+  });
+  if (!before) return failed("Projet introuvable.");
+  const data = { clientSatisfaction: score, satisfactionNote: note };
+  const changes = diff(before, data);
+  if (!changes.changed) return done(null);
+  await db.project.update({ where: { id: projectId }, data });
+  await recordAudit({
+    action: "project.satisfaction",
+    actorId: actor.id,
+    projectId,
+    targetType: "project",
+    targetId: projectId,
+    ...changes,
   });
   return done(null);
 }

@@ -12,9 +12,11 @@ import {
   changeProjectOwner,
   changeProjectStatus,
   changeTaskStatus,
+  checkVerifiedClosureItems,
   createProject,
   removeDependency,
   saveClosingReview,
+  saveSatisfaction,
   saveTask,
   saveWorkPackage,
   setArchived,
@@ -380,4 +382,34 @@ export async function deleteCommentAction(formData: FormData) {
   const user = await requireUser();
   const result = await deleteComment(String(formData.get("commentId")), user);
   if (result.ok) revalidatePath(`/taches/${result.data.taskId}`);
+}
+
+export async function checkVerifiedClosureAction(formData: FormData) {
+  const user = await requireUser();
+  const projectId = String(formData.get("projectId"));
+  const keys = formData
+    .getAll("key")
+    .map(String)
+    .filter((k) => ["taches", "couts", "facturation", "bilan"].includes(k));
+  await checkVerifiedClosureItems(projectId, keys, user);
+  revalidatePath(`/projets/${projectId}`);
+}
+
+const satisfactionSchema = z.object({
+  projectId: z.string().min(1),
+  score: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : null)),
+  note: optionalText,
+});
+
+export async function saveSatisfactionAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = satisfactionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return validationError(parsed.error, formData);
+  const result = await saveSatisfaction(parsed.data.projectId, parsed.data.score, parsed.data.note, user);
+  if (!result.ok) return failure(result.error, formData);
+  revalidatePath(`/projets/${parsed.data.projectId}`);
+  return { status: "success", message: "Satisfaction enregistrée." };
 }

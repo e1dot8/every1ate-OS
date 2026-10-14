@@ -36,7 +36,7 @@ test.describe("roadmap", () => {
     const [succId] = await successorsOf(first.id);
     const succBefore = tasks.find((t) => t.id === succId)!;
 
-    await page.goto(`/projets/${id}/roadmap`);
+    await page.goto(`/projets/${id}/roadmap?vue=gantt`);
     await expect(page.getByRole("heading", { level: 1, name: "Roadmap" })).toBeVisible();
     const bar = page.getByTestId(`bar-${first.id}`);
     await bar.focus();
@@ -70,7 +70,7 @@ test.describe("roadmap", () => {
     const [succId] = await successorsOf(first.id);
     const succBefore = tasks.find((t) => t.id === succId)!;
 
-    await page.goto(`/projets/${id}/roadmap`);
+    await page.goto(`/projets/${id}/roadmap?vue=gantt`);
     const bar = page.getByTestId(`bar-${first.id}`);
     await expect(bar).toBeVisible();
     await bar.scrollIntoViewIfNeeded();
@@ -92,7 +92,7 @@ test.describe("roadmap", () => {
   test("jalon ajouté puis affiché sur la roadmap", async ({ page }) => {
     await activateAssociate(page, "Charles");
     const id = await createProjectFromTemplate(page, "Roadmap jalons");
-    await page.goto(`/projets/${id}/roadmap`);
+    await page.goto(`/projets/${id}/roadmap?vue=gantt`);
     await page.getByLabel("Nom du jalon").fill("Validation client");
     await page.getByLabel("Date", { exact: true }).fill("2026-11-20");
     await page.getByRole("button", { name: "Ajouter le jalon" }).click();

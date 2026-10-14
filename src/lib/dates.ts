@@ -84,3 +84,17 @@ export function formatWeekday(date: Date): string {
   }).format(date);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** Ajoute des mois en restant dans le mois cible (31 janv. + 1 mois → 28/29 févr.). */
+export function addMonths(date: Date, months: number): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth() + months;
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(date.getUTCDate(), last)));
+}
+
+/** Lundi à vendredi. */
+export function isWorkingDay(date: Date): boolean {
+  const d = date.getUTCDay();
+  return d !== 0 && d !== 6;
+}

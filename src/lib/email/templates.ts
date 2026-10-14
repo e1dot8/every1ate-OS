@@ -48,3 +48,22 @@ export function notificationEmail(input: {
       signature,
   };
 }
+
+export function digestEmail(input: {
+  to: string;
+  name: string;
+  summary: string;
+  items: { title: string; detail?: string; href: string }[];
+  appUrl: string;
+  weekly: boolean;
+}): EmailMessage {
+  const lines = input.items.slice(0, 15).map((i) => `• ${i.title}${i.detail ? ` (${i.detail})` : ""}\n  ${input.appUrl}${i.href}`);
+  return {
+    to: input.to,
+    subject: `${input.weekly ? "Votre semaine" : "Votre journée"} : ${input.summary}`,
+    text:
+      `Bonjour ${input.name},\n\n${input.summary}\n\n${lines.join("\n")}\n\nTout voir : ${input.appUrl}/\n` +
+      `Vous recevez ce récapitulatif parce que vous l'avez activé (Plus › Réglages). Vous pouvez le désactiver à tout moment.` +
+      signature,
+  };
+}

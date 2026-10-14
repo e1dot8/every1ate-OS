@@ -17,7 +17,7 @@ async function NewLot({ params }: { params: Promise<{ id: string }> }) {
   if (!project || project.archivedAt) notFound();
   return (
     <>
-      <BackLink href={`/projets/${id}?onglet=lots`}>{project.name}</BackLink>
+      <BackLink href={`/projets/${id}?onglet=vue`}>{project.name}</BackLink>
       <PageHeader title="Nouveau lot" />
       <Card className="max-w-2xl">
         <LotForm projectId={id} associates={associates.map((a) => ({ value: a.id, label: a.name }))} />

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Bell, Timer } from "lucide-react";
+import { Bell, Search, Timer } from "lucide-react";
+import { QuickAdd } from "@/components/app/quick-add";
 import { Elapsed } from "@/features/time/components/timer";
 import { unreadCount } from "@/features/notifications/service";
 import { getActiveTimer } from "@/features/time/service";
@@ -22,6 +23,14 @@ export async function TopBar() {
           <Elapsed startedAt={active.startedAt!.toISOString()} />
         </Link>
       ) : null}
+      <Link
+        href="/recherche"
+        aria-label="Rechercher"
+        className="inline-flex size-tap items-center justify-center rounded-full hover:bg-muted"
+      >
+        <Search aria-hidden="true" className="size-5" />
+      </Link>
+      <QuickAdd />
       <Link
         href="/notifications"
         aria-label={unread ? `Notifications, ${unread} non lue${unread > 1 ? "s" : ""}` : "Notifications"}

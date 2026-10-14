@@ -64,6 +64,8 @@ export function summarize(input: {
   billing: BillingLine[];
   payments: PaymentLine[];
   today: Date;
+  /** Temps valorisé au coût horaire interne (centimes) ; null si aucun taux n'est défini. */
+  time?: { logged: number | null; planned: number | null };
 }) {
   const live = input.costs.filter((c) => c.status !== "ANNULE");
   const costsPlanned = sum(live, (c) => c.amount);
@@ -120,6 +122,17 @@ export function summarize(input: {
     forecastCost,
     marginForecast: revenuePlanned - forecastCost,
     marginActual: billingInvoiced - costsActual,
+    // Temps : coût interne des heures (prévues ou passées, la plus grande des deux) — n'est ni un
+    // décaissement fournisseur ni un montant facturable.
+    timeCostLogged: input.time?.logged ?? null,
+    timeCostForecast:
+      input.time && input.time.logged != null ? Math.max(input.time.logged, input.time.planned ?? 0) : null,
+    marginForecastAfterTime:
+      input.time && input.time.logged != null
+        ? revenuePlanned - forecastCost - Math.max(input.time.logged, input.time.planned ?? 0)
+        : null,
+    marginActualAfterTime:
+      input.time && input.time.logged != null ? billingInvoiced - costsActual - input.time.logged : null,
     budgetConsumedPct: input.budget?.cost ? Math.round((costsCommitted / input.budget.cost) * 100) : null,
   };
 }

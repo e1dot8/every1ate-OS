@@ -49,7 +49,7 @@ async function Files({ searchParams }: { searchParams: Promise<{ q?: string }> }
                   </a>
                   <span className="truncate text-muted-foreground">
                     {f.project ? (
-                      <Link href={`/projets/${f.project.id}?onglet=documents`} className="underline">
+                      <Link href={`/projets/${f.project.id}?onglet=docs`} className="underline">
                         {f.project.name}
                       </Link>
                     ) : f.client ? (

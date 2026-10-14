@@ -9,8 +9,10 @@ import {
   ChevronRight,
   FileText,
   LogOut,
+  NotebookPen,
   Palette,
   ShieldCheck,
+  SlidersHorizontal,
   Smartphone,
   Timer,
   UserPlus,
@@ -60,19 +62,31 @@ async function Menu() {
         title="Calendrier"
         detail="Réunions, échéances, abonnement Google/Apple"
       />
-      <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
-      <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, coûts, échéancier, imports, MRR" />
-      <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
-      <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
       <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
+      <Row
+        href="/notes"
+        icon={NotebookPen}
+        title="Comptes rendus"
+        detail="Notes de réunion transformées en tâches"
+      />
+      <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, trésorerie, analyses, imports" />
+      <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
+      <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
       <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
+      <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
+      <Row
+        href="/plus/reglages"
+        icon={SlidersHorizontal}
+        title="Réglages"
+        detail="Mon brief, coût du temps, capacité"
+      />
+      <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
       <Row
         href="/plus/securite"
         icon={ShieldCheck}
         title="Sécurité"
         detail="Mot de passe, appareils connectés"
       />
-      <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
       <Row href="/plus/archives" icon={Archive} title="Archives" detail="Projets, lots et tâches archivés" />
       <Row
         href="/plus/installer"

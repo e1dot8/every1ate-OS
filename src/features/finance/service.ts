@@ -11,6 +11,8 @@ import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { centsToDecimal, toCents } from "@/lib/money";
 import { budgetRuleTriggered, mrr, summarize, type Budget } from "@/features/finance/calc";
+import { loggedTimeCost, plannedTimeCost, type RateOf } from "@/features/finance/time-cost";
+import { loadRates } from "@/features/settings/service";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
 import type { ServiceResult } from "@/features/projects/service";
 
@@ -41,6 +43,69 @@ function budgetsFor(
   return {
     current: toBudget(sorted.at(-1)),
     initial: toBudget(sorted.find((r) => r.isInitial) ?? sorted[0]),
+  };
+}
+
+type TimeRow = { projectId: string; userId: string; taskId: string; minutes: number };
+type TaskRow = {
+  id: string;
+  projectId: string;
+  workPackageId: string | null;
+  ownerId: string | null;
+  estimatedMinutes: number | null;
+  status: string;
+};
+
+/** Temps passé (groupé) et tâches des projets donnés, en deux requêtes. */
+async function timeData(projectIds: string[]) {
+  const db = getDb();
+  const [groups, tasks] = await Promise.all([
+    db.timeEntry.groupBy({
+      by: ["projectId", "userId", "taskId"],
+      where: { deletedAt: null, projectId: { in: projectIds } },
+      _sum: { durationMinutes: true },
+    }),
+    db.task.findMany({
+      where: { projectId: { in: projectIds }, archivedAt: null },
+      select: {
+        id: true,
+        projectId: true,
+        workPackageId: true,
+        ownerId: true,
+        estimatedMinutes: true,
+        status: true,
+      },
+    }),
+  ]);
+  const rows: TimeRow[] = groups.map((g) => ({
+    projectId: g.projectId,
+    userId: g.userId,
+    taskId: g.taskId,
+    minutes: g._sum.durationMinutes ?? 0,
+  }));
+  return { rows, tasks: tasks as TaskRow[] };
+}
+
+/** Coût du temps (passé, prévu) pour un sous-ensemble de lignes ; null si aucun taux défini. */
+function timeFor(rows: TimeRow[], tasks: TaskRow[], rateOf: RateOf, anyRate: boolean) {
+  const minutes = rows.reduce((n, r) => n + r.minutes, 0);
+  if (!anyRate) return { minutes, time: { logged: null, planned: null } };
+  const loggedByTask = new Map<string, number>();
+  for (const r of rows) loggedByTask.set(r.taskId, (loggedByTask.get(r.taskId) ?? 0) + r.minutes);
+  return {
+    minutes,
+    time: {
+      logged: loggedTimeCost(rows, rateOf).cost,
+      planned: plannedTimeCost(
+        tasks.map((t) => ({
+          ownerId: t.ownerId,
+          estimatedMinutes: t.estimatedMinutes,
+          loggedMinutes: loggedByTask.get(t.id) ?? 0,
+          cancelled: t.status === "ANNULE",
+        })),
+        rateOf,
+      ),
+    },
   };
 }
 
@@ -92,6 +157,9 @@ export async function projectFinance(projectId: string) {
     amount: toCents(p.amount),
     billingMilestoneId: p.billingMilestoneId,
   }));
+  const [{ rateOf, anyRate }, td] = await Promise.all([loadRates(), timeData([projectId])]);
+  const taskLot = new Map(td.tasks.map((t) => [t.id, t.workPackageId]));
+  const projectTime = timeFor(td.rows, td.tasks, rateOf, anyRate);
   const projectBudget = budgetsFor(revisions, null);
   const summary = summarize({
     budget: projectBudget.current,
@@ -100,6 +168,7 @@ export async function projectFinance(projectId: string) {
     billing: billingLines,
     payments: paymentLines,
     today,
+    time: projectTime.time,
   });
   const byLot = lots.map((l) => {
     const b = budgetsFor(revisions, l.id);
@@ -114,12 +183,14 @@ export async function projectFinance(projectId: string) {
         billing: lotBilling,
         payments: paymentLines.filter((p) => p.billingMilestoneId && ids.has(p.billingMilestoneId)),
         today,
+        time: timeFor(
+          td.rows.filter((r) => taskLot.get(r.taskId) === l.id),
+          td.tasks.filter((t) => t.workPackageId === l.id),
+          rateOf,
+          anyRate,
+        ).time,
       }),
     };
-  });
-  const minutes = await db.timeEntry.aggregate({
-    where: { projectId, deletedAt: null },
-    _sum: { durationMinutes: true },
   });
   return {
     project,
@@ -131,7 +202,8 @@ export async function projectFinance(projectId: string) {
     summary,
     byLot,
     today,
-    minutes: minutes._sum.durationMinutes ?? 0,
+    minutes: projectTime.minutes,
+    timeValued: anyRate,
   };
 }
 
@@ -521,16 +593,96 @@ export async function getContract(id: string) {
 
 // ─── Vue agence ─────────────────────────────────────────────────────────────
 
+/**
+ * Synthèse de tous les projets non archivés, en un nombre fixe de requêtes
+ * (au lieu d'une série de requêtes par projet).
+ */
 export async function financeOverview() {
-  const projects = await getDb().project.findMany({
+  const db = getDb();
+  const projects = await db.project.findMany({
     where: { archivedAt: null },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, status: true, client: { select: { name: true } } },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      templateKey: true,
+      clientId: true,
+      ownerId: true,
+      startDate: true,
+      closedAt: true,
+      clientSatisfaction: true,
+      client: { select: { name: true } },
+    },
   });
-  const rows = [];
-  for (const p of projects) {
-    const f = await projectFinance(p.id);
-    if (f) rows.push({ ...p, summary: f.summary });
-  }
-  return rows;
+  const ids = projects.map((p) => p.id);
+  const [revisions, costs, billing, payments, td, { rateOf, anyRate }] = await Promise.all([
+    db.budgetRevision.findMany({ where: { projectId: { in: ids } } }),
+    db.costItem.findMany({
+      where: { projectId: { in: ids }, archivedAt: null },
+      select: { projectId: true, amount: true, status: true, rebillable: true, workPackageId: true },
+    }),
+    db.billingMilestone.findMany({
+      where: { projectId: { in: ids }, archivedAt: null },
+      select: {
+        id: true,
+        projectId: true,
+        amount: true,
+        status: true,
+        plannedDate: true,
+        workPackageId: true,
+      },
+    }),
+    db.paymentRecord.findMany({
+      where: { projectId: { in: ids }, deletedAt: null },
+      select: { projectId: true, amount: true, billingMilestoneId: true },
+    }),
+    timeData(ids),
+    loadRates(),
+  ]);
+  const by = <T extends { projectId: string }>(list: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const x of list) m.set(x.projectId, [...(m.get(x.projectId) ?? []), x]);
+    return m;
+  };
+  const [rev, cost, bill, pay, time, tasks] = [
+    by(revisions),
+    by(costs),
+    by(billing),
+    by(payments),
+    by(td.rows),
+    by(td.tasks),
+  ];
+  const today = todayDate();
+  return projects.map((p) => {
+    const b = budgetsFor(rev.get(p.id) ?? [], null);
+    const t = timeFor(time.get(p.id) ?? [], tasks.get(p.id) ?? [], rateOf, anyRate);
+    return {
+      ...p,
+      minutes: t.minutes,
+      summary: summarize({
+        budget: b.current,
+        initial: b.initial,
+        costs: (cost.get(p.id) ?? []).map((c) => ({
+          amount: toCents(c.amount),
+          status: c.status,
+          rebillable: c.rebillable,
+          workPackageId: c.workPackageId,
+        })),
+        billing: (bill.get(p.id) ?? []).map((x) => ({
+          id: x.id,
+          amount: toCents(x.amount),
+          status: x.status,
+          plannedDate: x.plannedDate,
+          workPackageId: x.workPackageId,
+        })),
+        payments: (pay.get(p.id) ?? []).map((x) => ({
+          amount: toCents(x.amount),
+          billingMilestoneId: x.billingMilestoneId,
+        })),
+        today,
+        time: t.time,
+      }),
+    };
+  });
 }

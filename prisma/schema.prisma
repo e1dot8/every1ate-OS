@@ -24,17 +24,25 @@ model SystemInfo {
 // Champs imposés par Better Auth : ne pas renommer sans adapter src/lib/auth/auth.ts.
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
+  id                  String          @id
+  name                String
+  email               String          @unique
+  emailVerified       Boolean         @default(false)
+  image               String?
   /// V1 : « associe » uniquement. V2 : collaborateur, prestataire, client.
-  role          String    @default("associe")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  role                String          @default("associe")
+  /// Coût horaire interne (centimes) : valorise le temps passé dans les marges.
+  hourlyCostCents     Int?
+  /// Capacité de travail hebdomadaire (heures) pour la charge à venir.
+  weeklyCapacityHours Int?
+  /// Récapitulatif par e-mail : désactivé par défaut (choix de chaque associé).
+  digestFrequency     DigestFrequency @default(AUCUN)
+  /// Jour du dernier récapitulatif envoyé (évite les doublons).
+  lastDigestOn        DateTime?       @db.Date
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  sessions            Session[]
+  accounts            Account[]
 
   invitationsSent Invitation[] @relation("InvitedBy")
 
@@ -59,6 +67,7 @@ model User {
   eventAttendances   EventAttendee[]
   calendarFeed       CalendarFeed?
   filesAdded         FileReference[]
+  meetingNotes       MeetingNote[]
 
   @@map("user")
 }
@@ -235,50 +244,55 @@ model Client {
   contracts     RecurringContract[]
   events        CalendarEvent[]
   files         FileReference[]
+  meetingNotes  MeetingNote[]
 
   @@index([name])
   @@map("client")
 }
 
 model Project {
-  id              String              @id @default(cuid())
-  name            String
-  description     String?
-  clientId        String?
-  client          Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  templateKey     String?
-  ownerId         String
-  owner           User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  phase           ProjectPhase        @default(RECETTE)
-  status          ProjectStatus       @default(A_PREPARER)
-  statusReason    String?
-  startDate       DateTime?           @db.Date
-  plannedEndDate  DateTime?           @db.Date
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  clientId           String?
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  templateKey        String?
+  ownerId            String
+  owner              User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  phase              ProjectPhase        @default(RECETTE)
+  status             ProjectStatus       @default(A_PREPARER)
+  statusReason       String?
+  startDate          DateTime?           @db.Date
+  plannedEndDate     DateTime?           @db.Date
   /// Fin prévue de référence (planning initial) pour la règle de retard majeur (§14.1).
-  baselineEndDate DateTime?           @db.Date
-  actualStartDate DateTime?           @db.Date
-  actualEndDate   DateTime?           @db.Date
-  closedAt        DateTime?
-  closedById      String?
-  closingReview   String?
-  archivedAt      DateTime?
-  createdById     String
-  createdBy       User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  workPackages    WorkPackage[]
-  tasks           Task[]
-  closureItems    ClosureItem[]
-  milestones      Milestone[]
-  opportunity     Opportunity?
-  budgetRevisions BudgetRevision[]
-  costItems       CostItem[]
-  billing         BillingMilestone[]
-  payments        PaymentRecord[]
-  contracts       RecurringContract[]
-  decisions       DecisionRequest[]
-  events          CalendarEvent[]
-  files           FileReference[]
+  baselineEndDate    DateTime?           @db.Date
+  actualStartDate    DateTime?           @db.Date
+  actualEndDate      DateTime?           @db.Date
+  closedAt           DateTime?
+  closedById         String?
+  closingReview      String?
+  /// Satisfaction exprimée par le client à la clôture (1 à 5).
+  clientSatisfaction Int?
+  satisfactionNote   String?
+  archivedAt         DateTime?
+  createdById        String
+  createdBy          User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  workPackages       WorkPackage[]
+  tasks              Task[]
+  closureItems       ClosureItem[]
+  milestones         Milestone[]
+  opportunity        Opportunity?
+  budgetRevisions    BudgetRevision[]
+  costItems          CostItem[]
+  billing            BillingMilestone[]
+  payments           PaymentRecord[]
+  contracts          RecurringContract[]
+  decisions          DecisionRequest[]
+  events             CalendarEvent[]
+  files              FileReference[]
+  meetingNotes       MeetingNote[]
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -341,6 +355,10 @@ model Task {
   /// Priorité fixée à la main : aucun calcul ne la remplace (§7.4).
   priorityLocked    Boolean           @default(false)
   impact            Impact            @default(MOYEN)
+  recurrence        Recurrence        @default(AUCUNE)
+  recurrenceUntil   DateTime?         @db.Date
+  /// Occurrence suivante déjà créée (garantit une seule création).
+  nextOccurrenceId  String?           @unique
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
@@ -583,6 +601,7 @@ model Opportunity {
   updatedAt         DateTime              @updatedAt
   activities        OpportunityActivity[]
   events            CalendarEvent[]
+  meetingNotes      MeetingNote[]
 
   @@index([stage, archivedAt])
   @@index([ownerId])
@@ -962,6 +981,7 @@ model CalendarEvent {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   attendees     EventAttendee[]
+  meetingNotes  MeetingNote[]
 
   @@index([startsAt, endsAt])
   @@index([ownerId])
@@ -1027,4 +1047,92 @@ model FileReference {
   @@index([clientId])
   @@index([externalId])
   @@map("file_reference")
+}
+
+// ─── Évolutions V1.1 : pilotage gratuit, sans IA ────────────────────────────
+
+enum DigestFrequency {
+  AUCUN
+  QUOTIDIEN
+  HEBDOMADAIRE
+}
+
+enum Recurrence {
+  AUCUNE
+  HEBDOMADAIRE
+  MENSUELLE
+}
+
+enum ChargeFrequency {
+  MENSUELLE
+  TRIMESTRIELLE
+  ANNUELLE
+}
+
+/// Réglages de l'agence (une seule ligne).
+model AgencySetting {
+  id                     String    @id @default("default")
+  /// Coût horaire interne par défaut (centimes), si l'associé n'a pas le sien.
+  defaultHourlyCostCents Int?
+  defaultWeeklyHours     Int       @default(35)
+  /// Solde bancaire saisi à la main (point de départ de la trésorerie prévisionnelle).
+  cashBalance            Decimal?  @db.Decimal(12, 2)
+  cashBalanceDate        DateTime? @db.Date
+  updatedAt              DateTime  @updatedAt
+
+  @@map("agency_setting")
+}
+
+/// Charges fixes récurrentes (loyer, salaires, abonnements) pour la trésorerie à 90 jours.
+model RecurringCharge {
+  id         String          @id @default(cuid())
+  label      String
+  category   String?
+  amount     Decimal         @db.Decimal(12, 2)
+  frequency  ChargeFrequency @default(MENSUELLE)
+  nextDate   DateTime        @db.Date
+  endDate    DateTime?       @db.Date
+  archivedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("recurring_charge")
+}
+
+/// Objectifs annuels de l'agence (chiffre d'affaires facturé, marge, nombre de projets).
+model AnnualObjective {
+  year         Int      @id
+  revenue      Decimal? @db.Decimal(12, 2)
+  margin       Decimal? @db.Decimal(12, 2)
+  projectCount Int?
+  updatedAt    DateTime @updatedAt
+
+  @@map("annual_objective")
+}
+
+/// Compte rendu de réunion : les lignes d'action deviennent des tâches après confirmation.
+model MeetingNote {
+  id            String         @id @default(cuid())
+  title         String
+  body          String
+  occurredAt    DateTime       @db.Date
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  projectId     String?
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  opportunityId String?
+  opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  eventId       String?
+  event         CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdTasks  Int            @default(0)
+  archivedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([opportunityId])
+  @@map("meeting_note")
 }

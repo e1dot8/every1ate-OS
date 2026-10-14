@@ -7,6 +7,7 @@ import { getServerEnv } from "@/lib/env";
 import { formatDay, todayDate } from "@/lib/dates";
 import { isDueSoon, overdueLevel, suggestPriority } from "@/features/planning/rules";
 import { dueFollowUps } from "@/features/crm/service";
+import { sendDigests } from "@/features/brief/digest";
 
 export type NotificationInput = {
   userId: string;
@@ -96,7 +97,7 @@ export async function runScheduledScan(now = new Date()) {
       requiredBy: { select: { task: { select: { status: true } } } },
     },
   });
-  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0, relances: 0 };
+  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0, relances: 0, recaps: 0 };
   for (const o of await dueFollowUps(today)) {
     if (
       await notify({
@@ -187,5 +188,6 @@ export async function runScheduledScan(now = new Date()) {
       }
     }
   }
+  counts.recaps = await sendDigests(now);
   return counts;
 }

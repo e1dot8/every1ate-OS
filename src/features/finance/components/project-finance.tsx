@@ -64,7 +64,7 @@ function Kpi({
   );
 }
 
-function Summary({ s }: { s: FinanceSummary }) {
+function Summary({ s, minutes }: { s: FinanceSummary; minutes: number }) {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="font-annotation text-sm text-pen-strong">Prévisionnel</h3>
@@ -113,6 +113,40 @@ function Summary({ s }: { s: FinanceSummary }) {
           tone={s.marginActual < 0 ? "danger" : undefined}
         />
       </div>
+      <h3 className="font-annotation text-sm text-pen-strong">Temps de l&apos;équipe</h3>
+      {s.timeCostLogged != null ? (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <Kpi
+            label="Temps passé valorisé"
+            value={m(s.timeCostLogged)}
+            hint={`${formatMinutes(minutes)} au coût interne`}
+          />
+          <Kpi label="Temps prévu valorisé" value={m(s.timeCostForecast)} hint="max(estimé, passé)" />
+          <Kpi
+            label="Marge prév. après temps"
+            value={m(s.marginForecastAfterTime)}
+            hint={
+              marginRate(s.marginForecastAfterTime ?? 0, s.revenuePlanned) == null
+                ? undefined
+                : `${marginRate(s.marginForecastAfterTime ?? 0, s.revenuePlanned)} %`
+            }
+            tone={(s.marginForecastAfterTime ?? 0) < 0 ? "danger" : undefined}
+          />
+          <Kpi
+            label="Marge réelle après temps"
+            value={m(s.marginActualAfterTime)}
+            tone={(s.marginActualAfterTime ?? 0) < 0 ? "danger" : undefined}
+          />
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {formatMinutes(minutes)} passées, non valorisées.{" "}
+          <Link href="/plus/reglages" className="font-bold underline">
+            Définir un coût horaire interne
+          </Link>{" "}
+          pour voir la vraie rentabilité.
+        </p>
+      )}
       {s.rebillable ? (
         <p className="text-xs text-muted-foreground">
           Dont coûts refacturables : {m(s.rebillable)} (refacturables ≠ marge).
@@ -131,10 +165,10 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
   const hasProjectBudget = f.revisions.some((r) => !r.workPackageId && r.status === "APPLIQUEE");
   return (
     <div className="flex flex-col gap-5">
-      <Summary s={f.summary} />
+      <Summary s={f.summary} minutes={f.minutes} />
       <p className="text-xs text-muted-foreground">
-        Outil de pilotage : ne remplace ni la comptabilité ni l&apos;expert-comptable. Montants HT. Temps
-        passé : {formatMinutes(f.minutes)} (non valorisé).
+        Outil de pilotage : ne remplace ni la comptabilité ni l&apos;expert-comptable. Montants HT. Le temps
+        valorisé est un coût interne : ni un décaissement, ni un montant facturable.
       </p>
 
       {f.byLot.length ? (
@@ -155,6 +189,11 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
                 <th scope="col" className="hidden py-2 text-right font-normal sm:table-cell">
                   Marge réelle
                 </th>
+                {f.timeValued ? (
+                  <th scope="col" className="py-2 text-right font-normal">
+                    Après temps
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -175,6 +214,16 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
                   <td className="hidden py-2 text-right tabular-nums sm:table-cell">
                     {m(l.summary.marginActual)}
                   </td>
+                  {f.timeValued ? (
+                    <td
+                      className={cn(
+                        "py-2 text-right tabular-nums",
+                        (l.summary.marginForecastAfterTime ?? 0) < 0 && "text-danger",
+                      )}
+                    >
+                      {m(l.summary.marginForecastAfterTime)}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
