@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { FileSpreadsheet, Gauge, Landmark, Plus } from "lucide-react";
-import { EmptyState, Tabs } from "@/components/app/bits";
+import { EmptyState } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { marginRate } from "@/features/finance/calc";
+import { FinanceTabs, type FinanceTab } from "@/features/finance/components/finance-tabs";
 import { listImports } from "@/features/finance/imports";
 import { contractStatusLabels } from "@/features/finance/labels";
 import { financeOverview, listContracts } from "@/features/finance/service";
@@ -26,14 +27,7 @@ async function Finance({ searchParams }: { searchParams: Promise<{ onglet?: stri
   const tab = ["contrats", "imports"].includes(sp.onglet ?? "") ? sp.onglet! : "projets";
   return (
     <>
-      <Tabs
-        active={tab}
-        items={[
-          { key: "projets", label: "Projets", href: "/finance" },
-          { key: "contrats", label: "Contrats récurrents", href: "/finance?onglet=contrats" },
-          { key: "imports", label: "Imports", href: "/finance?onglet=imports" },
-        ]}
-      />
+      <FinanceTabs active={tab as FinanceTab} />
       {tab === "projets" ? <Projects /> : tab === "contrats" ? <Contracts /> : <Imports />}
     </>
   );
