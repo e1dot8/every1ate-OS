@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { ExternalLink, Plus } from "lucide-react";
+import { Suspense } from "react";
+import { Download, ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
+import { EstimateCard } from "@/features/finance/components/estimate-card";
 import { BudgetForm } from "@/features/finance/components/forms";
 import {
   billingState,
@@ -166,10 +168,18 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
   return (
     <div className="flex flex-col gap-5">
       <Summary s={f.summary} minutes={f.minutes} />
-      <p className="text-xs text-muted-foreground">
-        Outil de pilotage : ne remplace ni la comptabilité ni l&apos;expert-comptable. Montants HT. Le temps
-        valorisé est un coût interne : ni un décaissement, ni un montant facturable.
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          Outil de pilotage : ne remplace ni la comptabilité ni l&apos;expert-comptable. Montants HT. Le temps
+          valorisé est un coût interne : ni un décaissement, ni un montant facturable.
+        </p>
+        {/* Téléchargement direct (pas de navigation client) : lien simple vers la route d'export. */}
+        <Button asChild size="sm" variant="outline" className="self-start">
+          <a href={`/api/export/finance?projet=${encodeURIComponent(projectId)}`} download>
+            <Download aria-hidden="true" /> Exporter (Excel)
+          </a>
+        </Button>
+      </div>
 
       {f.byLot.length ? (
         <Card className="gap-0 py-1">
@@ -230,6 +240,14 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
           </table>
         </Card>
       ) : null}
+
+      <Suspense fallback={<p className="text-sm text-muted-foreground">Calcul des repères de chiffrage…</p>}>
+        <EstimateCard
+          projectId={projectId}
+          revenue={f.summary.revenuePlanned}
+          costs={f.summary.forecastCost}
+        />
+      </Suspense>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="gap-3">

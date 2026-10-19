@@ -16,7 +16,11 @@ export type ParsedAction = {
   raw: string;
 };
 
-const MARKER = /^\s*(?:[-*•]\s*)?(?:\[\s?\]|todo\s*:?|à faire\s*:|a faire\s*:|action\s*:|→|->)\s*/i;
+// Groupe 1 : indentation et puce éventuelle (conservées quand la ligne est marquée « [x] »).
+// « [x] » ne correspond pas : une ligne déjà transformée en tâche n'est plus proposée.
+const MARKER = /^(\s*(?:[-*•]\s*)?)(?:\[\s?\]|todo\s*:?|à faire\s*:|a faire\s*:|action\s*:|→|->)\s*/i;
+/** Marque d'une action déjà transformée en tâche. */
+export const DONE_MARK = "[x]";
 const MONTHS = [
   "janvier",
   "fevrier",
@@ -104,4 +108,49 @@ export function parseActions(body: string, people: Person[], today: Date): Parse
     });
   });
   return out;
+}
+
+/**
+ * Remplace le marqueur des lignes données (numérotées à partir de 1) par « [x] » : elles ne sont plus
+ * détectées par `parseActions`. La puce, l'indentation, le reste du texte et les fins de ligne
+ * (\n ou \r\n) sont conservés ; les autres lignes ne changent pas.
+ */
+export function markLinesDone(body: string, lineNumbers: Iterable<number>): string {
+  const targets = new Set(lineNumbers);
+  if (!targets.size) return body;
+  // Les séparateurs capturés occupent les indices impairs.
+  return body
+    .split(/(\r?\n)/)
+    .map((part, i) => {
+      if (i % 2 || !targets.has(i / 2 + 1) || !MARKER.test(part)) return part;
+      return part.replace(MARKER, (_match, prefix: string) => `${prefix}${DONE_MARK} `);
+    })
+    .join("");
+}
+
+/**
+ * Rapproche les actions envoyées par le formulaire de celles encore détectées dans le compte rendu
+ * (relu côté serveur) : c'est ce qui rend la création de tâches idempotente.
+ * - ligne déjà marquée « [x] » (ou disparue) : ignorée (déjà traitée) ;
+ * - ligne détectée mais dont le texte a changé : `stale` (le compte rendu a été modifié entre-temps) ;
+ * - une même ligne envoyée deux fois n'est retenue qu'une fois.
+ */
+export function reconcileActions<T extends { line: number; raw: string }>(
+  detected: Pick<ParsedAction, "line" | "raw">[],
+  submitted: T[],
+): { accepted: T[]; skipped: number; stale: boolean } {
+  const byLine = new Map(detected.map((d) => [d.line, d.raw]));
+  const seen = new Set<number>();
+  const accepted: T[] = [];
+  let skipped = 0;
+  let stale = false;
+  for (const action of submitted) {
+    if (seen.has(action.line)) continue;
+    seen.add(action.line);
+    const raw = byLine.get(action.line);
+    if (raw === undefined) skipped++;
+    else if (raw !== action.raw.trim()) stale = true;
+    else accepted.push(action);
+  }
+  return { accepted, skipped, stale };
 }

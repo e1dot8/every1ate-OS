@@ -5,6 +5,9 @@ import { CheckboxGroup, SelectField, TextareaField } from "@/components/forms/co
 import { Field } from "@/components/forms/field";
 import { FormAlert } from "@/components/forms/form-alert";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { recurrenceOptions } from "@/features/projects/recurrence";
 import { initialFormState, type FormState } from "@/lib/forms";
 import {
   addDependencyAction,
@@ -249,79 +252,139 @@ export function TaskForm(props: {
     startDate: string;
     dueDate: string;
     estimatedHours: string;
+    recurrence: string;
+    recurrenceUntil: string;
   };
 }) {
   const [state, action] = useForm(saveTaskAction);
   const t = props.task;
+  // Après une erreur, les champs sont recréés avec la saisie renvoyée par le serveur :
+  // React réinitialise le formulaire après chaque envoi, ce qui effacerait sinon les listes.
+  const v = state.status === "error" ? state.values : undefined;
+  const [recurrence, setRecurrence] = useState(v?.recurrence ?? t?.recurrence ?? "AUCUNE");
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <Messages state={state} />
       <input type="hidden" name="projectId" value={props.projectId} />
       {t ? <input type="hidden" name="taskId" value={t.id} /> : null}
-      <Field
-        name="title"
-        label="Titre"
-        defaultValue={state.values?.title ?? t?.title}
-        error={state.fieldErrors?.title}
-      />
-      <SelectField
-        name="workPackageId"
-        label="Lot"
-        defaultValue={t?.workPackageId ?? props.defaultLotId ?? ""}
-        options={[{ value: "", label: "Aucun lot" }, ...props.lots]}
-      />
-      <div className="grid gap-4 md:grid-cols-2">
-        <SelectField
-          name="ownerId"
-          label="Responsable"
-          defaultValue={t?.ownerId ?? ""}
-          options={[{ value: "", label: "Non assignée" }, ...props.associates]}
+      <div key={v ? JSON.stringify(v) : "initial"} className="flex flex-col gap-4">
+        <Field
+          name="title"
+          label="Titre"
+          defaultValue={v?.title ?? t?.title}
+          error={state.fieldErrors?.title}
         />
         <SelectField
-          name="impact"
-          label="Impact"
-          defaultValue={t?.impact ?? "MOYEN"}
-          options={Object.entries(impactLabels).map(([value, label]) => ({ value, label }))}
+          name="workPackageId"
+          label="Lot"
+          defaultValue={v?.workPackageId ?? t?.workPackageId ?? props.defaultLotId ?? ""}
+          options={[{ value: "", label: "Aucun lot" }, ...props.lots]}
+        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <SelectField
+            name="ownerId"
+            label="Responsable"
+            defaultValue={v?.ownerId ?? t?.ownerId ?? ""}
+            options={[{ value: "", label: "Non assignée" }, ...props.associates]}
+          />
+          <SelectField
+            name="impact"
+            label="Impact"
+            defaultValue={v?.impact ?? t?.impact ?? "MOYEN"}
+            options={Object.entries(impactLabels).map(([value, label]) => ({ value, label }))}
+          />
+        </div>
+        <SelectField
+          name="priority"
+          label="Priorité"
+          hint="Automatique : calculée selon l'impact, l'échéance, le retard et les tâches bloquées. Une valeur choisie est verrouillée."
+          defaultValue={v?.priority ?? (t ? (t.priorityLocked ? t.priority : "AUTO") : "AUTO")}
+          options={[
+            { value: "AUTO", label: "Automatique (suggérée)" },
+            ...Object.entries(priorityLabels).map(([value, label]) => ({
+              value,
+              label: `${label} (verrouillée)`,
+            })),
+          ]}
+        />
+        <CheckboxGroup
+          name="contributorIds"
+          label="Contributeurs"
+          options={props.associates}
+          defaultValues={t?.contributorIds}
+        />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Field
+            name="startDate"
+            type="date"
+            label="Début"
+            required={false}
+            defaultValue={v?.startDate ?? t?.startDate}
+            error={state.fieldErrors?.startDate}
+          />
+          <Field
+            name="dueDate"
+            type="date"
+            label="Échéance"
+            required={false}
+            defaultValue={v?.dueDate ?? t?.dueDate}
+            error={state.fieldErrors?.dueDate}
+          />
+          <Field
+            name="estimatedHours"
+            label="Durée estimée (h)"
+            required={false}
+            defaultValue={v?.estimatedHours ?? t?.estimatedHours}
+            error={state.fieldErrors?.estimatedHours}
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="champ-recurrence">Répétition</Label>
+            <Select
+              id="champ-recurrence"
+              name="recurrence"
+              defaultValue={recurrence}
+              onChange={(e) => setRecurrence(e.target.value)}
+              aria-invalid={state.fieldErrors?.recurrence ? true : undefined}
+              aria-describedby={
+                state.fieldErrors?.recurrence ? "champ-recurrence-erreur" : "champ-recurrence-aide"
+              }
+            >
+              {recurrenceOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+            {state.fieldErrors?.recurrence ? (
+              <p id="champ-recurrence-erreur" className="text-sm text-danger">
+                {state.fieldErrors.recurrence}
+              </p>
+            ) : (
+              <p id="champ-recurrence-aide" className="text-sm text-muted-foreground">
+                Quand la tâche passe à « Terminé », la suivante est créée avec l&apos;échéance décalée.
+              </p>
+            )}
+          </div>
+          {recurrence !== "AUCUNE" ? (
+            <Field
+              name="recurrenceUntil"
+              type="date"
+              label="Jusqu'au"
+              required={false}
+              hint="Facultatif : sans date, la tâche se répète sans fin."
+              defaultValue={v?.recurrenceUntil ?? t?.recurrenceUntil}
+              error={state.fieldErrors?.recurrenceUntil}
+            />
+          ) : null}
+        </div>
+        <TextareaField
+          name="description"
+          label="Description"
+          defaultValue={v?.description ?? t?.description ?? ""}
         />
       </div>
-      <SelectField
-        name="priority"
-        label="Priorité"
-        hint="Automatique : calculée selon l'impact, l'échéance, le retard et les tâches bloquées. Une valeur choisie est verrouillée."
-        defaultValue={t ? (t.priorityLocked ? t.priority : "AUTO") : "AUTO"}
-        options={[
-          { value: "AUTO", label: "Automatique (suggérée)" },
-          ...Object.entries(priorityLabels).map(([value, label]) => ({
-            value,
-            label: `${label} (verrouillée)`,
-          })),
-        ]}
-      />
-      <CheckboxGroup
-        name="contributorIds"
-        label="Contributeurs"
-        options={props.associates}
-        defaultValues={t?.contributorIds}
-      />
-      <div className="grid gap-4 md:grid-cols-3">
-        <Field name="startDate" type="date" label="Début" required={false} defaultValue={t?.startDate} />
-        <Field
-          name="dueDate"
-          type="date"
-          label="Échéance"
-          required={false}
-          defaultValue={t?.dueDate}
-          error={state.fieldErrors?.dueDate}
-        />
-        <Field
-          name="estimatedHours"
-          label="Durée estimée (h)"
-          required={false}
-          defaultValue={t?.estimatedHours}
-          error={state.fieldErrors?.estimatedHours}
-        />
-      </div>
-      <TextareaField name="description" label="Description" defaultValue={t?.description ?? ""} />
       <div>
         <SubmitButton>{t ? "Enregistrer" : "Créer la tâche"}</SubmitButton>
       </div>

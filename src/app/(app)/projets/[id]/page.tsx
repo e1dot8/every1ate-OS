@@ -25,6 +25,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay } from "@/lib/dates";
 import { ProjectFinance } from "@/features/finance/components/project-finance";
 import { DocumentsPanel } from "@/features/documents/components/documents-panel";
+import { NotesSection } from "@/features/notes/components/notes-section";
 import { ClosurePanel } from "@/features/projects/components/closure-panel";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
@@ -219,11 +220,18 @@ async function ProjectView({
 
       {tab === "finance" ? <ProjectFinance projectId={id} archived={!!project.archivedAt} /> : null}
       {tab === "docs" ? (
-        <DocumentsPanel
-          target={{ projectId: id }}
-          back={`/projets/${id}?onglet=docs`}
-          readOnly={!!project.archivedAt}
-        />
+        <div className="flex flex-col gap-5">
+          <DocumentsPanel
+            target={{ projectId: id }}
+            back={`/projets/${id}?onglet=docs`}
+            readOnly={!!project.archivedAt}
+          />
+          <NotesSection
+            filter={{ projectId: id }}
+            newHref={`/notes/nouvelle?projet=${id}`}
+            readOnly={!!project.archivedAt}
+          />
+        </div>
       ) : null}
       {tab === "journal" ? (
         <div className="flex flex-col gap-3">

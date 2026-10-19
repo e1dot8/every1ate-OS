@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Impact, Priority, ProjectPhase, ProjectStatus, TaskStatus } from "@/generated/prisma/enums";
+import type {
+  Impact,
+  Priority,
+  ProjectPhase,
+  ProjectStatus,
+  Recurrence,
+  TaskStatus,
+} from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth/session";
 import { parseDateInput } from "@/lib/dates";
 import { keptValues, validationError, type FormState } from "@/lib/forms";
@@ -24,6 +31,7 @@ import {
   updateProject,
 } from "@/features/projects/service";
 import { addComment, deleteComment } from "@/features/planning/service";
+import { RECURRENCES, occurrenceCreatedMessage, recurrenceIssue } from "@/features/projects/recurrence";
 
 const PHASES = ["RECETTE", "PREPARATION", "CUISSON", "DRESSAGE", "SERVICE"] as const;
 const PROJECT_STATUSES = ["A_PREPARER", "ACTIF", "EN_ATTENTE", "BLOQUE", "TERMINE", "ARCHIVE"] as const;
@@ -245,34 +253,42 @@ export async function saveLotAction(_prev: FormState, formData: FormData): Promi
 
 // ─── Tâches ─────────────────────────────────────────────────────────────────
 
-const taskSchema = z.object({
-  projectId: z.string().min(1),
-  taskId: z.string().optional(),
-  title: z.string().trim().min(1, "Titre requis.").max(300),
-  description: optionalText,
-  workPackageId: z
-    .string()
-    .optional()
-    .transform((v) => v || null),
-  ownerId: z
-    .string()
-    .optional()
-    .transform((v) => v || null),
-  priority: z.enum(PRIORITIES),
-  impact: z.enum(IMPACTS).default("MOYEN"),
-  startDate: dateInput,
-  dueDate: dateInput,
-  estimatedHours: z
-    .string()
-    .optional()
-    .transform((v, ctx) => {
-      if (!v) return null;
-      const n = Number(v.replace(",", "."));
-      if (!Number.isFinite(n) || n < 0 || n > 1000)
-        ctx.addIssue({ code: "custom", message: "Durée invalide." });
-      return Math.round(n * 60);
-    }),
-});
+const taskSchema = z
+  .object({
+    projectId: z.string().min(1),
+    taskId: z.string().optional(),
+    title: z.string().trim().min(1, "Titre requis.").max(300),
+    description: optionalText,
+    workPackageId: z
+      .string()
+      .optional()
+      .transform((v) => v || null),
+    ownerId: z
+      .string()
+      .optional()
+      .transform((v) => v || null),
+    priority: z.enum(PRIORITIES),
+    impact: z.enum(IMPACTS).default("MOYEN"),
+    startDate: dateInput,
+    dueDate: dateInput,
+    estimatedHours: z
+      .string()
+      .optional()
+      .transform((v, ctx) => {
+        if (!v) return null;
+        const n = Number(v.replace(",", "."));
+        if (!Number.isFinite(n) || n < 0 || n > 1000)
+          ctx.addIssue({ code: "custom", message: "Durée invalide." });
+        return Math.round(n * 60);
+      }),
+    recurrence: z.enum(RECURRENCES).default("AUCUNE"),
+    recurrenceUntil: dateInput,
+  })
+  .superRefine((data, ctx) => {
+    // Une tâche répétée a une échéance, et sa fin de répétition ne la précède pas.
+    const issue = recurrenceIssue(data);
+    if (issue) ctx.addIssue({ code: "custom", path: [issue.field], message: issue.message });
+  });
 
 export async function saveTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
@@ -286,6 +302,7 @@ export async function saveTaskAction(_prev: FormState, formData: FormData): Prom
       ...data,
       priority: data.priority as Priority | "AUTO",
       impact: data.impact as Impact,
+      recurrence: data.recurrence as Recurrence,
       estimatedMinutes: estimatedHours,
       contributorIds: formData.getAll("contributorIds").map(String),
     },
@@ -316,7 +333,12 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
   );
   if (!result.ok) return failure(result.error, formData);
   revalidatePath(`/taches/${parsed.data.taskId}`);
-  return { status: "success", message: "Statut mis à jour." };
+  revalidatePath(`/projets/${result.data.projectId}`);
+  const next = result.data.nextOccurrence;
+  return {
+    status: "success",
+    message: next ? `Statut mis à jour. ${occurrenceCreatedMessage(next.dueDate)}` : "Statut mis à jour.",
+  };
 }
 
 const depSchema = z.object({

@@ -29,7 +29,7 @@ jobs:
       BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Vérifier la configuration
         run: |
           if [ -z "$BACKUP_DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
@@ -56,7 +56,7 @@ jobs:
             echo "$t : $(psql postgresql://restore:restore@localhost:5432/verification -Atc "select count(*) from $t") lignes"
           done
       - name: Conserver la sauvegarde (chiffrée, 30 jours)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sauvegarde-${{ github.run_id }}
           path: backups/

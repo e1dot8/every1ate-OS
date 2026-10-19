@@ -52,6 +52,8 @@ async function EditTask({ params }: { params: Promise<{ id: string }> }) {
             estimatedHours: task.estimatedMinutes
               ? String(Math.round((task.estimatedMinutes / 60) * 10) / 10)
               : "",
+            recurrence: task.recurrence,
+            recurrenceUntil: toDateInput(task.recurrenceUntil),
           }}
         />
       </Card>

@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Archive, ArchiveRestore, Link2, Pencil, X } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Link2, Pencil, Repeat, X } from "lucide-react";
 import { Avatar, BackLink, TaskStatusBadge } from "@/components/app/bits";
 import { FormAlert } from "@/components/forms/form-alert";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { PageLoading } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { DependencyForm, TaskStatusForm } from "@/features/projects/components/forms";
 import { priorityLabels } from "@/features/projects/labels";
 import { journalDetail, journalLabel } from "@/features/projects/journal-labels";
+import { recurrenceSummary } from "@/features/projects/recurrence";
 import { getTask } from "@/features/projects/service";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
@@ -33,7 +35,8 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
   const task = await getTask(id);
   if (!task) notFound();
   const db = getDb();
-  const [others, history] = await Promise.all([
+  const occurrenceSelect = { id: true, dueDate: true } as const;
+  const [others, history, previousOccurrence, nextOccurrence] = await Promise.all([
     db.task.findMany({
       where: { projectId: task.projectId, archivedAt: null, id: { not: id } },
       orderBy: { title: "asc" },
@@ -44,7 +47,13 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
       orderBy: { createdAt: "desc" },
       take: 30,
     }),
+    // Chaînage des occurrences d'une tâche répétée (index unique sur nextOccurrenceId).
+    db.task.findUnique({ where: { nextOccurrenceId: id }, select: occurrenceSelect }),
+    task.nextOccurrenceId
+      ? db.task.findUnique({ where: { id: task.nextOccurrenceId }, select: occurrenceSelect })
+      : null,
   ]);
+  const repeats = recurrenceSummary(task.recurrence, task.recurrenceUntil);
   const [suggestion, comments, time, active] = await Promise.all([
     taskPrioritySuggestion(id),
     listComments(id),
@@ -71,6 +80,38 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
         {task.workPackage ? ` › ${task.workPackage.name}` : ""}
       </BackLink>
       <h1 className="text-3xl leading-tight font-bold tracking-tight md:text-4xl">{task.title}</h1>
+      {repeats || previousOccurrence || nextOccurrence ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {repeats ? (
+            <Badge variant="info" className="whitespace-normal">
+              <Repeat aria-hidden="true" />
+              {repeats}
+            </Badge>
+          ) : null}
+          {previousOccurrence || nextOccurrence ? (
+            <nav aria-label="Occurrences de la tâche" className="flex flex-wrap gap-2">
+              {previousOccurrence ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/taches/${previousOccurrence.id}`}>
+                    <ChevronLeft aria-hidden="true" />
+                    Occurrence précédente
+                    {previousOccurrence.dueDate ? ` · ${formatDay(previousOccurrence.dueDate)}` : ""}
+                  </Link>
+                </Button>
+              ) : null}
+              {nextOccurrence ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/taches/${nextOccurrence.id}`}>
+                    Occurrence suivante
+                    {nextOccurrence.dueDate ? ` · ${formatDay(nextOccurrence.dueDate)}` : ""}
+                    <ChevronRight aria-hidden="true" />
+                  </Link>
+                </Button>
+              ) : null}
+            </nav>
+          ) : null}
+        </div>
+      ) : null}
       {task.archivedAt ? <FormAlert tone="warning" title="Tâche archivée." /> : null}
       <div className="flex flex-col gap-5 md:flex-row md:items-start">
         <aside className="order-first flex w-full flex-col gap-4 md:order-last md:w-80">
