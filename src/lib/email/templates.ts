@@ -57,7 +57,9 @@ export function digestEmail(input: {
   appUrl: string;
   weekly: boolean;
 }): EmailMessage {
-  const lines = input.items.slice(0, 15).map((i) => `• ${i.title}${i.detail ? ` (${i.detail})` : ""}\n  ${input.appUrl}${i.href}`);
+  const lines = input.items
+    .slice(0, 15)
+    .map((i) => `• ${i.title}${i.detail ? ` (${i.detail})` : ""}\n  ${input.appUrl}${i.href}`);
   return {
     to: input.to,
     subject: `${input.weekly ? "Votre semaine" : "Votre journée"} : ${input.summary}`,

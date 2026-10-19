@@ -1,3 +1,4 @@
+import Form from "next/form";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -18,12 +19,15 @@ type Comparison = {
 
 const TITLE_ID = "chiffrage-indicatif";
 const money = (c: number) => formatMoney(c, { round: true });
-const pct = (v: number) => `${v.toLocaleString("fr-FR")} %`;
-const days = (v: number) => `${v} j`;
+// Espace insécable avant « % » et « j » : pas de retour à la ligne entre le nombre et l'unité.
+const pct = (v: number) => `${v.toLocaleString("fr-FR")}\u00a0%`;
+const days = (v: number) => `${v}\u00a0j`;
 const hours = (v: number) => formatMinutes(v);
 const projects = (n: number) => `${n} projet${n > 1 ? "s" : ""}`;
-const templateName = (key: string | null) =>
-  key ? (getTemplate(key)?.name ?? "Modèle inconnu") : "Sans modèle";
+const sourceText = (key: string | null) =>
+  key
+    ? `Repères tirés des projets du modèle « ${getTemplate(key)?.name ?? "Modèle inconnu"} ».`
+    : "Repères tirés des projets créés sans modèle.";
 
 function Frame({ description, children }: { description: ReactNode; children: ReactNode }) {
   return (
@@ -59,16 +63,14 @@ function Figure({ label, stat, format }: { label: string; stat: Stat; format: (v
 }
 
 const positionLabels: Record<HistoryPosition["kind"], string> = {
-  dessous: "en dessous du plus bas",
+  dessous: "en dessous de la fourchette",
   dans: "dans la fourchette",
-  dessus: "au-dessus du plus haut",
+  dessus: "au-dessus de la fourchette",
 };
 
 function positionText(p: HistoryPosition) {
   const delta =
-    p.deltaPct == null
-      ? ""
-      : ` (${p.deltaPct > 0 ? "+" : ""}${p.deltaPct.toLocaleString("fr-FR")} % vs médiane)`;
+    p.deltaPct == null ? "" : ` (${p.deltaPct > 0 ? "+" : ""}${pct(p.deltaPct)} par rapport à la médiane)`;
   return `${positionLabels[p.kind]}${delta}`;
 }
 
@@ -88,14 +90,17 @@ function EstimateBody({
   if (!n)
     return (
       <p className="text-sm text-muted-foreground">
-        Pas encore d&apos;historique pour ce modèle. Les repères apparaîtront dès qu&apos;un autre projet de
-        ce modèle aura un budget, des coûts ou du temps saisis.
+        Pas encore d&apos;historique pour ce modèle. Les repères apparaîtront dès qu&apos;
+        {excludeId ? "un autre projet" : "un projet"} de ce modèle aura un budget, des coûts ou du temps
+        saisis.
       </p>
     );
   const comparisons = (compare?.items ?? []).flatMap((c) => {
     const position = compareToHistory(c.value, c.against === "revenue" ? e.revenue : e.costs);
     return position && c.value != null ? [{ label: c.label, value: c.value, position }] : [];
   });
+  // Rien de comparé : montant à saisir ici, ou historique sans revenus/coûts (seulement du temps).
+  const ownValue = (compare?.items ?? []).some((c) => c.value != null && c.value > 0);
   return (
     <>
       <p className="text-sm">
@@ -120,7 +125,9 @@ function EstimateBody({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">{compare.missing}</p>
+          <p className="text-sm text-muted-foreground">
+            {ownValue ? "Aucun montant comparable dans l'historique de ce modèle." : compare.missing}
+          </p>
         )
       ) : null}
       <p className="font-annotation text-xs text-pen-strong">
@@ -148,7 +155,7 @@ export async function EstimateCard({
   // Projet archivé : absent de la vue agence, pas de repères à afficher.
   if (!self) return null;
   return (
-    <Frame description={`Repères tirés des projets du modèle « ${templateName(self.templateKey)} ».`}>
+    <Frame description={sourceText(self.templateKey)}>
       <EstimateBody
         templateKey={self.templateKey}
         excludeId={projectId}
@@ -184,16 +191,23 @@ export async function OpportunityEstimate({
     <Frame
       description={
         key
-          ? `Repères tirés des projets du modèle « ${templateName(key)} ».`
+          ? sourceText(key)
           : "Choisissez le modèle de projet le plus proche pour voir des repères tirés des projets passés."
       }
     >
-      <form action={`/crm/opportunites/${opportunityId}`} className="flex flex-wrap items-end gap-2">
+      {/* GET ?modele= : navigation client sans remonter en haut de page (carte en bas de fiche sur
+          mobile) ; sans JavaScript, formulaire HTML classique. */}
+      <Form
+        action={`/crm/opportunites/${opportunityId}`}
+        scroll={false}
+        className="flex flex-wrap items-end gap-2"
+      >
         <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1.5">
           <label htmlFor="modele" className="text-sm font-bold">
             Modèle de projet comparable
           </label>
-          <Select id="modele" name="modele" defaultValue={key ?? ""} required>
+          {/* key : remonté à chaque changement d'URL (retour arrière), defaultValue suit ?modele=. */}
+          <Select key={key ?? ""} id="modele" name="modele" defaultValue={key ?? ""} required>
             <option value="" disabled>
               Choisir un modèle…
             </option>
@@ -207,7 +221,7 @@ export async function OpportunityEstimate({
         <Button type="submit" variant="outline">
           Comparer
         </Button>
-      </form>
+      </Form>
       {rows ? (
         <EstimateBody
           templateKey={key}

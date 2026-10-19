@@ -18,7 +18,8 @@ export type ParsedAction = {
 
 // Groupe 1 : indentation et puce éventuelle (conservées quand la ligne est marquée « [x] »).
 // « [x] » ne correspond pas : une ligne déjà transformée en tâche n'est plus proposée.
-const MARKER = /^(\s*(?:[-*•]\s*)?)(?:\[\s?\]|todo\s*:?|à faire\s*:|a faire\s*:|action\s*:|→|->)\s*/i;
+// « todo » doit être un mot entier (« Todolist à revoir » n'est pas une action).
+const MARKER = /^(\s*(?:[-*•]\s*)?)(?:\[\s?\]|todo\b\s*:?|à faire\s*:|a faire\s*:|action\s*:|→|->)\s*/i;
 /** Marque d'une action déjà transformée en tâche. */
 export const DONE_MARK = "[x]";
 const MONTHS = [
@@ -72,6 +73,15 @@ export function findDate(text: string, today: Date): { date: Date; match: string
     return { date: addDays(today, diff), match: m[0] };
   }
   return null;
+}
+
+/**
+ * Texte d'un compte rendu tel qu'il est enregistré : caractères composés (NFC, sinon « À » saisi en
+ * deux caractères ne serait pas reconnu), fins de ligne « \n » et sans blancs autour. Les numéros de
+ * ligne lus par `parseActions` portent sur ce texte.
+ */
+export function normalizeNoteBody(body: string): string {
+  return body.normalize("NFC").replace(/\r\n?/g, "\n").trim();
 }
 
 export function parseActions(body: string, people: Person[], today: Date): ParsedAction[] {
@@ -132,7 +142,8 @@ export function markLinesDone(body: string, lineNumbers: Iterable<number>): stri
  * Rapproche les actions envoyées par le formulaire de celles encore détectées dans le compte rendu
  * (relu côté serveur) : c'est ce qui rend la création de tâches idempotente.
  * - ligne déjà marquée « [x] » (ou disparue) : ignorée (déjà traitée) ;
- * - ligne détectée mais dont le texte a changé : `stale` (le compte rendu a été modifié entre-temps) ;
+ * - ligne détectée mais dont le texte a changé, ou action encore en attente mais déplacée (ligne
+ *   ajoutée au-dessus) : `stale` (le compte rendu a été modifié entre-temps) ;
  * - une même ligne envoyée deux fois n'est retenue qu'une fois.
  */
 export function reconcileActions<T extends { line: number; raw: string }>(
@@ -140,6 +151,7 @@ export function reconcileActions<T extends { line: number; raw: string }>(
   submitted: T[],
 ): { accepted: T[]; skipped: number; stale: boolean } {
   const byLine = new Map(detected.map((d) => [d.line, d.raw]));
+  const pendingRaws = new Set(detected.map((d) => d.raw));
   const seen = new Set<number>();
   const accepted: T[] = [];
   let skipped = 0;
@@ -148,7 +160,9 @@ export function reconcileActions<T extends { line: number; raw: string }>(
     if (seen.has(action.line)) continue;
     seen.add(action.line);
     const raw = byLine.get(action.line);
-    if (raw === undefined) skipped++;
+    // Ligne disparue de sa place mais encore en attente ailleurs : le texte a été décalé, pas traité.
+    if (raw === undefined && pendingRaws.has(action.raw.trim())) stale = true;
+    else if (raw === undefined) skipped++;
     else if (raw !== action.raw.trim()) stale = true;
     else accepted.push(action);
   }

@@ -22,6 +22,8 @@ function Legend({ swatch, children }: { swatch: string; children: React.ReactNod
 export function TreasuryChart({ forecast }: { forecast: TreasuryForecast }) {
   const geo = chartGeometry(forecast.weeks);
   const cols = { gridTemplateColumns: `repeat(${forecast.weeks.length}, minmax(0, 1fr))` };
+  const first = forecast.weeks[0];
+  const last = forecast.weeks[forecast.weeks.length - 1];
   return (
     <figure className="flex flex-col gap-3">
       <div
@@ -98,13 +100,19 @@ export function TreasuryChart({ forecast }: { forecast: TreasuryForecast }) {
             </div>
           ))}
         </div>
+        {first && last ? (
+          <p className="text-[11px] text-muted-foreground sm:hidden">
+            S+1 : semaine du {formatDay(first.start)} · S+{forecast.weeks.length} : semaine du{" "}
+            {formatDay(last.start)}
+          </p>
+        ) : null}
       </div>
       <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <Legend swatch="bg-ink">Solde</Legend>
         <Legend swatch="bg-danger">Solde sous zéro (semaine surlignée, libellé en gras)</Legend>
         <Legend swatch="bg-success">Entrées</Legend>
         <Legend swatch="bg-ink/35">Sorties</Legend>
-        <span>Axe : semaines à venir (S+1 = semaine en cours), dates de début sur ordinateur.</span>
+        <span>Axe : semaines à venir (S+1 = semaine en cours), date de début de chaque semaine.</span>
       </figcaption>
     </figure>
   );

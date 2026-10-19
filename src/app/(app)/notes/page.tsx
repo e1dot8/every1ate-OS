@@ -13,9 +13,11 @@ import { requireUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Comptes rendus" };
 
+const LIMIT = 200;
+
 async function Notes() {
   await requireUser();
-  const notes = await listNotes({ take: 200 });
+  const notes = await listNotes({ take: LIMIT });
   if (!notes.length)
     return (
       <EmptyState title="Aucun compte rendu pour l'instant.">
@@ -32,9 +34,16 @@ async function Notes() {
       </EmptyState>
     );
   return (
-    <Card className="gap-0 py-1">
-      <NoteList notes={notes} showLinks />
-    </Card>
+    <div className="flex flex-col gap-2">
+      <Card className="gap-0 py-1">
+        <NoteList notes={notes} showLinks />
+      </Card>
+      {notes.length === LIMIT ? (
+        <p className="text-xs text-muted-foreground">
+          Seuls les {LIMIT} comptes rendus les plus récents sont affichés.
+        </p>
+      ) : null}
+    </div>
   );
 }
 

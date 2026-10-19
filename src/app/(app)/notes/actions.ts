@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import { parseDateInput } from "@/lib/dates";
 import { keptValues, validationError, type FormState } from "@/lib/forms";
+import { normalizeNoteBody } from "@/features/notes/parse";
 import { archiveNote, createTasksFromNote, saveNote, type NoteActionInput } from "@/features/notes/service";
 import { tasksCreatedLabel, type ActionsFormState } from "@/features/notes/rules";
 
@@ -49,12 +50,21 @@ const noteSchema = z.object({
   body: z
     .string()
     .max(20000, "Compte rendu trop long (20 000 caractères au plus).")
-    .transform((v) => v.replace(/\r\n?/g, "\n").trim())
+    .transform(normalizeNoteBody)
     .pipe(z.string().min(1, "Écrivez le compte rendu.")),
   projectId: optionalId,
   clientId: optionalId,
   opportunityId: optionalId,
   eventId: optionalId,
+  /** Modification : horodatage lu à l'ouverture du formulaire (détecte une écriture concurrente). */
+  version: z
+    .string()
+    .max(40)
+    .optional()
+    .transform((v) => {
+      const d = v ? new Date(v) : null;
+      return d && !Number.isNaN(d.getTime()) ? d : null;
+    }),
 });
 
 export async function saveNoteAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -87,7 +97,7 @@ export async function archiveNoteAction(formData: FormData) {
 const MAX_ROWS = 100;
 const rowSchema = z.object({
   line: z.coerce.number().int().min(1).max(100_000),
-  raw: z.string().max(5000),
+  raw: z.string().max(20_000),
   title: z.string().trim().min(1, "Titre requis.").max(300),
   ownerId: optionalId,
   dueDate: optionalDate,

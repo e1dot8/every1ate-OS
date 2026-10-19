@@ -10,6 +10,7 @@ import {
   SEARCH_GROUPS,
   SEARCH_GROUP_LIMIT,
   SEARCH_MIN_LENGTH,
+  containsFolded,
   containsPattern,
   documentHref,
   normalizeQuery,
@@ -27,7 +28,7 @@ export type SearchHit = {
   title: string;
   href: string;
   meta: string | null;
-  /** Extrait autour de la correspondance (comptes rendus). */
+  /** Extrait autour de la correspondance (comptes rendus, description d'un projet). */
   snippet: string | null;
 };
 export type SearchGroup = { key: SearchGroupKey; label: string; count: number; hits: SearchHit[] };
@@ -35,7 +36,13 @@ export type SearchResults = { term: string; total: number; groups: SearchGroup[]
 
 /** Total des correspondances du groupe (fenêtre calculée avant LIMIT). */
 type Counted = { total: number };
-type ProjectRow = Counted & { id: string; name: string; status: ProjectStatus; clientName: string | null };
+type ProjectRow = Counted & {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  clientName: string | null;
+};
 type ClientRow = Counted & { id: string; name: string; sector: string | null };
 type ContactRow = Counted & {
   id: string;
@@ -89,7 +96,7 @@ export async function globalSearch(raw: string, viewer: Viewer): Promise<Service
     const [projects, clients, contacts, opportunities, tasks, files, events, notes] = await Promise.all([
       db.$queryRaw<ProjectRow[]>`
         WITH q AS (SELECT unaccent(lower(${like}::text)) AS pat, unaccent(lower(${prefix}::text)) AS pre)
-        SELECT p."id", p."name", p."status"::text AS "status", c."name" AS "clientName",
+        SELECT p."id", p."name", p."description", p."status"::text AS "status", c."name" AS "clientName",
                (count(*) OVER ())::int AS "total"
         FROM "project" p
         CROSS JOIN q
@@ -175,8 +182,9 @@ export async function globalSearch(raw: string, viewer: Viewer): Promise<Service
             ))
           AND unaccent(lower(e."title")) LIKE q.pat ESCAPE '\\'
         ORDER BY (unaccent(lower(e."title")) LIKE q.pre ESCAPE '\\') DESC,
-                 (e."endsAt" < now()) ASC,
-                 CASE WHEN e."endsAt" >= now() THEN e."startsAt" END ASC,
+                 -- timestamp sans fuseau stocké en UTC : comparé à now() en UTC, quel que soit le fuseau de session
+                 (e."endsAt" < (now() AT TIME ZONE 'UTC')) ASC,
+                 CASE WHEN e."endsAt" >= (now() AT TIME ZONE 'UTC') THEN e."startsAt" END ASC,
                  e."startsAt" DESC
         LIMIT ${limit}::int`,
       db.$queryRaw<NoteRow[]>`
@@ -202,7 +210,9 @@ export async function globalSearch(raw: string, viewer: Viewer): Promise<Service
         title: p.name,
         href: `/projets/${p.id}`,
         meta: join(p.clientName ?? "Sans client", projectStatusLabels[p.status]),
-        snippet: null,
+        // Trouvé par sa description seulement : l'extrait montre pourquoi.
+        snippet:
+          p.description && !containsFolded(p.name, term) ? snippetAround(p.description, term) || null : null,
       })),
       entreprises: group(clients, (c) => ({
         id: c.id,

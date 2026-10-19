@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SEARCH_GROUPS,
   SEARCH_MAX_LENGTH,
+  containsFolded,
   containsPattern,
   documentHref,
   escapeLike,
@@ -51,6 +52,14 @@ describe("échappement LIKE", () => {
     expect(escapeLike("a\\b")).toBe("a\\\\b");
     expect(escapeLike("%_\\")).toBe("\\%\\_\\\\");
   });
+  it("échappe aussi les sosies que unaccent replie en jokers (％ ﹪ ＿ ＼ ﹨ ∖)", () => {
+    // Le motif est replié par unaccent après échappement : \％ devient \% (littéral), pas %.
+    expect(escapeLike("50％")).toBe("50\\％");
+    expect(escapeLike("a﹪b")).toBe("a\\﹪b");
+    expect(escapeLike("mot＿clé")).toBe("mot\\＿clé");
+    expect(escapeLike("a＼b﹨c∖d")).toBe("a\\＼b\\﹨c\\∖d");
+    expect(containsPattern("％＿")).toBe("%\\％\\＿%");
+  });
   it("laisse le reste intact (accents, apostrophes, guillemets)", () => {
     expect(escapeLike("L'Été « 2026 »")).toBe("L'Été « 2026 »");
   });
@@ -68,6 +77,16 @@ describe("repli des accents et de la casse", () => {
   });
   it("texte déjà décomposé (NFD)", () => {
     expect(foldText("Été")).toBe("ete");
+  });
+});
+
+describe("correspondance repliée", () => {
+  it("contient le terme, sans accents ni casse (sert à choisir l'extrait de description)", () => {
+    expect(containsFolded("Éclat Été", "ECLAT ete")).toBe(true);
+    expect(containsFolded("Chef-d'Œuvre", "oeuvre")).toBe(true);
+    expect(containsFolded("Refonte du site", "été")).toBe(false);
+    expect(containsFolded(null, "été")).toBe(false);
+    expect(containsFolded("Été", "  ")).toBe(false);
   });
 });
 

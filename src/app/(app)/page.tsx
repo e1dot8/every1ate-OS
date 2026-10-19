@@ -66,7 +66,10 @@ async function Dashboard() {
     <>
       <div className="flex items-end justify-between gap-3">
         <PageHeader title={`Bonjour ${user.name}`} description={todayInParis()} />
-        <Link href="/cockpit" className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted">
+        <Link
+          href="/cockpit"
+          className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
+        >
           <Gauge aria-hidden="true" className="size-4" /> Cockpit
         </Link>
       </div>

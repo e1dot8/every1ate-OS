@@ -43,6 +43,8 @@ function SearchForm({ term, autoFocus }: { term: string; autoFocus: boolean }) {
       <Label htmlFor="recherche-q">Rechercher partout</Label>
       <div className="flex gap-2">
         <Input
+          // Remonté à chaque nouvelle recherche : la saisie suit l'URL (retour arrière, icône de la barre).
+          key={term}
           id="recherche-q"
           type="search"
           name="q"

@@ -167,7 +167,8 @@ async function Treasury() {
       <Card className="gap-2 p-3 md:p-5">
         <h2 className={sectionTitle}>Semaine par semaine</h2>
         <p className="text-sm text-muted-foreground">
-          Touchez une semaine pour voir ses mouvements. Les montants en retard sont comptés en semaine 1.
+          Ouvrez une semaine pour voir le détail de ses mouvements. Les montants en retard sont comptés en S+1
+          (semaine en cours).
         </p>
         <WeekList forecast={forecast} />
       </Card>

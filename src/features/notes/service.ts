@@ -20,6 +20,8 @@ const FROM_NOTE: AuditAction = "task.created_from_note";
 const TASK_CREATED: AuditAction = "task.created";
 
 const userSelect = { id: true, name: true } as const;
+/** Jusqu'à 100 actions par envoi, et un second envoi simultané attend le verrou du premier. */
+const TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 // ─── Lectures ───────────────────────────────────────────────────────────────
 
@@ -78,7 +80,7 @@ export async function getNote(id: string) {
 export async function tasksFromNote(noteId: string) {
   const db = getDb();
   const events = await db.auditEvent.findMany({
-    where: { action: FROM_NOTE, targetId: noteId },
+    where: { action: FROM_NOTE, targetType: "meeting_note", targetId: noteId },
     orderBy: { createdAt: "asc" },
     select: { after: true },
   });
@@ -144,7 +146,13 @@ export type NoteInput = {
   opportunityId: string | null;
   /** Lu seulement à la création (compte rendu d'une réunion du calendrier). */
   eventId: string | null;
+  /** Modification : `updatedAt` lu à l'ouverture du formulaire ; null = pas de contrôle. */
+  version?: Date | null;
 };
+
+const STALE_EDIT =
+  "Le compte rendu a été modifié entre-temps (des tâches ont pu en être créées). " +
+  "Copiez votre texte, rechargez la page, puis reportez vos changements.";
 
 /** Vérifie les liens : ils existent, et un NOUVEAU lien ne vise pas une fiche archivée. */
 async function checkLinks(
@@ -190,7 +198,14 @@ export async function saveNote(
     if (!before || before.archivedAt) return failed("Compte rendu introuvable.");
     const error = await checkLinks(input, before);
     if (error) return failed(error);
-    await db.meetingNote.update({ where: { id }, data });
+    // Sans ce contrôle, un formulaire ouvert avant « Créer les tâches » remettrait les lignes « [ ] »
+    // et les actions seraient proposées (puis créées) une seconde fois.
+    if (input.version && input.version.getTime() !== before.updatedAt.getTime()) return failed(STALE_EDIT);
+    const updated = await db.meetingNote.updateMany({
+      where: { id, archivedAt: null, updatedAt: before.updatedAt },
+      data,
+    });
+    if (!updated.count) return failed(STALE_EDIT);
     return done({ id });
   }
   const error = await checkLinks(input, null);
@@ -366,7 +381,7 @@ export async function createTasksFromNote(
       },
     });
     return { created, skipped, title: note.title };
-  });
+  }, TX_OPTIONS);
 
   if ("error" in outcome) return failed(outcome.error);
   await notifyOwners(outcome.created, actor);

@@ -124,22 +124,52 @@ describe("objectifs : réalisé de l'année", () => {
   it("projets démarrés : début, à défaut démarrage réel, à défaut jour de création à Paris", () => {
     const projects = [
       { startDate: d("2026-01-01"), actualStartDate: null, createdAt: new Date("2025-06-01T10:00:00Z") },
-      { startDate: d("2025-12-31"), actualStartDate: d("2026-01-02"), createdAt: new Date("2026-01-02T10:00:00Z") },
+      {
+        startDate: d("2025-12-31"),
+        actualStartDate: d("2026-01-02"),
+        createdAt: new Date("2026-01-02T10:00:00Z"),
+      },
       { startDate: null, actualStartDate: d("2026-07-01"), createdAt: new Date("2025-06-01T10:00:00Z") },
       // 31 décembre 23 h 30 UTC = 1er janvier à Paris.
       { startDate: null, actualStartDate: null, createdAt: new Date("2025-12-31T23:30:00Z") },
       { startDate: null, actualStartDate: null, createdAt: new Date("2026-12-31T23:30:00Z") },
     ];
-    expect(projectsStartedInYear(projects, 2026)).toBe(3);
-    expect(projectsStartedInYear(projects, 2025)).toBe(1);
-    expect(projectsStartedInYear(projects, 2027)).toBe(1);
-    expect(projectsStartedInYear([], 2026)).toBe(0);
+    const later = d("2030-01-01"); // toutes les années comptées sont écoulées
+    expect(projectsStartedInYear(projects, 2026, later)).toBe(3);
+    expect(projectsStartedInYear(projects, 2025, later)).toBe(1);
+    expect(projectsStartedInYear(projects, 2027, later)).toBe(1);
+    expect(projectsStartedInYear([], 2026, later)).toBe(0);
+  });
+  it("projets démarrés : un démarrage prévu plus tard dans l'année n'est pas encore compté", () => {
+    const planned = [
+      { startDate: d("2026-10-14"), actualStartDate: null, createdAt: new Date("2026-09-01T10:00:00Z") },
+      { startDate: d("2026-10-15"), actualStartDate: null, createdAt: new Date("2026-09-01T10:00:00Z") },
+      { startDate: d("2026-12-01"), actualStartDate: null, createdAt: new Date("2026-09-01T10:00:00Z") },
+    ];
+    expect(projectsStartedInYear(planned, 2026, today)).toBe(1); // aujourd'hui compris
+    expect(projectsStartedInYear(planned, 2026, d("2026-12-31"))).toBe(3);
+    expect(projectsStartedInYear(planned, 2027, today)).toBe(0);
+    const p = objectiveProgress({
+      year: 2026,
+      today,
+      objective: { revenue: null, margin: null, projectCount: 3 },
+      billing: [],
+      costs: [],
+      projects: planned,
+    });
+    expect(p.projects).toMatchObject({ value: 1, target: 3, pct: 33, status: "en-retard" });
   });
 });
 
 describe("objectifs : jauges", () => {
   it("pourcentage, barre bornée et position par rapport au rythme", () => {
-    expect(gauge(50, 100, 0.4)).toEqual({ value: 50, target: 100, pct: 50, barPct: 50, status: "dans-le-rythme" });
+    expect(gauge(50, 100, 0.4)).toEqual({
+      value: 50,
+      target: 100,
+      pct: 50,
+      barPct: 50,
+      status: "dans-le-rythme",
+    });
     expect(gauge(30, 100, 0.4).status).toBe("en-retard");
     expect(gauge(130, 100, 0.4)).toMatchObject({ pct: 130, barPct: 100, status: "atteint" });
     expect(gauge(-20, 100, 0.4)).toMatchObject({ pct: -20, barPct: 0, status: "en-retard" });

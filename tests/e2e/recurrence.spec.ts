@@ -86,11 +86,17 @@ test.describe("tâches récurrentes", () => {
     await page.locator("label", { hasText: "En cours" }).click();
     await page.getByRole("button", { name: "Mettre à jour" }).click();
     await expect(page.getByText("Statut mis à jour.", { exact: true })).toBeVisible();
+    // La réouverture a bien eu lieu : la nouvelle clôture passe donc par la garde « une seule fois ».
+    await expect
+      .poll(async () => (await occurrences(projectId, title)).map((r) => r.status))
+      .toEqual(["EN_COURS", "A_FAIRE"]);
     await page.locator("label", { hasText: "Terminé" }).click();
     await page.getByRole("button", { name: "Mettre à jour" }).click();
     await expect
       .poll(async () => (await occurrences(projectId, title)).map((r) => r.status))
       .toEqual(["TERMINE", "A_FAIRE"]);
+    await expect(page.getByText("Statut mis à jour.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Prochaine occurrence créée/)).toHaveCount(0);
     rows = await occurrences(projectId, title);
     expect(rows[0].next).toBe(secondId);
     await expect(page.getByRole("link", { name: /Occurrence suivante/ })).toHaveAttribute(

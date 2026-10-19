@@ -50,9 +50,16 @@ export function normalizeQuery(raw: unknown): NormalizedQuery {
   return { status: "ok", term };
 }
 
-/** Échappe les jokers LIKE (`%`, `_`) et le caractère d'échappement `\` (clause `ESCAPE '\'`). */
+/**
+ * Jokers LIKE (`%`, `_`), caractère d'échappement `\`, et leurs sosies que `unaccent` replie
+ * en ces mêmes caractères (％ ﹪ → %, ＿ → _, ＼ ﹨ ∖ → \) : le motif est échappé avant d'être
+ * replié côté SQL, un sosie non échappé redeviendrait un joker.
+ */
+const LIKE_SPECIALS = /[\\%_％﹪＿＼﹨∖]/g;
+
+/** Échappe les jokers LIKE et le caractère d'échappement (clause `ESCAPE '\'`). */
 export function escapeLike(term: string): string {
-  return term.replace(/[\\%_]/g, (c) => `\\${c}`);
+  return term.replace(LIKE_SPECIALS, (c) => `\\${c}`);
 }
 
 /** Motif « contient » pour `LIKE … ESCAPE '\'`. */
@@ -97,6 +104,12 @@ function foldWithMap(text: string) {
     index += ch.length;
   }
   return { folded, starts, ends };
+}
+
+/** Le texte contient-il le terme (sans accents ni casse) ? */
+export function containsFolded(text: string | null | undefined, term: string): boolean {
+  const needle = foldText(term.trim());
+  return !!text && !!needle && foldText(text).includes(needle);
 }
 
 export type TextPart = { text: string; match: boolean };

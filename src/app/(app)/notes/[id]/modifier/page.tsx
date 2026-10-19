@@ -31,6 +31,7 @@ async function EditNote({ params }: { params: Promise<{ id: string }> }) {
       <Card className="max-w-3xl">
         <NoteForm
           noteId={id}
+          version={note.updatedAt.toISOString()}
           initial={{
             title: note.title,
             occurredAt: toDateInput(note.occurredAt),

@@ -129,22 +129,23 @@ export function ObjectiveDefinitions() {
         <dt className="inline font-bold">Marge HT : </dt>
         <dd className="inline text-muted-foreground">
           ce CA facturé moins les coûts engagés (statuts Engagé, Reçu / facturé ou Payé) datés dans
-          l&apos;année (date de facture, à défaut de paiement, d&apos;échéance, puis d&apos;engagement).
-          Hors temps interne valorisé et hors charges fixes de l&apos;agence.
+          l&apos;année (date de facture, à défaut de paiement, d&apos;échéance, puis d&apos;engagement). Hors
+          temps interne valorisé et hors charges fixes de l&apos;agence.
         </dd>
       </div>
       <div>
         <dt className="inline font-bold">Projets démarrés : </dt>
         <dd className="inline text-muted-foreground">
-          projets dont la date de début (à défaut le démarrage réel, puis la création) tombe dans
-          l&apos;année.
+          projets, archivés compris, dont la date de début (à défaut le démarrage réel, puis la création)
+          tombe dans l&apos;année, au plus tard aujourd&apos;hui : un démarrage prévu plus tard n&apos;est pas
+          encore compté.
         </dd>
       </div>
       <div>
         <dt className="inline font-bold">Rythme : </dt>
         <dd className="inline text-muted-foreground">
-          le trait rouge marque la part de l&apos;année écoulée ; une jauge à sa gauche est en retard sur
-          un rythme régulier.
+          le trait rouge marque la part de l&apos;année écoulée ; une jauge à sa gauche est en retard sur un
+          rythme régulier.
         </dd>
       </div>
     </dl>

@@ -85,6 +85,10 @@ test.describe("comptes rendus → actions", () => {
     const staleTab = await page.context().newPage();
     await staleTab.goto(`/notes/${noteId}`);
     await expect(staleTab.getByRole("button", { name: "Créer les tâches" })).toBeVisible();
+    // Un formulaire de modification ouvert avant la création ne doit pas remettre les lignes « [ ] ».
+    const editTab = await page.context().newPage();
+    await editTab.goto(`/notes/${noteId}/modifier`);
+    await expect(editTab.getByLabel("Compte rendu", { exact: true })).toHaveValue(/\[ \] Réserver le studio/);
 
     await page.getByRole("button", { name: "Créer les tâches" }).click();
     await expect(page.getByText("2 tâches créées.")).toBeVisible();
@@ -95,6 +99,10 @@ test.describe("comptes rendus → actions", () => {
     await staleTab.getByRole("button", { name: "Créer les tâches" }).click();
     await expect(staleTab.getByText("Ces actions ont déjà été transformées en tâches.")).toBeVisible();
     await staleTab.close();
+
+    await editTab.getByRole("button", { name: "Enregistrer", exact: true }).click();
+    await expect(editTab.getByText(/Le compte rendu a été modifié entre-temps/)).toBeVisible();
+    await editTab.close();
 
     // Au rechargement : plus aucune action proposée, les lignes sont marquées « [x] ».
     await page.reload();
@@ -171,6 +179,9 @@ test.describe("comptes rendus → actions", () => {
     await page.goto("/notes/nouvelle");
     const title = unique("Notes libres");
     await page.getByLabel("Titre").fill(title);
+    // Base partagée qui s'accumule : une date lointaine garde ce compte rendu en tête de liste
+    // (tri par date puis création, du plus récent au plus ancien).
+    await page.getByLabel("Date", { exact: true }).fill("2099-12-31");
     await page.getByLabel("Compte rendu", { exact: true }).fill("Échange informel, rien à faire.");
     await expect(page.getByText("Aucune action détectée pour l'instant.")).toBeVisible();
     await page.getByRole("button", { name: "Enregistrer le compte rendu" }).click();

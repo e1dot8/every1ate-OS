@@ -727,7 +727,14 @@ export async function saveTask(
     projectId,
     targetType: "task",
     targetId: task.id,
-    after: { title: task.title, ownerId: task.ownerId },
+    after: {
+      title: task.title,
+      ownerId: task.ownerId,
+      // Répétition choisie dès la création : tracée comme les autres champs saisis.
+      ...(task.recurrence !== "AUCUNE"
+        ? { recurrence: task.recurrence, recurrenceUntil: task.recurrenceUntil?.toISOString() ?? null }
+        : {}),
+    },
   });
   if (task.ownerId) await notifyAssignment(task.id, task.ownerId, task.title, projectId, actor);
   return done({ id: task.id });

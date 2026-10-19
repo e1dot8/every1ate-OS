@@ -92,7 +92,7 @@ export function inRange(date: Date | null, range: DateRange | null): boolean {
 export function slugify(text: string): string {
   return text
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+/, "")
@@ -498,10 +498,12 @@ export type OverviewProject = {
  * Projets de la vue agence → historique de chiffrage.
  * Revenu : budget approuvé, à défaut facturé ; coûts : engagés ; durée : début → clôture
  * (connue seulement pour un projet clôturé).
+ * « Terminé » se lit sur le statut : un projet rouvert (TERMINE → ACTIF) garde son ancienne
+ * date de clôture mais redevient un projet en cours.
  */
 export function historyFromOverview(rows: OverviewProject[]): HistoryProject[] {
   return rows.map((p) => {
-    const closed = p.closedAt != null || p.status === "TERMINE";
+    const closed = p.status === "TERMINE";
     return {
       id: p.id,
       name: p.name,

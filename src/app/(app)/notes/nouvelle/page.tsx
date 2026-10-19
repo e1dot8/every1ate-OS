@@ -35,11 +35,13 @@ async function NewNote({ searchParams }: { searchParams: Promise<Search> }) {
   // Depuis une réunion du calendrier : seulement si ses détails sont visibles pour cet associé.
   let eventTitle: string | undefined;
   let eventHidden = false;
+  let eventPrivate = false;
   const eventId = one(sp.evenement);
   if (eventId) {
     const e = await getEvent(eventId, user.id);
     if (e && !e.busyOnly) {
       eventTitle = e.title;
+      eventPrivate = e.visibility === "OCCUPE";
       initial.eventId = e.id;
       initial.title = `Compte rendu — ${e.title}`.slice(0, 200);
       initial.occurredAt = localDay(e.startsAt);
@@ -68,6 +70,12 @@ async function NewNote({ searchParams }: { searchParams: Promise<Search> }) {
       {eventHidden ? (
         <FormAlert tone="info" title="Réunion introuvable ou privée">
           Le compte rendu ne sera pas rattaché à cet événement.
+        </FormAlert>
+      ) : null}
+      {eventPrivate ? (
+        <FormAlert tone="info" title="Réunion non partagée">
+          Les comptes rendus sont visibles par tous les associés : n&apos;y notez que ce qui peut être
+          partagé, titre compris.
         </FormAlert>
       ) : null}
       <NoteForm

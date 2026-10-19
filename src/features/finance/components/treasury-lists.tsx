@@ -39,7 +39,11 @@ function ItemRow({ item, fixLabel }: { item: Item; fixLabel?: string }) {
           <span className="font-bold break-words">{item.label}</span>
         )}
         {fixLabel && item.href ? (
-          <Link href={item.href} className="inline-flex min-h-tap w-fit items-center text-sm underline">
+          <Link
+            href={item.href}
+            aria-label={`${fixLabel} : ${item.label}`}
+            className="inline-flex min-h-tap w-fit items-center text-sm underline"
+          >
             {fixLabel}
           </Link>
         ) : null}

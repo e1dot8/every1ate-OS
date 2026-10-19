@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseDateInput } from "@/lib/dates";
-import { DONE_MARK, markLinesDone, parseActions, reconcileActions } from "@/features/notes/parse";
+import {
+  DONE_MARK,
+  markLinesDone,
+  normalizeNoteBody,
+  parseActions,
+  reconcileActions,
+} from "@/features/notes/parse";
 import { canReceiveTasks, pendingActionsLabel, tasksCreatedLabel } from "@/features/notes/rules";
 
 const today = parseDateInput("2026-10-14")!; // mercredi
@@ -49,6 +55,30 @@ describe("markLinesDone", () => {
   it("une ligne « [x] » n'est jamais détectée comme action", () => {
     for (const line of ["[x] Fait", "- [x] Fait", "[X] Fait", `  * ${DONE_MARK} Fait`])
       expect(parseActions(line, people, today)).toEqual([]);
+  });
+});
+
+describe("détection des marqueurs", () => {
+  it("« TODO » doit être un mot entier", () => {
+    expect(parseActions("Todolist à revoir", people, today)).toEqual([]);
+    expect(parseActions("TODOS du mois", people, today)).toEqual([]);
+    expect(parseActions("TODO: appeler la régie", people, today).map((a) => a.title)).toEqual([
+      "Appeler la régie",
+    ]);
+    expect(parseActions("todo appeler la régie", people, today)).toHaveLength(1);
+  });
+});
+
+describe("normalizeNoteBody", () => {
+  it("compose les accents, unifie les fins de ligne et retire les blancs autour", () => {
+    const decomposed = "A\u0300 faire : re\u0301server le studio";
+    expect(parseActions(decomposed, people, today)).toEqual([]);
+    const body = normalizeNoteBody(`\r\n  Intro\r\n${decomposed}\r[ ] Fin  \n\n`);
+    expect(body).toBe("Intro\nÀ faire : réserver le studio\n[ ] Fin");
+    expect(parseActions(body, people, today).map((a) => [a.line, a.title])).toEqual([
+      [2, "Réserver le studio"],
+      [3, "Fin"],
+    ]);
   });
 });
 
@@ -105,6 +135,20 @@ describe("reconcileActions (idempotence côté serveur)", () => {
   it("signale un compte rendu modifié entre-temps", () => {
     const r = reconcileActions(detected, [sent(2, "[ ] Autre chose")]);
     expect(r).toMatchObject({ accepted: [], stale: true });
+  });
+
+  it("une ligne ajoutée au-dessus décale les actions : signalé, jamais compté comme déjà traité", () => {
+    const shifted = parseActions(`Ajout en tête\n${BODY}`, people, today);
+    // Ligne 1 → ordinaire, ligne 2 → texte décalé : aucune tâche, et le formulaire sera reproposé.
+    const r = reconcileActions(shifted, [sent(2), sent(8)]);
+    expect(r).toMatchObject({ accepted: [], stale: true });
+    // Une ligne réellement traitée (« [x] ») reste simplement ignorée.
+    const done = parseActions(`Ajout en tête\n${markLinesDone(BODY, [8])}`, people, today);
+    expect(reconcileActions(done, [{ ...sent(8), line: 9 }])).toMatchObject({
+      accepted: [],
+      skipped: 1,
+      stale: false,
+    });
   });
 
   it("une même ligne envoyée deux fois n'est retenue qu'une fois", () => {

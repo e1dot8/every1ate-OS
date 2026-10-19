@@ -11,8 +11,8 @@ import "server-only";
  * - Marge de l'année : ce CA facturé − les coûts engagés (Engagé, Reçu / facturé ou Payé) datés dans
  *   l'année (facture, à défaut paiement, échéance, puis engagement). Hors temps interne valorisé et
  *   hors charges fixes de l'agence.
- * - Projets de l'année : projets dont la date de début (à défaut le démarrage réel, puis la
- *   création, jour de Paris) tombe dans l'année.
+ * - Projets de l'année : projets (archivés compris) dont la date de début (à défaut le démarrage
+ *   réel, puis la création, jour de Paris) tombe dans l'année, au plus tard aujourd'hui.
  * - Rentabilité : par projet, cumul à date du facturé HT et des coûts engagés HT (non limité à
  *   l'année) ; « terminés » = projets clôturés dans l'année, « tous » = ceux-ci + les projets en
  *   cours ayant démarré au plus tard cette année-là.
@@ -115,8 +115,7 @@ export const COUNTED_COST_STATUSES = ["ENGAGE", "FACTURE", "PAYE"] as const;
 export function costsInYear(costs: YearCost[], year: number): number {
   return costs
     .filter(
-      (c) =>
-        (COUNTED_COST_STATUSES as readonly string[]).includes(c.status) && inYear(costDate(c), year),
+      (c) => (COUNTED_COST_STATUSES as readonly string[]).includes(c.status) && inYear(costDate(c), year),
     )
     .reduce((n, c) => n + c.amount, 0);
 }
@@ -127,8 +126,15 @@ export type ProjectDates = { startDate: Date | null; actualStartDate: Date | nul
 export const projectStart = (p: ProjectDates): Date =>
   p.startDate ?? p.actualStartDate ?? todayDate(p.createdAt);
 
-export const projectsStartedInYear = (projects: ProjectDates[], year: number) =>
-  projects.filter((p) => inYear(projectStart(p), year)).length;
+/**
+ * Projets démarrés dans l'année, au plus tard aujourd'hui : un démarrage prévu plus tard dans
+ * l'année n'est pas encore « démarré » (sinon la jauge serait atteinte dès janvier).
+ */
+export const projectsStartedInYear = (projects: ProjectDates[], year: number, today: Date) =>
+  projects.filter((p) => {
+    const start = projectStart(p);
+    return inYear(start, year) && start <= today;
+  }).length;
 
 export type Objective = { revenue: number | null; margin: number | null; projectCount: number | null };
 
@@ -174,7 +180,7 @@ export function objectiveProgress(input: {
     costs,
     revenue: gauge(revenue, o?.revenue ?? null, pace),
     margin: gauge(revenue - costs, o?.margin ?? null, pace),
-    projects: gauge(projectsStartedInYear(input.projects, year), o?.projectCount ?? null, pace),
+    projects: gauge(projectsStartedInYear(input.projects, year, input.today), o?.projectCount ?? null, pace),
   };
 }
 
@@ -275,8 +281,7 @@ export const totalProfitability = (rows: ProfitInput[]): ProfitRow | null =>
   rows.length ? groupProfitability(rows.map((r) => ({ ...r, key: "total", label: "Total" })))[0] : null;
 
 export const NO_KEY = "_aucun";
-export const templateLabel = (key: string | null) =>
-  key ? (getTemplate(key)?.name ?? key) : "Sans modèle";
+export const templateLabel = (key: string | null) => (key ? (getTemplate(key)?.name ?? key) : "Sans modèle");
 
 // ─── Lecture ────────────────────────────────────────────────────────────────
 
@@ -419,7 +424,12 @@ export async function profitabilityFor(
     for (const x of list) m.set(x.projectId, [...(m.get(x.projectId) ?? []), x]);
     return m;
   };
-  const [bill, pay, cost, logged] = [byProject(billing), byProject(payments), byProject(costs), byProject(time)];
+  const [bill, pay, cost, logged] = [
+    byProject(billing),
+    byProject(payments),
+    byProject(costs),
+    byProject(time),
+  ];
   const inputs = projects.map((p) => {
     const s = summarize({
       budget: null,
@@ -467,7 +477,8 @@ export async function profitabilityFor(
 
 export type ObjectiveInput = { year: number } & Objective;
 
-const positiveInt = (v: number | null, max: number) => v == null || (Number.isInteger(v) && v > 0 && v <= max);
+const positiveInt = (v: number | null, max: number) =>
+  v == null || (Number.isInteger(v) && v > 0 && v <= max);
 
 /** Objectifs d'une année (création ou mise à jour), journalisés : « finance.objective ». */
 export async function saveObjective(

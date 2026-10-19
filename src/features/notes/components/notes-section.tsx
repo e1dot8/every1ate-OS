@@ -7,6 +7,7 @@ import { pendingActionsLabel, tasksCreatedLabel } from "@/features/notes/rules";
 import { formatDay } from "@/lib/dates";
 
 type NoteItem = Awaited<ReturnType<typeof listNotes>>[number];
+const SECTION_LIMIT = 20;
 
 /** Liste de comptes rendus : date, titre, auteur, tâches créées et actions encore à traiter. */
 export function NoteList({ notes, showLinks }: { notes: NoteItem[]; showLinks?: boolean }) {
@@ -50,7 +51,7 @@ export async function NotesSection({
   newLabel?: string;
   readOnly?: boolean;
 }) {
-  const notes = await listNotes({ ...filter, take: 20 });
+  const notes = await listNotes({ ...filter, take: SECTION_LIMIT });
   return (
     <Card className="gap-3" id="comptes-rendus">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -64,7 +65,17 @@ export async function NotesSection({
         ) : null}
       </div>
       {notes.length ? (
-        <NoteList notes={notes} />
+        <>
+          <NoteList notes={notes} />
+          {notes.length === SECTION_LIMIT ? (
+            <p className="text-xs text-muted-foreground">
+              Les {SECTION_LIMIT} plus récents.{" "}
+              <Link href="/notes" className="underline">
+                Tous les comptes rendus
+              </Link>
+            </p>
+          ) : null}
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">Aucun compte rendu pour l&apos;instant.</p>
       )}

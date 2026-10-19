@@ -169,16 +169,19 @@ export async function GET(request: NextRequest) {
     now,
   );
 
+  // Lecture seule : pas de projectId, pour ne pas remplir le journal du projet (100 dernières
+  // modifications) à chaque téléchargement. Le projet exporté reste identifié par targetId.
   await recordAudit({
     action: "finance.export",
     actorId: user.id,
-    projectId: project?.id ?? null,
     targetType: "finance_export",
     targetId: scopeValue(scope),
     after: {
       scope: scope.kind,
       value: scopeValue(scope),
-      lignes: { couts: costsIn.length, facturation: billingIn.length, encaissements: paymentsIn.length },
+      costRows: costsIn.length,
+      billingRows: billingIn.length,
+      paymentRows: paymentsIn.length,
     },
     userAgent: request.headers.get("user-agent"),
   });

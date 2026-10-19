@@ -68,9 +68,9 @@ describe("rentabilité : projets retenus", () => {
     expect(inScope(project({}), 2026, "tous")).toBe(true);
     expect(inScope(project({}), 2025, "tous")).toBe(false);
     // Clôturé une autre année : n'est plus « en cours ».
-    expect(inScope(project({ status: "TERMINE", closedAt: new Date("2025-06-01T10:00:00Z") }), 2026, "tous")).toBe(
-      false,
-    );
+    expect(
+      inScope(project({ status: "TERMINE", closedAt: new Date("2025-06-01T10:00:00Z") }), 2026, "tous"),
+    ).toBe(false);
     // Archivé sans clôture : rattaché à aucune année.
     expect(inScope(project({ status: "ARCHIVE", startDate: d("2026-02-01") }), 2026, "tous")).toBe(false);
   });
@@ -98,8 +98,18 @@ describe("rentabilité : regroupement", () => {
       row({ key: "b", revenue: 50000, costs: 0, timeCost: 1000 }),
       row({ key: "b", revenue: 50000, costs: 0, timeCost: null }),
     ]);
-    expect(valued).toMatchObject({ key: "a", margin: 160000, marginAfterTime: 120000, marginAfterTimeRate: 60 });
-    expect(partial).toMatchObject({ key: "b", margin: 100000, marginAfterTime: null, marginAfterTimeRate: null });
+    expect(valued).toMatchObject({
+      key: "a",
+      margin: 160000,
+      marginAfterTime: 120000,
+      marginAfterTimeRate: 60,
+    });
+    expect(partial).toMatchObject({
+      key: "b",
+      margin: 100000,
+      marginAfterTime: null,
+      marginAfterTimeRate: null,
+    });
   });
 
   it("satisfaction moyenne sur les seules notes renseignées (une décimale)", () => {

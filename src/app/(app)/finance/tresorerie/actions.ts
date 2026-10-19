@@ -88,7 +88,7 @@ export async function saveCashBalanceAction(_prev: FormState, formData: FormData
 
 const chargeSchema = z
   .object({
-    chargeId: z.string().optional(),
+    chargeId: z.string().trim().max(64).optional(),
     label: z.string().trim().min(1, "Libellé requis.").max(200),
     category: text(100),
     amount: z
@@ -138,9 +138,13 @@ export async function saveChargeAction(_prev: FormState, formData: FormData): Pr
   redirect(PATH);
 }
 
+const archiveSchema = z.object({ chargeId: z.string().trim().min(1).max(64) });
+
 export async function archiveChargeAction(formData: FormData) {
   const user = await requireUser();
-  const result = await archiveCharge(String(formData.get("chargeId") ?? ""), user);
+  const parsed = archiveSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  const result = await archiveCharge(parsed.data.chargeId, user);
   if (result.ok) {
     revalidatePath(PATH);
     redirect(PATH);

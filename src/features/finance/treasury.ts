@@ -200,7 +200,9 @@ export async function saveCharge(
     if (!before || before.archivedAt) return failed("Charge introuvable.");
     const changes = diff(snapshot(before), snapshot(data));
     if (!changes.changed) return done({ id });
-    await db.recurringCharge.update({ where: { id }, data });
+    // Conditionnel : une charge archivée entre-temps n'est pas modifiée.
+    const { count } = await db.recurringCharge.updateMany({ where: { id, archivedAt: null }, data });
+    if (!count) return failed("Charge introuvable.");
     await recordAudit({
       action: "finance.recurring_charge_updated",
       actorId: actor.id,
@@ -226,7 +228,12 @@ export async function archiveCharge(id: string, actor: Actor): Promise<ServiceRe
   const db = getDb();
   const before = await db.recurringCharge.findUnique({ where: { id } });
   if (!before || before.archivedAt) return failed("Charge introuvable.");
-  await db.recurringCharge.update({ where: { id }, data: { archivedAt: new Date() } });
+  // Conditionnel : un double envoi n'archive (et ne journalise) qu'une seule fois.
+  const { count } = await db.recurringCharge.updateMany({
+    where: { id, archivedAt: null },
+    data: { archivedAt: new Date() },
+  });
+  if (!count) return failed("Charge introuvable.");
   await recordAudit({
     action: "finance.recurring_charge_archived",
     actorId: actor.id,

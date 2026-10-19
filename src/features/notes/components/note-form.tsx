@@ -11,7 +11,7 @@ import { formatDay, parseDateInput } from "@/lib/dates";
 import { initialFormState } from "@/lib/forms";
 import { saveNoteAction } from "@/app/(app)/notes/actions";
 import { SYNTAX_HINT } from "@/features/notes/labels";
-import { parseActions, type Person } from "@/features/notes/parse";
+import { normalizeNoteBody, parseActions, type Person } from "@/features/notes/parse";
 
 type Opt = { value: string; label: string };
 
@@ -31,7 +31,11 @@ const none = (label: string): Opt => ({ value: "", label });
 function ActionsPreview({ body, people, today }: { body: string; people: Person[]; today: string }) {
   const deferred = useDeferredValue(body);
   const day = useMemo(() => parseDateInput(today) ?? new Date(), [today]);
-  const actions = useMemo(() => parseActions(deferred, people, day), [deferred, people, day]);
+  // Même lecture que le serveur après l'enregistrement (texte normalisé).
+  const actions = useMemo(
+    () => parseActions(normalizeNoteBody(deferred), people, day),
+    [deferred, people, day],
+  );
   const n = actions.length;
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-dashed p-3 text-sm">
@@ -65,6 +69,7 @@ function ActionsPreview({ body, people, today }: { body: string; people: Person[
 
 export function NoteForm({
   noteId,
+  version,
   initial,
   projects,
   clients,
@@ -74,6 +79,8 @@ export function NoteForm({
   eventTitle,
 }: {
   noteId?: string;
+  /** Modification : `updatedAt` (ISO) lu à l'ouverture, pour refuser un enregistrement périmé. */
+  version?: string;
   initial: NoteFormValues;
   projects: Opt[];
   clients: Opt[];
@@ -92,6 +99,7 @@ export function NoteForm({
     <form action={action} className="flex flex-col gap-4" noValidate>
       <FormMessages state={state} />
       {noteId ? <input type="hidden" name="noteId" value={noteId} /> : null}
+      {noteId && version ? <input type="hidden" name="version" value={version} /> : null}
       {!noteId && initial.eventId ? <input type="hidden" name="eventId" value={initial.eventId} /> : null}
       {eventTitle ? (
         <p className="text-sm text-muted-foreground">

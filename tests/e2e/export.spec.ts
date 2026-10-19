@@ -70,16 +70,26 @@ test.describe("export comptable et chiffrage indicatif", () => {
     expect(costs.getRow(2).getCell(8).numFmt).toBe("#,##0.00 €");
     expect(costs.getRow(2).getCell(1).value).toBeInstanceOf(Date);
 
+    // Journal : périmètre et nombres de lignes, sans montant ; hors journal du projet (lecture seule).
     const audited = await withDb(
       async (c) =>
         (
           await c.query(
-            `select count(*)::int as n from audit_event where action = 'finance.export' and "projectId" = $1`,
+            `select "projectId", after from audit_event
+             where action = 'finance.export' and "targetType" = 'finance_export' and "targetId" = $1`,
             [id],
           )
-        ).rows[0].n as number,
+        ).rows as { projectId: string | null; after: Record<string, unknown> }[],
     );
-    expect(audited).toBeGreaterThanOrEqual(1);
+    expect(audited.length).toBeGreaterThanOrEqual(1);
+    expect(audited[0].projectId).toBeNull();
+    expect(audited[0].after).toEqual({
+      scope: "projet",
+      value: id,
+      costRows: 1,
+      billingRows: 0,
+      paymentRows: 0,
+    });
 
     // Paramètres invalides, projet inconnu, absence de session.
     expect((await page.request.get("/api/export/finance")).status()).toBe(400);

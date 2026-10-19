@@ -19,6 +19,15 @@ import {
   saveCost,
 } from "@/features/finance/service";
 import { saveEvent } from "@/features/calendar/service";
+import { saveObjective } from "@/features/finance/analytics";
+import { saveCharge } from "@/features/finance/treasury";
+import { saveNote } from "@/features/notes/service";
+import {
+  saveAgencySettings,
+  saveAssociateSettings,
+  saveCashBalance,
+  saveDigestPreference,
+} from "@/features/settings/service";
 import { runScheduledScan } from "@/features/notifications/service";
 import { addComment, saveMilestone } from "@/features/planning/service";
 import { changeTaskStatus, createProject, saveTask } from "@/features/projects/service";
@@ -519,6 +528,186 @@ async function main() {
     },
     pierre,
   );
+
+  // ─── V1.1 : pilotage (données fictives) ──────────────────────────────────
+  await saveAgencySettings({ defaultHourlyCostCents: 4000, defaultWeeklyHours: 35 }, johan);
+  for (const [who, rate, hours] of [
+    [johan, 4500, 35],
+    [charles, 4500, 35],
+    [pierre, 4000, 28],
+  ] as const)
+    await saveAssociateSettings({ userId: who.id, hourlyCostCents: rate, weeklyCapacityHours: hours }, johan);
+  await saveDigestPreference("QUOTIDIEN", johan);
+  await saveCashBalance({ balanceCents: 1850000, date: today }, charles);
+  for (const [label, category, amount, frequency, next] of [
+    ["Loyer du bureau", "Locaux", 120000, "MENSUELLE", 17],
+    ["Logiciels et abonnements", "Outils", 32000, "MENSUELLE", 4],
+    ["Expert-comptable", "Honoraires", 240000, "TRIMESTRIELLE", 45],
+    ["Assurance RC Pro", "Assurances", 90000, "ANNUELLE", 60],
+  ] as const)
+    await saveCharge(
+      null,
+      { label, category, amount, frequency, nextDate: day(next), endDate: null },
+      charles,
+    );
+  await saveObjective(
+    { year: today.getUTCFullYear(), revenue: 24000000, margin: 9000000, projectCount: 12 },
+    johan,
+  );
+
+  // Historique : projets terminés (chiffrage par l'historique, rentabilité, signaux commerciaux).
+  const opale = await client("Galerie Opale", "Art", ["Mila", "Perret", "Directrice"]);
+  const margelle = await client("Librairie Margelle", "Édition", ["Paul", "Brun", "Gérant"]);
+  const historic = async (
+    name: string,
+    templateKey: string,
+    clientId: string,
+    owner: { id: string },
+    start: number,
+    close: number,
+    revenue: number,
+    spent: number,
+    satisfaction: number,
+  ) => {
+    const id = await project(name, templateKey, day(start), owner, clientId);
+    await proposeBudget(
+      id,
+      {
+        workPackageId: null,
+        revenue: revenue * 100,
+        cost: spent * 100,
+        pricingMode: "FORFAIT",
+        reason: null,
+      },
+      owner,
+    );
+    await cost(id, owner, "Production", "Prestataires", spent, "PAYE");
+    const b = await bill(id, owner, "Facture de solde", "SOLDE", revenue, start + 20, "FACTURE");
+    await recordPayment(
+      id,
+      { billingMilestoneId: b, amount: revenue * 100, receivedAt: day(start + 50), reference: "VIR" },
+      owner,
+    );
+    await db.costItem.updateMany({
+      where: { projectId: id },
+      data: { committedAt: day(start + 5), invoiceDate: day(start + 15), paidAt: day(start + 40) },
+    });
+    const tasks = await tasksOf(id);
+    for (const [k, t] of tasks.slice(0, 5).entries())
+      await db.timeEntry.create({
+        data: {
+          userId: owner.id,
+          taskId: t.id,
+          projectId: id,
+          date: day(start + 3 + k * 4),
+          durationMinutes: 180 + k * 60,
+          source: "MANUEL",
+        },
+      });
+    await db.task.updateMany({
+      where: { projectId: id },
+      data: { status: "TERMINE", completedAt: at(close, "18:00") },
+    });
+    await db.project.update({
+      where: { id },
+      data: {
+        status: "TERMINE",
+        phase: "SERVICE",
+        createdAt: at(start, "09:00"),
+        actualEndDate: day(close),
+        closedAt: at(close, "18:00"),
+        clientSatisfaction: satisfaction,
+        closingReview: "Client satisfait, délais tenus. À refaire : cadrer les retours plus tôt.",
+      },
+    });
+    return id;
+  };
+  await historic(
+    "Campagne hiver — Atelier Brume",
+    "campagne-creative",
+    brume,
+    charles,
+    -260,
+    -190,
+    38000,
+    21000,
+    4,
+  );
+  await historic(
+    "Campagne rentrée — Galerie Opale",
+    "campagne-creative",
+    opale,
+    johan,
+    -130,
+    -45,
+    42000,
+    22500,
+    5,
+  );
+  await historic(
+    "Stratégie éditoriale — Librairie Margelle",
+    "conseil-strategie",
+    margelle,
+    charles,
+    -330,
+    -250,
+    16000,
+    2500,
+    4,
+  );
+
+  // Tâche récurrente : reporting hebdomadaire du contrat Café Lumen.
+  await saveTask(
+    p3,
+    null,
+    {
+      title: "Reporting hebdo community management",
+      description: "Statistiques de la semaine et prochains posts.",
+      workPackageId: null,
+      ownerId: charles.id,
+      contributorIds: [],
+      priority: "AUTO",
+      impact: "MOYEN",
+      startDate: day(2),
+      dueDate: day(3),
+      estimatedMinutes: 45,
+      recurrence: "HEBDOMADAIRE",
+      recurrenceUntil: day(180),
+    },
+    charles,
+  );
+
+  // Renouvellement proche : le contrat Social ads arrive à échéance (préavis dans 10 jours).
+  await db.recurringContract.updateMany({
+    where: { label: "Social ads Maison Solène" },
+    data: { renewalDate: day(40) },
+  });
+
+  // Compte rendu → actions (une action déjà transformée, deux à confirmer).
+  const atelier = await saveNote(
+    null,
+    {
+      title: "Atelier de lancement — campagne printemps",
+      body: [
+        "Présents : Claire (Maison Solène), Johan, Charles.",
+        "",
+        "Décisions :",
+        "- Trois visuels clés, déclinés en stories.",
+        "- Budget média confirmé.",
+        "",
+        "[ ] Envoyer le planning de shooting @Charles vendredi",
+        "[ ] Préparer les moodboards V2 @Johan pour le 30/10",
+        "[x] Partager le brief créatif",
+      ].join("\n"),
+      occurredAt: day(-1),
+      projectId: p1,
+      clientId: solene,
+      opportunityId: null,
+      eventId: null,
+    },
+    johan,
+  );
+  if (!atelier.ok) throw new Error(atelier.error);
 
   await runScheduledScan();
   console.log("Données de démonstration créées.");

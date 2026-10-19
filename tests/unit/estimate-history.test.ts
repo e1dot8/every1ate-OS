@@ -48,6 +48,18 @@ describe("chiffrage par l'historique : préparation", () => {
     expect(open).toMatchObject({ closed: false, durationDays: null });
   });
 
+  it("projet rouvert (TERMINE → ACTIF) : ancienne date de clôture ignorée, de nouveau en cours", () => {
+    const [reopened] = historyFromOverview([
+      row({
+        id: "r",
+        status: "ACTIF",
+        startDate: d("2026-01-05"),
+        closedAt: new Date("2026-02-10T10:00:00Z"),
+      }),
+    ]);
+    expect(reopened).toMatchObject({ closed: false, durationDays: null });
+  });
+
   it("le projet comparé est exclu de ses propres repères", () => {
     const rows = [
       row({ id: "moi", summary: { budgetRevenue: 9900000, billingInvoiced: 0, costsCommitted: 0 } }),

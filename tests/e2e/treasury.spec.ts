@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { auditActions } from "./support/db";
 import { activateAssociate } from "./support/flows";
 
@@ -11,6 +11,20 @@ function parisDay(offsetDays = 0) {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
   return new Date(Date.parse(`${today}T00:00:00Z`) + offsetDays * 86_400_000).toISOString().slice(0, 10);
 }
+
+/**
+ * Déplie la semaine n (0 = S+1) si elle est repliée. Avec cacheComponents, Next.js garde les
+ * pages quittées dans une <Activity> masquée : au retour, un <details> déjà ouvert le reste,
+ * et un clic aveugle le refermerait.
+ */
+async function openWeek(weeks: Locator, index: number) {
+  const details = weeks.locator(":scope > li").nth(index).locator("details");
+  if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open)))
+    await details.locator("summary").click();
+  await expect(details).toHaveAttribute("open", "");
+}
+
+const cents = (locator: Locator) => async () => Number(await locator.getAttribute("data-cents"));
 
 test.describe("trésorerie 13 semaines", () => {
   test("solde bancaire, charge fixe mensuelle visible dans la liste et dans la prévision, puis archivée", async ({
@@ -58,18 +72,16 @@ test.describe("trésorerie 13 semaines", () => {
     const charges = page.getByRole("list", { name: "Charges fixes" });
     await expect(charges.getByRole("link", { name: label })).toBeVisible();
     await expect(charges.getByRole("listitem").filter({ hasText: label })).toContainText(euros("4 321,00 €"));
-    expect(
-      Number(await page.getByTestId("charges-monthly-total").getAttribute("data-cents")),
-    ).toBeGreaterThanOrEqual(432_100);
+    await expect.poll(cents(page.getByTestId("charges-monthly-total"))).toBeGreaterThanOrEqual(432_100);
     // 3 échéances mensuelles dans l'horizon (J+7, J+7 + 1 mois, J+7 + 2 mois).
-    expect(
-      Number(await page.getByTestId("kpi-Décaissements 13 sem.").getAttribute("data-cents")),
-    ).toBeGreaterThanOrEqual(3 * 432_100);
+    await expect
+      .poll(cents(page.getByTestId("kpi-Décaissements 13 sem.")))
+      .toBeGreaterThanOrEqual(3 * 432_100);
 
     const weeks = page.getByRole("list", { name: "Détail par semaine" });
     const week2 = weeks.locator(":scope > li").nth(1);
     await expect(week2).toContainText("S+2");
-    await week2.locator("summary").click();
+    await openWeek(weeks, 1);
     const moves = week2.getByRole("list", { name: "Mouvements de la semaine S+2" });
     const row = moves.getByRole("listitem").filter({ hasText: label });
     await expect(row.getByRole("link", { name: label })).toBeVisible();
@@ -83,7 +95,7 @@ test.describe("trésorerie 13 semaines", () => {
     await page.getByLabel("Montant (€)").fill("4 400");
     await page.getByRole("button", { name: "Enregistrer la charge" }).click();
     await expect(page).toHaveURL(/\/finance\/tresorerie$/);
-    await weeks.locator(":scope > li").nth(1).locator("summary").click();
+    await openWeek(weeks, 1);
     await expect(
       weeks
         .getByRole("list", { name: "Mouvements de la semaine S+2" })
@@ -97,7 +109,9 @@ test.describe("trésorerie 13 semaines", () => {
     await page.getByRole("button", { name: "Confirmer l'archivage" }).click();
     await expect(page).toHaveURL(/\/finance\/tresorerie$/);
     await expect(page.getByRole("heading", { level: 2, name: "Charges fixes" })).toBeVisible();
-    await expect(page.getByText(label)).toHaveCount(0);
+    // Portée limitée à la page visible : la fiche quittée reste dans le DOM (Activity masquée).
+    await expect(page.getByRole("list", { name: "Charges fixes" }).getByText(label)).toHaveCount(0);
+    await expect(weeks.getByText(label)).toHaveCount(0);
 
     const actions = await auditActions({ actorEmail: email });
     expect(actions).toEqual(

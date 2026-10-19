@@ -9,7 +9,12 @@ import { getBrief } from "@/features/brief/service";
 /** Heure et jour de la semaine à Paris (0 = dimanche). */
 function parisClock(now: Date) {
   const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Paris", hourCycle: "h23", hour: "2-digit", weekday: "short" })
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Paris",
+      hourCycle: "h23",
+      hour: "2-digit",
+      weekday: "short",
+    })
       .formatToParts(now)
       .map((p) => [p.type, p.value]),
   );
@@ -18,7 +23,11 @@ function parisClock(now: Date) {
 }
 
 /** Est-ce l'heure d'envoyer le récapitulatif choisi ? (fenêtre 7 h – 11 h, heure de Paris) */
-export function digestDue(frequency: "AUCUN" | "QUOTIDIEN" | "HEBDOMADAIRE", now: Date, lastSentOn: Date | null) {
+export function digestDue(
+  frequency: "AUCUN" | "QUOTIDIEN" | "HEBDOMADAIRE",
+  now: Date,
+  lastSentOn: Date | null,
+) {
   if (frequency === "AUCUN") return false;
   const { hour, weekday } = parisClock(now);
   if (hour < 7 || hour > 11) return false;
@@ -49,7 +58,16 @@ export async function sendDigests(now = new Date()) {
     const brief = await getBrief(u.id, now);
     if (!brief.items.length) continue;
     try {
-      await sendEmail(digestEmail({ to: u.email, name: u.name, summary: brief.summary, items: brief.items, appUrl: getServerEnv().appUrl, weekly: u.digestFrequency === "HEBDOMADAIRE" }));
+      await sendEmail(
+        digestEmail({
+          to: u.email,
+          name: u.name,
+          summary: brief.summary,
+          items: brief.items,
+          appUrl: getServerEnv().appUrl,
+          weekly: u.digestFrequency === "HEBDOMADAIRE",
+        }),
+      );
       sent++;
     } catch (error) {
       console.error("[digest] envoi impossible", error);

@@ -60,9 +60,7 @@ function Figures({ r, timeValued }: { r: ProfitRow; timeValued: boolean }) {
         ) : (
           <>
             {r.satisfaction.toLocaleString("fr-FR")}/5
-            <span className="block text-xs text-muted-foreground">
-              {r.ratings} avis
-            </span>
+            <span className="block text-xs text-muted-foreground">{r.ratings} avis</span>
           </>
         )}
       </td>
@@ -88,8 +86,14 @@ function ProfitTable({
 }) {
   const head = "px-2 py-2 text-right font-normal";
   return (
-    // Seul ce conteneur défile horizontalement sur petit écran, jamais la page.
-    <div role="region" aria-label={caption} tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
+    // Seul ce conteneur défile horizontalement sur petit écran, jamais la page (contain : la largeur
+    // minimale du tableau n'élargit pas la colonne principale à côté du menu latéral).
+    <div
+      role="region"
+      aria-label={caption}
+      tabIndex={0}
+      className="overflow-x-auto rounded-xl border bg-card contain-inline-size"
+    >
       <table className="w-full min-w-[44rem] text-sm">
         <caption className="px-4 pt-3 pb-1 text-left font-bold">{caption}</caption>
         <thead>
@@ -198,7 +202,9 @@ async function Analyses({ searchParams }: { searchParams: Promise<SP> }) {
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="gap-3">
             <CardTitle>Fixer les objectifs</CardTitle>
-            <CardDescription>Montants HT. Un champ vide = pas d&apos;objectif sur cet indicateur.</CardDescription>
+            <CardDescription>
+              Montants HT. Un champ vide = pas d&apos;objectif sur cet indicateur.
+            </CardDescription>
             <ObjectiveForm
               key={year}
               year={year}
@@ -230,14 +236,14 @@ async function Analyses({ searchParams }: { searchParams: Promise<SP> }) {
         </div>
         <figure className="flex flex-col gap-4">
           <figcaption className="text-sm text-muted-foreground">
-            <b className="text-foreground">Comment sont calculés ces chiffres.</b>{" "}
-            {profit.count} projet{profit.count > 1 ? "s" : ""} :{" "}
+            <b className="text-foreground">Comment sont calculés ces chiffres.</b> Projets pris en compte (
+            {profit.count}) : ceux{" "}
             {scope === "termines"
               ? `clôturés en ${year}`
               : `clôturés en ${year}, ou en cours et démarrés au plus tard en ${year}`}{" "}
             (archivés compris s&apos;ils ont été clôturés). Pour chaque projet, cumul à date, non limité à
-            l&apos;année : <b>revenus</b> = facturé HT (échéances facturées ou encaissées) ;{" "}
-            <b>marge</b> = revenus − coûts engagés HT (engagés, reçus / facturés ou payés) ;{" "}
+            l&apos;année : <b>revenus</b> = facturé HT (échéances facturées ou encaissées) ; <b>marge</b> =
+            revenus − coûts engagés HT (engagés, reçus / facturés ou payés) ;{" "}
             {profit.timeValued ? (
               <>
                 <b>marge après temps</b> = marge − temps passé valorisé au coût horaire interne ;{" "}
@@ -245,7 +251,9 @@ async function Analyses({ searchParams }: { searchParams: Promise<SP> }) {
             ) : null}
             <b>taux de marge</b> = marge ÷ revenus ; <b>satisfaction</b> = moyenne des notes données à la
             clôture (sur 5) ; <b>temps passé</b> = heures saisies. Tri par marge décroissante.
-            {scope === "tous" ? " Un projet en cours n'a pas fini de facturer : sa marge est provisoire." : ""}
+            {scope === "tous"
+              ? " Un projet en cours n'a pas fini de facturer : sa marge est provisoire."
+              : ""}
             {profit.timeValued ? null : (
               <>
                 {" "}

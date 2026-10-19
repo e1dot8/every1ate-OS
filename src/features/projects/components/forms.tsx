@@ -262,6 +262,8 @@ export function TaskForm(props: {
   // React réinitialise le formulaire après chaque envoi, ce qui effacerait sinon les listes.
   const v = state.status === "error" ? state.values : undefined;
   const [recurrence, setRecurrence] = useState(v?.recurrence ?? t?.recurrence ?? "AUCUNE");
+  // Les cases cochées ne tiennent pas dans les valeurs renvoyées (une seule par clé) : suivies ici.
+  const [contributors, setContributors] = useState<string[]>(t?.contributorIds ?? []);
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <Messages state={state} />
@@ -307,12 +309,24 @@ export function TaskForm(props: {
             })),
           ]}
         />
-        <CheckboxGroup
-          name="contributorIds"
-          label="Contributeurs"
-          options={props.associates}
-          defaultValues={t?.contributorIds}
-        />
+        <div
+          onChange={(e) => {
+            if ((e.target as HTMLInputElement).name !== "contributorIds") return;
+            setContributors(
+              Array.from(
+                e.currentTarget.querySelectorAll<HTMLInputElement>('input[name="contributorIds"]:checked'),
+                (box) => box.value,
+              ),
+            );
+          }}
+        >
+          <CheckboxGroup
+            name="contributorIds"
+            label="Contributeurs"
+            options={props.associates}
+            defaultValues={contributors}
+          />
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <Field
             name="startDate"

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { Building2, CalendarClock, Plus, Search, Settings2 } from "lucide-react";
 import { Avatar, Chip, EmptyState, Tabs } from "@/components/app/bits";
@@ -7,8 +8,10 @@ import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SignalsCard } from "@/features/crm/components/signals-card";
 import { OPEN_STAGES, STAGES, effectiveProbability, stageLabels } from "@/features/crm/rules";
 import { crmForecast } from "@/features/crm/service";
+import { loadCommercialSignals } from "@/features/crm/signals-service";
 import { requireUser } from "@/lib/auth/session";
 import { formatDay, todayDate } from "@/lib/dates";
 import { formatMoney, percentOf, toCents } from "@/lib/money";
@@ -17,6 +20,38 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = { title: "CRM" };
 
 type SP = { onglet?: string; moi?: string; q?: string };
+
+/** Opportunités détectées (renouvellements, suites, dormants), chargées à part du pipeline. */
+async function Signals() {
+  await requireUser();
+  let signals: Awaited<ReturnType<typeof loadCommercialSignals>>;
+  try {
+    signals = await loadCommercialSignals();
+  } catch (error) {
+    unstable_rethrow(error);
+    // Section secondaire : son échec ne doit pas empêcher l'accès au pipeline.
+    console.error("Opportunités détectées indisponibles", error);
+    return (
+      <p role="alert" className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        Les opportunités détectées sont indisponibles pour le moment. Rechargez la page.
+      </p>
+    );
+  }
+  return (
+    <SignalsCard
+      signals={signals.map((s) => ({
+        key: s.key,
+        kind: s.kind,
+        title: s.title,
+        detail: s.detail,
+        clientName: s.clientName,
+        clientHref: s.clientHref,
+        contractHref: s.contractHref,
+        createHref: s.createHref,
+      }))}
+    />
+  );
+}
 
 async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser();
@@ -277,6 +312,9 @@ export default function CrmPage({ searchParams }: PageProps<"/crm">) {
           </Button>
         </div>
       </div>
+      <Suspense fallback={<PageLoading />}>
+        <Signals />
+      </Suspense>
       <Suspense fallback={<PageLoading />}>
         <Crm searchParams={searchParams as Promise<SP>} />
       </Suspense>
