@@ -49,7 +49,9 @@ test.describe("tâches récurrentes", () => {
     await page.getByRole("button", { name: "Créer la tâche" }).click();
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     const firstId = page.url().split("/taches/")[1];
-    await expect(page.getByText(/Répète chaque semaine jusqu'au 31 mars/)).toBeVisible();
+    await expect(
+      page.getByText(/Répète chaque semaine jusqu'au 31 mars/).filter({ visible: true }),
+    ).toBeVisible();
 
     // Terminer la tâche crée l'occurrence suivante, une semaine plus tard.
     await page.locator("label", { hasText: "Terminé" }).click();
@@ -64,11 +66,12 @@ test.describe("tâches récurrentes", () => {
     await expect(page).not.toHaveURL(new RegExp(`/taches/${firstId}$`));
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     const secondId = page.url().split("/taches/")[1];
-    await expect(page.getByText(/Répète chaque semaine jusqu'au 31 mars/)).toBeVisible();
-    await expect(page.getByRole("link", { name: /Occurrence précédente/ })).toHaveAttribute(
-      "href",
-      `/taches/${firstId}`,
-    );
+    await expect(
+      page.getByText(/Répète chaque semaine jusqu'au 31 mars/).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Occurrence précédente/ }).filter({ visible: true }),
+    ).toHaveAttribute("href", `/taches/${firstId}`);
 
     let rows = await occurrences(projectId, title);
     expect(rows).toHaveLength(2);

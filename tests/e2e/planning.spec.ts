@@ -144,7 +144,7 @@ test.describe("suivi du temps", () => {
     await page.getByLabel("Commentaire (facultatif)").fill("Repérages");
     await page.getByRole("button", { name: "Ajouter le temps" }).click();
     await expect(page.getByText("Temps ajouté.")).toBeVisible();
-    await expect(page.getByText(/Repérages/)).toBeVisible();
+    await expect(page.getByText(/saisie manuelle · Repérages/).filter({ visible: true })).toBeVisible();
 
     await page
       .getByRole("link", { name: `Corriger la saisie ${a.title}` })
