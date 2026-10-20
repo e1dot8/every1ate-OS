@@ -153,6 +153,9 @@ test.describe("comptes rendus → actions", () => {
     await page.getByLabel("Titre").fill(eventTitle);
     await page.getByLabel("Début (heure de Paris)").fill(`${day}T10:00`);
     await page.getByLabel("Fin").fill(`${day}T11:00`);
+    await page
+      .getByLabel("Visibilité pour les autres associés")
+      .selectOption({ label: "Détails partagés avec l'équipe" });
     await page.getByRole("button", { name: "Créer l'événement" }).click();
     await expect(page.getByRole("heading", { level: 1, name: eventTitle })).toBeVisible();
     const eventId = page.url().split("/calendrier/")[1].split(/[?#]/)[0];
@@ -172,6 +175,24 @@ test.describe("comptes rendus → actions", () => {
         .getByRole("list", { name: "Comptes rendus" })
         .getByRole("link", { name: `Compte rendu — ${eventTitle}` }),
     ).toBeVisible();
+  });
+
+  test("depuis une réunion privée : titre neutre, le titre de la réunion n'est pas recopié", async ({
+    page,
+  }) => {
+    await activateAssociate(page, "Charles");
+    const day = nextMonday();
+    const eventTitle = unique("Entretien confidentiel");
+    await page.goto("/calendrier/nouveau");
+    await page.getByLabel("Titre").fill(eventTitle);
+    await page.getByLabel("Début (heure de Paris)").fill(`${day}T15:00`);
+    await page.getByLabel("Fin").fill(`${day}T16:00`);
+    await page.getByRole("button", { name: "Créer l'événement" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: eventTitle })).toBeVisible();
+
+    await page.getByRole("link", { name: "Rédiger le compte rendu" }).click();
+    await expect(page.getByText("Réunion non partagée")).toBeVisible();
+    await expect(page.getByLabel("Titre")).toHaveValue("Compte rendu de réunion");
   });
 
   test("sans action détectée, la syntaxe est expliquée", async ({ page }) => {
