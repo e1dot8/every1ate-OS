@@ -46,18 +46,20 @@ export async function sendDigests(now = new Date()) {
     where: { role: "associe", digestFrequency: { not: "AUCUN" } },
     select: { id: true, name: true, email: true, digestFrequency: true, lastDigestOn: true },
   });
+  const today = todayDate(now);
   let sent = 0;
   for (const u of users) {
     if (!digestDue(u.digestFrequency, now, u.lastDigestOn)) continue;
     // Réserve le jour avant l'envoi : deux passes simultanées n'envoient pas deux e-mails.
     const claimed = await db.user.updateMany({
-      where: { id: u.id, OR: [{ lastDigestOn: null }, { lastDigestOn: { not: todayDate(now) } }] },
-      data: { lastDigestOn: todayDate(now) },
+      where: { id: u.id, OR: [{ lastDigestOn: null }, { lastDigestOn: { not: today } }] },
+      data: { lastDigestOn: today },
     });
     if (!claimed.count) continue;
-    const brief = await getBrief(u.id, now);
-    if (!brief.items.length) continue;
     try {
+      const brief = await getBrief(u.id, now);
+      // Journée sans rien à signaler : le jour reste marqué (jamais de message vide).
+      if (!brief.items.length) continue;
       await sendEmail(
         digestEmail({
           to: u.email,
@@ -70,7 +72,12 @@ export async function sendDigests(now = new Date()) {
       );
       sent++;
     } catch (error) {
+      // Échec (brief ou envoi) : on libère le jour pour qu'une passe suivante, dans la fenêtre
+      // 7 h – 11 h, réessaie ; un associé en échec n'empêche pas l'envoi aux autres.
       console.error("[digest] envoi impossible", error);
+      await db.user
+        .updateMany({ where: { id: u.id, lastDigestOn: today }, data: { lastDigestOn: u.lastDigestOn } })
+        .catch(() => {});
     }
   }
   return sent;

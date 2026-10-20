@@ -15,6 +15,28 @@ const d = (s: string) => parseDateInput(s)!;
 const iso = (x: Date | null | undefined) => (x ? x.toISOString().slice(0, 10) : null);
 const today = d("2026-10-12"); // lundi
 
+describe("récurrence : tâche terminée en retard", () => {
+  it("saute les périodes manquées, sans dériver", () => {
+    const late = (recurrence: "HEBDOMADAIRE" | "MENSUELLE", due: string, on: string) =>
+      iso(
+        nextOccurrence({
+          recurrence,
+          startDate: null,
+          dueDate: d(due),
+          recurrenceUntil: null,
+          today: d(on),
+        })!.dueDate,
+      );
+    // À l'heure : période suivante, inchangé.
+    expect(late("HEBDOMADAIRE", "2026-10-16", "2026-10-12")).toBe("2026-10-23");
+    // Deux semaines de retard : l'occurrence suivante tombe aujourd'hui, pas dans le passé.
+    expect(late("HEBDOMADAIRE", "2026-10-05", "2026-10-19")).toBe("2026-10-19");
+    expect(late("HEBDOMADAIRE", "2026-10-05", "2026-10-20")).toBe("2026-10-26");
+    // Mensuelle comptée depuis l'échéance : 31 janvier → 30 avril (pas de 28 hérité de février).
+    expect(late("MENSUELLE", "2026-01-31", "2026-04-10")).toBe("2026-04-30");
+  });
+});
+
 describe("dates", () => {
   it("addMonths reste dans le mois cible", () => {
     expect(iso(addMonths(d("2026-01-31"), 1))).toBe("2026-02-28");
@@ -58,7 +80,21 @@ describe("coût du temps", () => {
         ],
         rateOf,
       ),
-    ).toBe(12000 + 18000);
+    ).toEqual({ cost: 12000 + 18000, unvaluedMinutes: 0 });
+  });
+  it("temps prévu : tâches d'un responsable sans taux (ni agence) comptées à part, pas à 0 €", () => {
+    const noAgency = rateResolver(new Map([["pierre", 6000]]), null);
+    expect(
+      plannedTimeCost(
+        [
+          { ownerId: "pierre", estimatedMinutes: 60, loggedMinutes: 0, cancelled: false },
+          { ownerId: "alex", estimatedMinutes: 120, loggedMinutes: 180, cancelled: false },
+          { ownerId: null, estimatedMinutes: 30, loggedMinutes: 0, cancelled: false },
+          { ownerId: "alex", estimatedMinutes: 600, loggedMinutes: 0, cancelled: true },
+        ],
+        noAgency,
+      ),
+    ).toEqual({ cost: 6000, unvaluedMinutes: 180 + 30 });
   });
   it("marge après temps dans la synthèse", () => {
     const s = summarize({

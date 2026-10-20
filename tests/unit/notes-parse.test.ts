@@ -180,3 +180,29 @@ describe("règles des comptes rendus", () => {
     expect(pendingActionsLabel(3)).toBe("3 actions à traiter");
   });
 });
+
+describe("dates en mots entiers", () => {
+  const people = [{ id: "u-charles", name: "Charles" }];
+  const monday = parseDateInput("2026-10-12")!;
+  const one = (line: string) => parseActions(line, people, monday)[0];
+  const day = (x: Date | null) => (x ? x.toISOString().slice(0, 10) : null);
+
+  it("ignore les mots qui contiennent un mot-clé de date", () => {
+    expect(one("[ ] Préparer le lendemain du salon")).toMatchObject({
+      title: "Préparer le lendemain du salon",
+      dueDate: null,
+    });
+    expect(one("[ ] Envoyer 2 mails au client").dueDate).toBeNull();
+    expect(one("[ ] Commander 2 marsupiaux en peluche").dueDate).toBeNull();
+    expect(one("[ ] Relire le samedisme").dueDate).toBeNull();
+  });
+
+  it("retire exactement la date trouvée, apostrophes typographiques comprises", () => {
+    expect(one("[ ] Le lendemain, relancer d’ici demain")).toMatchObject({
+      title: "Le lendemain, relancer",
+    });
+    expect(day(one("[ ] Le lendemain, relancer d’ici demain").dueDate)).toBe("2026-10-13");
+    expect(day(one("[ ] Appeler aujourd’hui @Charles").dueDate)).toBe("2026-10-12");
+    expect(one("[ ] Envoyer le devis pour le 3 mars").title).toBe("Envoyer le devis");
+  });
+});

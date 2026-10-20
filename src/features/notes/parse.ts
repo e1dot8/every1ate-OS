@@ -38,39 +38,59 @@ const MONTHS = [
 ];
 const DAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
-const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+/**
+ * Minuscules, sans accents, apostrophes typographiques remplacées par « ' » — caractère par
+ * caractère, pour que les positions restent celles du texte d'origine.
+ */
+const fold = (s: string) =>
+  s.replace(/[\s\S]/gu, (c) => {
+    if (c === "’" || c === "ʼ") return "'";
+    const f = c
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    return f.length === c.length ? f : c;
+  });
 
 function iso(y: number, m: number, d: number) {
   return parseDateInput(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
 }
 
-/** Date relative ou absolue trouvée dans le texte ; une date sans année passée bascule l'an prochain. */
-export function findDate(text: string, today: Date): { date: Date; match: string } | null {
+/**
+ * Date relative ou absolue trouvée dans le texte ; une date sans année passée bascule l'an prochain.
+ * Les mots-clés ne comptent qu'en mots entiers (« lendemain », « mails » ne sont pas des dates).
+ * `index` / `match` : position et texte exacts à retirer du titre.
+ */
+export function findDate(text: string, today: Date): { date: Date; match: string; index: number } | null {
   const t = fold(text);
-  let m = /(?:pour |avant |d'ici |le )?(?:le )?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/.exec(t);
+  const found = (date: Date, m: RegExpExecArray) => ({ date, match: m[0], index: m.index });
+  let m = /(?:pour |avant |d'ici |le )?(?:le )?(?<!\d)(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?!\d)/u.exec(t);
   if (m) {
     const y = m[3] ? Number(m[3].length === 2 ? `20${m[3]}` : m[3]) : today.getUTCFullYear();
     let d = iso(y, Number(m[2]), Number(m[1]));
     if (d && !m[3] && d < today) d = iso(y + 1, Number(m[2]), Number(m[1]));
-    if (d) return { date: d, match: m[0] };
+    if (d) return found(d, m);
   }
-  m = new RegExp(`(?:pour |avant |d'ici |le )?(?:le )?(\\d{1,2}) (${MONTHS.join("|")})(?: (\\d{4}))?`).exec(
-    t,
-  );
+  m = new RegExp(
+    `(?:pour |avant |d'ici |le )?(?:le )?(?<!\\d)(\\d{1,2}) (${MONTHS.join("|")})(?!\\p{L})(?: (\\d{4}))?`,
+    "u",
+  ).exec(t);
   if (m) {
     const month = MONTHS.indexOf(m[2]) + 1;
     const y = m[3] ? Number(m[3]) : today.getUTCFullYear();
     let d = iso(y, month, Number(m[1]));
     if (d && !m[3] && d < today) d = iso(y + 1, month, Number(m[1]));
-    if (d) return { date: d, match: m[0] };
+    if (d) return found(d, m);
   }
-  m = /(?:pour |d'ici )?(aujourd'hui|demain|apres-demain)/.exec(t);
-  if (m) return { date: addDays(today, m[1] === "aujourd'hui" ? 0 : m[1] === "demain" ? 1 : 2), match: m[0] };
-  m = new RegExp(`(?:pour |avant |d'ici )?(${DAYS.join("|")})(?: prochain)?`).exec(t);
+  m = /(?:pour |d'ici )?(?<!\p{L})(aujourd'hui|apres-demain|demain)(?!\p{L})/u.exec(t);
+  if (m) return found(addDays(today, m[1] === "aujourd'hui" ? 0 : m[1] === "demain" ? 1 : 2), m);
+  m = new RegExp(`(?:pour |avant |d'ici )?(?<!\\p{L})(${DAYS.join("|")})(?!\\p{L})(?: prochain)?`, "u").exec(
+    t,
+  );
   if (m) {
     const target = DAYS.indexOf(m[1]);
     const diff = (target - today.getUTCDay() + 7) % 7 || 7;
-    return { date: addDays(today, diff), match: m[0] };
+    return found(addDays(today, diff), m);
   }
   return null;
 }
@@ -98,11 +118,9 @@ export function parseActions(body: string, people: Person[], today: Date): Parse
       if (owner) text = text.replace(mention[0], "").trim();
     }
     const found = findDate(text, today);
-    if (found) {
-      // Retire la date du titre en conservant le reste de la phrase.
-      const idx = fold(text).indexOf(found.match);
-      if (idx >= 0) text = (text.slice(0, idx) + text.slice(idx + found.match.length)).trim();
-    }
+    if (found)
+      // Retire exactement la date trouvée du titre, en conservant le reste de la phrase.
+      text = (text.slice(0, found.index) + text.slice(found.index + found.match.length)).trim();
     const title = text
       .replace(/\s{2,}/g, " ")
       .replace(/[\s,;:–-]+$/, "")

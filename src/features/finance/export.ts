@@ -359,6 +359,7 @@ export type SynthesisRow = {
     | "marginForecast"
     | "marginActual"
     | "timeCostLogged"
+    | "timeUnvaluedMinutes"
   >;
   /** Minutes passées ; null quand non disponible (lignes de lot). */
   minutes: number | null;
@@ -381,7 +382,12 @@ export function synthesisSheet(rows: SynthesisRow[], timeValued: boolean): Sheet
     { header: "Marge réelle", kind: "money", width: 16 },
     { header: "Temps passé (h)", kind: "hours", width: 15 },
   ];
-  if (timeValued) columns.push({ header: "Temps valorisé", kind: "money", width: 16 });
+  // Temps sans coût horaire : signalé à côté du temps valorisé (qui ne le compte pas), jamais à 0 €.
+  if (timeValued)
+    columns.push(
+      { header: "Temps valorisé", kind: "money", width: 16 },
+      { header: "Temps non valorisé (h)", kind: "hours", width: 18 },
+    );
   return {
     name: "Synthèse",
     columns,
@@ -402,7 +408,7 @@ export function synthesisSheet(rows: SynthesisRow[], timeValued: boolean): Sheet
         s.marginActual,
         r.minutes,
       ];
-      if (timeValued) row.push(s.timeCostLogged);
+      if (timeValued) row.push(s.timeCostLogged, s.timeUnvaluedMinutes || null);
       return row;
     }),
   };
@@ -439,7 +445,7 @@ export function notesSheet(input: {
     [
       "Temps",
       input.timeValued
-        ? "Temps valorisé au coût horaire interne : ni un décaissement, ni un montant facturable."
+        ? "Temps valorisé au coût horaire interne : ni un décaissement, ni un montant facturable. Le temps saisi sans coût horaire (ni celui de l'associé, ni celui de l'agence) n'y est pas compté : voir « Temps non valorisé »."
         : "Aucun coût horaire interne défini : temps passé non valorisé.",
     ],
   ];
@@ -498,12 +504,12 @@ export type OverviewProject = {
  * Projets de la vue agence → historique de chiffrage.
  * Revenu : budget approuvé, à défaut facturé ; coûts : engagés ; durée : début → clôture
  * (connue seulement pour un projet clôturé).
- * « Terminé » se lit sur le statut : un projet rouvert (TERMINE → ACTIF) garde son ancienne
- * date de clôture mais redevient un projet en cours.
+ * « Terminé » se lit sur le statut (Terminé, ou Archivé après sa clôture) : un projet rouvert
+ * (TERMINE → ACTIF) garde son ancienne date de clôture mais redevient un projet en cours.
  */
 export function historyFromOverview(rows: OverviewProject[]): HistoryProject[] {
   return rows.map((p) => {
-    const closed = p.status === "TERMINE";
+    const closed = p.status === "TERMINE" || p.status === "ARCHIVE";
     return {
       id: p.id,
       name: p.name,

@@ -5,6 +5,7 @@ import type {
   ContractStatus,
   CostStatus,
   PricingMode,
+  Prisma,
 } from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
@@ -86,25 +87,34 @@ async function timeData(projectIds: string[]) {
   return { rows, tasks: tasks as TaskRow[] };
 }
 
-/** Coût du temps (passé, prévu) pour un sous-ensemble de lignes ; null si aucun taux défini. */
+/**
+ * Coût du temps (passé, prévu) pour un sous-ensemble de lignes ; null si aucun taux défini.
+ * Les minutes sans taux (associé sans taux et pas de taux d'agence) sont remontées, pour signaler
+ * une valorisation partielle au lieu de les compter à 0 €.
+ */
 function timeFor(rows: TimeRow[], tasks: TaskRow[], rateOf: RateOf, anyRate: boolean) {
   const minutes = rows.reduce((n, r) => n + r.minutes, 0);
-  if (!anyRate) return { minutes, time: { logged: null, planned: null } };
+  if (!anyRate) return { minutes, unvaluedMinutes: minutes, time: { logged: null, planned: null } };
   const loggedByTask = new Map<string, number>();
   for (const r of rows) loggedByTask.set(r.taskId, (loggedByTask.get(r.taskId) ?? 0) + r.minutes);
+  const logged = loggedTimeCost(rows, rateOf);
+  const planned = plannedTimeCost(
+    tasks.map((t) => ({
+      ownerId: t.ownerId,
+      estimatedMinutes: t.estimatedMinutes,
+      loggedMinutes: loggedByTask.get(t.id) ?? 0,
+      cancelled: t.status === "ANNULE",
+    })),
+    rateOf,
+  );
   return {
     minutes,
+    unvaluedMinutes: logged.unvaluedMinutes,
     time: {
-      logged: loggedTimeCost(rows, rateOf).cost,
-      planned: plannedTimeCost(
-        tasks.map((t) => ({
-          ownerId: t.ownerId,
-          estimatedMinutes: t.estimatedMinutes,
-          loggedMinutes: loggedByTask.get(t.id) ?? 0,
-          cancelled: t.status === "ANNULE",
-        })),
-        rateOf,
-      ),
+      logged: logged.cost,
+      planned: planned.cost,
+      unvaluedMinutes: logged.unvaluedMinutes,
+      plannedUnvaluedMinutes: planned.unvaluedMinutes,
     },
   };
 }
@@ -114,7 +124,7 @@ export async function projectFinance(projectId: string) {
   const [project, revisions, costs, billing, payments, lots] = await Promise.all([
     db.project.findUnique({
       where: { id: projectId },
-      select: { id: true, name: true, archivedAt: true, clientId: true },
+      select: { id: true, name: true, archivedAt: true, clientId: true, templateKey: true },
     }),
     db.budgetRevision.findMany({
       where: { projectId },
@@ -203,6 +213,8 @@ export async function projectFinance(projectId: string) {
     byLot,
     today,
     minutes: projectTime.minutes,
+    /** Minutes passées sans coût horaire (toutes si aucun taux n'est défini). */
+    unvaluedMinutes: projectTime.unvaluedMinutes,
     timeValued: anyRate,
   };
 }
@@ -593,14 +605,32 @@ export async function getContract(id: string) {
 
 // ─── Vue agence ─────────────────────────────────────────────────────────────
 
+/** Synthèse de tous les projets non archivés (vue agence). */
+export function financeOverview() {
+  return overviewFor({ archivedAt: null });
+}
+
 /**
- * Synthèse de tous les projets non archivés, en un nombre fixe de requêtes
+ * Historique de chiffrage d'un modèle (null : projets créés sans modèle) : ses seuls projets,
+ * y compris ceux archivés après leur clôture (Terminé → Archivé), qui restent des références.
+ */
+export function templateHistory(templateKey: string | null) {
+  return overviewFor({ templateKey, OR: [{ archivedAt: null }, { status: "ARCHIVE" }] });
+}
+
+/** Synthèse des projets donnés, archivés compris (export d'une période). */
+export function projectsOverview(ids: string[]) {
+  return overviewFor({ id: { in: ids } });
+}
+
+/**
+ * Synthèse des projets retenus par `where`, en un nombre fixe de requêtes
  * (au lieu d'une série de requêtes par projet).
  */
-export async function financeOverview() {
+async function overviewFor(where: Prisma.ProjectWhereInput) {
   const db = getDb();
   const projects = await db.project.findMany({
-    where: { archivedAt: null },
+    where,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

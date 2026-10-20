@@ -37,6 +37,8 @@ const costTone: Record<string, StatusTone> = {
 };
 
 const m = (c: number | null) => (c == null ? "—" : formatMoney(c, { round: true }));
+/** Marge après temps non calculée : une partie du temps n'a pas de coût horaire. */
+const PARTIAL_HINT = "non calculée : temps sans taux";
 
 function Kpi({
   label,
@@ -117,29 +119,53 @@ function Summary({ s, minutes }: { s: FinanceSummary; minutes: number }) {
       </div>
       <h3 className="font-annotation text-sm text-pen-strong">Temps de l&apos;équipe</h3>
       {s.timeCostLogged != null ? (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <Kpi
-            label="Temps passé valorisé"
-            value={m(s.timeCostLogged)}
-            hint={`${formatMinutes(minutes)} au coût interne`}
-          />
-          <Kpi label="Temps prévu valorisé" value={m(s.timeCostForecast)} hint="max(estimé, passé)" />
-          <Kpi
-            label="Marge prév. après temps"
-            value={m(s.marginForecastAfterTime)}
-            hint={
-              marginRate(s.marginForecastAfterTime ?? 0, s.revenuePlanned) == null
-                ? undefined
-                : `${marginRate(s.marginForecastAfterTime ?? 0, s.revenuePlanned)} %`
-            }
-            tone={(s.marginForecastAfterTime ?? 0) < 0 ? "danger" : undefined}
-          />
-          <Kpi
-            label="Marge réelle après temps"
-            value={m(s.marginActualAfterTime)}
-            tone={(s.marginActualAfterTime ?? 0) < 0 ? "danger" : undefined}
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <Kpi
+              label="Temps passé valorisé"
+              value={m(s.timeCostLogged)}
+              hint={
+                s.timeUnvaluedMinutes
+                  ? `${formatMinutes(minutes - s.timeUnvaluedMinutes)} au coût interne · ${formatMinutes(s.timeUnvaluedMinutes)} sans taux`
+                  : `${formatMinutes(minutes)} au coût interne`
+              }
+            />
+            <Kpi
+              label="Temps prévu valorisé"
+              value={m(s.timeCostForecast)}
+              hint={s.timeForecastPartial ? "max(estimé, passé) · partiel" : "max(estimé, passé)"}
+            />
+            <Kpi
+              label="Marge prév. après temps"
+              value={m(s.marginForecastAfterTime)}
+              hint={
+                s.marginForecastAfterTime == null
+                  ? PARTIAL_HINT
+                  : marginRate(s.marginForecastAfterTime, s.revenuePlanned) == null
+                    ? undefined
+                    : `${marginRate(s.marginForecastAfterTime, s.revenuePlanned)} %`
+              }
+              tone={(s.marginForecastAfterTime ?? 0) < 0 ? "danger" : undefined}
+            />
+            <Kpi
+              label="Marge réelle après temps"
+              value={m(s.marginActualAfterTime)}
+              hint={s.marginActualAfterTime == null ? PARTIAL_HINT : undefined}
+              tone={(s.marginActualAfterTime ?? 0) < 0 ? "danger" : undefined}
+            />
+          </div>
+          {s.timeForecastPartial ? (
+            <p className="text-sm text-muted-foreground">
+              {s.timeUnvaluedMinutes
+                ? `${formatMinutes(s.timeUnvaluedMinutes)} passées sans coût horaire (ni celui de l'associé, ni celui de l'agence) : non comptées dans le temps valorisé.`
+                : "Des tâches prévues sont confiées à un associé sans coût horaire (ni le sien, ni celui de l'agence) : le temps prévu valorisé est incomplet."}{" "}
+              <Link href="/plus/reglages" className="font-bold underline">
+                Compléter les coûts horaires
+              </Link>{" "}
+              pour calculer les marges après temps.
+            </p>
+          ) : null}
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">
           {formatMinutes(minutes)} passées, non valorisées.{" "}
@@ -238,12 +264,19 @@ export async function ProjectFinance({ projectId, archived }: { projectId: strin
               ))}
             </tbody>
           </table>
+          {f.timeValued && f.byLot.some((l) => l.summary.timeForecastPartial) ? (
+            <p className="py-2 text-xs text-muted-foreground">
+              « — » après temps : temps du lot en partie sans coût horaire.
+            </p>
+          ) : null}
         </Card>
       ) : null}
 
       <Suspense fallback={<p className="text-sm text-muted-foreground">Calcul des repères de chiffrage…</p>}>
         <EstimateCard
           projectId={projectId}
+          templateKey={f.project.templateKey}
+          archived={!!f.project.archivedAt}
           revenue={f.summary.revenuePlanned}
           costs={f.summary.forecastCost}
         />

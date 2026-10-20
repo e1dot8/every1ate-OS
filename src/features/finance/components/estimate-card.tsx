@@ -4,8 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { estimateFromHistory, type Stat } from "@/features/finance/estimate";
-import { compareToHistory, historyFromOverview, type HistoryPosition } from "@/features/finance/export";
-import { financeOverview } from "@/features/finance/service";
+import {
+  compareToHistory,
+  historyFromOverview,
+  type HistoryPosition,
+  type OverviewProject,
+} from "@/features/finance/export";
+import { templateHistory } from "@/features/finance/service";
 import { formatMinutes } from "@/features/planning/rules";
 import { getTemplate, TEMPLATES } from "@/features/projects/templates";
 import { formatMoney } from "@/lib/money";
@@ -83,7 +88,7 @@ function EstimateBody({
   templateKey: string | null;
   excludeId?: string;
   compare?: Comparison;
-  rows: Awaited<ReturnType<typeof financeOverview>>;
+  rows: OverviewProject[];
 }) {
   const e = estimateFromHistory(historyFromOverview(rows), templateKey, excludeId);
   const n = e.projects.length;
@@ -140,24 +145,28 @@ function EstimateBody({
 /**
  * Chiffrage par l'historique (sans IA : médianes des projets passés du même modèle),
  * pour un projet : comparé à ses propres revenus et coûts prévus, lui-même exclu des repères.
+ * Seuls les projets du modèle sont chargés, archivés compris (projets clôturés puis archivés).
  */
 export async function EstimateCard({
   projectId,
+  templateKey,
+  archived,
   revenue,
   costs,
 }: {
   projectId: string;
+  templateKey: string | null;
+  archived: boolean;
   revenue: number;
   costs: number;
 }) {
-  const rows = await financeOverview();
-  const self = rows.find((r) => r.id === projectId);
-  // Projet archivé : absent de la vue agence, pas de repères à afficher.
-  if (!self) return null;
+  // Projet archivé : rien à chiffrer, pas de repères à afficher.
+  if (archived) return null;
+  const rows = await templateHistory(templateKey);
   return (
-    <Frame description={sourceText(self.templateKey)}>
+    <Frame description={sourceText(templateKey)}>
       <EstimateBody
-        templateKey={self.templateKey}
+        templateKey={templateKey}
         excludeId={projectId}
         rows={rows}
         compare={{
@@ -186,7 +195,7 @@ export async function OpportunityEstimate({
   templateKey: string | undefined;
 }) {
   const key = templateKey && getTemplate(templateKey) ? templateKey : null;
-  const rows = key ? await financeOverview() : null;
+  const rows = key ? await templateHistory(key) : null;
   return (
     <Frame
       description={

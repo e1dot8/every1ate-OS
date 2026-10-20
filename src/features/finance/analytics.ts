@@ -23,7 +23,7 @@ import { addDays, daysBetween, todayDate } from "@/lib/dates";
 import { centsToDecimal, toCents } from "@/lib/money";
 import { marginRate, summarize, type BillingLine, type CostLine } from "@/features/finance/calc";
 import { billingDate, costDate } from "@/features/finance/export";
-import { loggedTimeCost } from "@/features/finance/time-cost";
+import { loggedTimeCost, type RateOf } from "@/features/finance/time-cost";
 import { getTemplate } from "@/features/projects/templates";
 import { loadRates } from "@/features/settings/service";
 import type { ServiceResult } from "@/features/projects/service";
@@ -220,7 +220,7 @@ export type ProfitInput = {
   revenue: number;
   /** Coûts engagés HT à date. */
   costs: number;
-  /** Temps passé valorisé ; null si aucun coût horaire n'est défini. */
+  /** Temps passé valorisé ; null si aucun coût horaire n'est défini ou si du temps n'en a pas. */
   timeCost: number | null;
   minutes: number;
   /** Satisfaction client à la clôture (1 à 5). */
@@ -235,7 +235,7 @@ export type ProfitRow = {
   costs: number;
   margin: number;
   marginRate: number | null;
-  /** null dès qu'un projet du groupe n'a pas de temps valorisé. */
+  /** null dès qu'un projet du groupe n'a pas tout son temps valorisé. */
   marginAfterTime: number | null;
   marginAfterTimeRate: number | null;
   /** Moyenne (une décimale) des notes renseignées ; null sans note. */
@@ -243,6 +243,21 @@ export type ProfitRow = {
   ratings: number;
   minutes: number;
 };
+
+/**
+ * Temps passé valorisé d'un projet ; null sans aucun coût horaire, ou si une partie du temps n'a
+ * pas de taux (ni celui de l'associé, ni celui de l'agence) : la compter à 0 € surestimerait la
+ * marge après temps.
+ */
+export function projectTimeCost(
+  entries: { userId: string; minutes: number }[],
+  rateOf: RateOf,
+  anyRate: boolean,
+): number | null {
+  if (!anyRate) return null;
+  const { cost, unvaluedMinutes } = loggedTimeCost(entries, rateOf);
+  return unvaluedMinutes > 0 ? null : cost;
+}
 
 /** Regroupe par clé (modèle, client…) et trie par marge décroissante. */
 export function groupProfitability(rows: ProfitInput[]): ProfitRow[] {
@@ -448,7 +463,7 @@ export async function profitabilityFor(
       figures: {
         revenue: s.billingInvoiced,
         costs: s.costsCommitted,
-        timeCost: anyRate ? loggedTimeCost(entries, rateOf).cost : null,
+        timeCost: projectTimeCost(entries, rateOf, anyRate),
         minutes: entries.reduce((n, e) => n + e.minutes, 0),
         satisfaction: p.clientSatisfaction,
       },

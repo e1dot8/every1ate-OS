@@ -11,6 +11,7 @@ import {
   chargeNextDate,
   chargesMonthlyTotal,
   monthlyEquivalent,
+  splitPayments,
   treasuryForecast,
 } from "@/features/finance/treasury-rules";
 
@@ -23,14 +24,18 @@ const failed = (error: string): ServiceResult<never> => ({ ok: false, error });
 /**
  * Trésorerie prévisionnelle sur 13 semaines, à partir des seules saisies manuelles :
  * solde bancaire, échéances non encaissées, coûts engagés non payés, contrats actifs et
- * charges fixes. Aucune connexion bancaire.
+ * charges fixes. Aucune connexion bancaire. Les mouvements postérieurs à la date du solde
+ * (occurrences, encaissements reçus, coûts payés) s'ajoutent : ils ne sont pas dans le solde.
+ * Les projets archivés restent compris : leurs échéances et coûts ouverts se règlent encore.
  */
 export async function loadCashForecast(today: Date = todayDate()) {
   const db = getDb();
-  const [settings, billing, costs, contracts, charges] = await Promise.all([
-    getAgencySettings(),
+  const settings = await getAgencySettings();
+  const startBalance = settings.cashBalance == null ? null : toCents(settings.cashBalance);
+  const balanceDate = startBalance == null ? null : (settings.cashBalanceDate ?? null);
+  const [billing, costs, contracts, charges] = await Promise.all([
     db.billingMilestone.findMany({
-      where: { archivedAt: null, status: { not: "ANNULE" }, project: { archivedAt: null } },
+      where: { archivedAt: null, status: { not: "ANNULE" } },
       select: {
         id: true,
         label: true,
@@ -39,11 +44,18 @@ export async function loadCashForecast(today: Date = todayDate()) {
         plannedDate: true,
         invoicedAt: true,
         project: { select: { name: true } },
-        payments: { where: { deletedAt: null }, select: { amount: true } },
+        payments: { where: { deletedAt: null }, select: { amount: true, receivedAt: true } },
       },
     }),
     db.costItem.findMany({
-      where: { archivedAt: null, status: { in: ["ENGAGE", "FACTURE"] }, project: { archivedAt: null } },
+      where: {
+        archivedAt: null,
+        OR: [
+          { status: { in: ["ENGAGE", "FACTURE"] } },
+          // Payé après la date du solde : sortie pas encore dans le solde saisi.
+          ...(balanceDate ? [{ status: "PAYE" as const, paidAt: { gt: balanceDate } }] : []),
+        ],
+      },
       select: {
         id: true,
         description: true,
@@ -52,6 +64,7 @@ export async function loadCashForecast(today: Date = todayDate()) {
         status: true,
         dueDate: true,
         invoiceDate: true,
+        paidAt: true,
         project: { select: { name: true } },
       },
     }),
@@ -72,10 +85,10 @@ export async function loadCashForecast(today: Date = todayDate()) {
       select: { id: true, label: true, amount: true, frequency: true, nextDate: true, endDate: true },
     }),
   ]);
-  const startBalance = settings.cashBalance == null ? null : toCents(settings.cashBalance);
   const forecast = treasuryForecast({
     today,
     startBalance,
+    balanceDate,
     billing: billing.map((b) => ({
       id: b.id,
       label: b.label,
@@ -84,7 +97,10 @@ export async function loadCashForecast(today: Date = todayDate()) {
       status: b.status,
       plannedDate: b.plannedDate,
       invoicedAt: b.invoicedAt,
-      paid: b.payments.reduce((n, p) => n + toCents(p.amount), 0),
+      ...splitPayments(
+        b.payments.map((p) => ({ amount: toCents(p.amount), receivedAt: p.receivedAt })),
+        balanceDate,
+      ),
     })),
     costs: costs.map((c) => ({
       id: c.id,
@@ -95,6 +111,7 @@ export async function loadCashForecast(today: Date = todayDate()) {
       status: c.status,
       dueDate: c.dueDate,
       invoiceDate: c.invoiceDate,
+      paidAt: c.paidAt,
     })),
     contracts: contracts.map((c) => ({
       id: c.id,
@@ -116,7 +133,7 @@ export async function loadCashForecast(today: Date = todayDate()) {
   return {
     today,
     forecast,
-    balance: startBalance == null ? null : { cents: startBalance, date: settings.cashBalanceDate ?? null },
+    balance: startBalance == null ? null : { cents: startBalance, date: balanceDate },
   };
 }
 

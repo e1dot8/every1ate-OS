@@ -29,7 +29,11 @@ function ItemRow({ item, fixLabel }: { item: Item; fixLabel?: string }) {
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {kind ? itemKindLabels[kind] : item.direction === "in" ? "Entrée" : "Sortie"}
           {item.date ? <span>· {formatDay(item.date)}</span> : null}
-          {item.late ? <StatusBadge tone="danger" label="En retard" /> : null}
+          {item.late ? (
+            <StatusBadge tone="danger" label="En retard" />
+          ) : item.sinceBalance ? (
+            <StatusBadge tone="neutral" label="Depuis le solde" />
+          ) : null}
         </span>
         {item.href ? (
           <Link href={item.href} className="font-bold break-words hover:underline">

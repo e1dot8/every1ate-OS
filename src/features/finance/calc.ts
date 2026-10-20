@@ -64,8 +64,17 @@ export function summarize(input: {
   billing: BillingLine[];
   payments: PaymentLine[];
   today: Date;
-  /** Temps valorisé au coût horaire interne (centimes) ; null si aucun taux n'est défini. */
-  time?: { logged: number | null; planned: number | null };
+  /**
+   * Temps valorisé au coût horaire interne (centimes) ; null si aucun taux n'est défini.
+   * `unvaluedMinutes` / `plannedUnvaluedMinutes` : minutes passées / prévues sans aucun taux
+   * (ni celui de l'associé, ni celui de l'agence) ; la valorisation est alors partielle.
+   */
+  time?: {
+    logged: number | null;
+    planned: number | null;
+    unvaluedMinutes?: number;
+    plannedUnvaluedMinutes?: number;
+  };
 }) {
   const live = input.costs.filter((c) => c.status !== "ANNULE");
   const costsPlanned = sum(live, (c) => c.amount);
@@ -103,6 +112,12 @@ export function summarize(input: {
 
   const revenuePlanned = input.budget?.revenue || billingExpected;
   const forecastCost = Math.max(input.budget?.cost ?? 0, costsPlanned);
+  // Temps partiellement valorisé (minutes sans taux) : le coût du temps n'est qu'un minimum, les
+  // marges après temps seraient surestimées ; elles ne sont donc pas calculées.
+  const t = input.time;
+  const valued = t?.logged != null;
+  const timeUnvaluedMinutes = valued ? (t?.unvaluedMinutes ?? 0) : 0;
+  const timeForecastPartial = valued && (timeUnvaluedMinutes > 0 || (t?.plannedUnvaluedMinutes ?? 0) > 0);
   return {
     budgetRevenue: input.budget?.revenue ?? null,
     budgetCost: input.budget?.cost ?? null,
@@ -125,14 +140,20 @@ export function summarize(input: {
     // Temps : coût interne des heures (prévues ou passées, la plus grande des deux) — n'est ni un
     // décaissement fournisseur ni un montant facturable.
     timeCostLogged: input.time?.logged ?? null,
+    /** Minutes passées sans coût horaire (0 si tout est valorisé ou si aucun taux n'est défini). */
+    timeUnvaluedMinutes,
+    /** Temps passé ou prévu en partie sans coût horaire : « Temps prévu valorisé » est un minimum. */
+    timeForecastPartial,
     timeCostForecast:
       input.time && input.time.logged != null ? Math.max(input.time.logged, input.time.planned ?? 0) : null,
     marginForecastAfterTime:
-      input.time && input.time.logged != null
+      input.time && input.time.logged != null && !timeForecastPartial
         ? revenuePlanned - forecastCost - Math.max(input.time.logged, input.time.planned ?? 0)
         : null,
     marginActualAfterTime:
-      input.time && input.time.logged != null ? billingInvoiced - costsActual - input.time.logged : null,
+      input.time && input.time.logged != null && timeUnvaluedMinutes === 0
+        ? billingInvoiced - costsActual - input.time.logged
+        : null,
     budgetConsumedPct: input.budget?.cost ? Math.round((costsCommitted / input.budget.cost) * 100) : null,
   };
 }

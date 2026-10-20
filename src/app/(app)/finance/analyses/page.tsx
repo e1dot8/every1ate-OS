@@ -246,7 +246,8 @@ async function Analyses({ searchParams }: { searchParams: Promise<SP> }) {
             revenus − coûts engagés HT (engagés, reçus / facturés ou payés) ;{" "}
             {profit.timeValued ? (
               <>
-                <b>marge après temps</b> = marge − temps passé valorisé au coût horaire interne ;{" "}
+                <b>marge après temps</b> = marge − temps passé valorisé au coût horaire interne (« — » si du
+                temps a été saisi par un associé sans coût horaire, faute de taux d&apos;agence) ;{" "}
               </>
             ) : null}
             <b>taux de marge</b> = marge ÷ revenus ; <b>satisfaction</b> = moyenne des notes données à la

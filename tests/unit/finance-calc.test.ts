@@ -77,6 +77,50 @@ describe("synthèse financière", () => {
     expect(marginRate(1500000, 5000000)).toBe(30);
     expect(marginRate(10, 0)).toBeNull();
   });
+
+  describe("temps partiellement valorisé (minutes sans coût horaire)", () => {
+    const withTime = (time: Parameters<typeof summarize>[0]["time"]) =>
+      summarize({
+        ...base,
+        costs: [{ amount: 1000000, status: "FACTURE", rebillable: false }],
+        billing: [{ id: "a", amount: 2000000, status: "FACTURE", plannedDate: null }],
+        payments: [],
+        time,
+      });
+
+    it("tout le temps valorisé : marges après temps calculées", () => {
+      const s = withTime({ logged: 60000, planned: 90000, unvaluedMinutes: 0, plannedUnvaluedMinutes: 0 });
+      expect(s.timeUnvaluedMinutes).toBe(0);
+      expect(s.timeForecastPartial).toBe(false);
+      expect(s.marginActualAfterTime).toBe(2000000 - 1000000 - 60000);
+      expect(s.marginForecastAfterTime).toBe(5000000 - 3000000 - 90000);
+    });
+
+    it("temps passé sans taux : coût minimum affiché, marges après temps non calculées", () => {
+      // 10 h valorisées à 60 €/h, 50 h saisies par des associés sans taux (et sans taux d'agence).
+      const s = withTime({ logged: 60000, planned: 60000, unvaluedMinutes: 3000, plannedUnvaluedMinutes: 0 });
+      expect(s.timeCostLogged).toBe(60000);
+      expect(s.timeUnvaluedMinutes).toBe(3000);
+      expect(s.timeForecastPartial).toBe(true);
+      expect(s.marginActualAfterTime).toBeNull();
+      expect(s.marginForecastAfterTime).toBeNull();
+    });
+
+    it("seules des tâches prévues sans taux : marge réelle après temps calculée, prévisionnelle non", () => {
+      const s = withTime({ logged: 60000, planned: 90000, unvaluedMinutes: 0, plannedUnvaluedMinutes: 600 });
+      expect(s.timeForecastPartial).toBe(true);
+      expect(s.marginActualAfterTime).toBe(2000000 - 1000000 - 60000);
+      expect(s.marginForecastAfterTime).toBeNull();
+    });
+
+    it("aucun taux défini : rien de valorisé, rien de partiel", () => {
+      const s = withTime({ logged: null, planned: null });
+      expect(s.timeCostLogged).toBeNull();
+      expect(s.timeUnvaluedMinutes).toBe(0);
+      expect(s.timeForecastPartial).toBe(false);
+      expect(s.marginActualAfterTime).toBeNull();
+    });
+  });
 });
 
 describe("statut d'échéance", () => {

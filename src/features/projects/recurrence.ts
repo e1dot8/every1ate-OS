@@ -82,7 +82,7 @@ export function buildNextOccurrence(
   context: { today: Date; projectOpen: boolean },
 ): NextOccurrenceData | null {
   if (task.nextOccurrenceId || !context.projectOpen) return null;
-  const dates = nextOccurrence(task);
+  const dates = nextOccurrence({ ...task, today: context.today });
   if (!dates) return null;
   return {
     projectId: task.projectId,

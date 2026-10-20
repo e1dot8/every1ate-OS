@@ -11,9 +11,11 @@ import {
   chartSummary,
   contractInflows,
   costOutflows,
+  forecastFrom,
   itemKind,
   monthlyEquivalent,
   parseSignedMoney,
+  splitPayments,
   treasuryForecast,
   type BillingRow,
   type ChargeRow,
@@ -45,6 +47,7 @@ const cost = (over: Partial<CostRow>): CostRow => ({
   status: "ENGAGE",
   dueDate: d("2026-10-20"),
   invoiceDate: null,
+  paidAt: null,
   ...over,
 });
 
@@ -233,6 +236,144 @@ describe("prévision complète", () => {
     });
     expect(rel.hasStartBalance).toBe(false);
     expect(rel.endBalance).toBe(0);
+  });
+});
+
+describe("date du solde : les mouvements postérieurs s'ajoutent", () => {
+  const monday = d("2026-10-19"); // semaine 1 = 19 → 25 oct.
+  const balanceDate = d("2026-10-14"); // solde saisi 5 jours plus tôt (pas encore « ancien »)
+  const payments = [
+    { amount: 200_000, receivedAt: d("2026-10-10") }, // avant le solde : déjà dedans
+    { amount: 300_000, receivedAt: d("2026-10-15") }, // après le solde : pas encore dedans
+  ];
+  const rows = (date: Date | null) => ({
+    billing: [billing({ id: "solde", plannedDate: d("2026-11-30"), ...splitPayments(payments, date) })],
+    costs: [
+      cost({ id: "paye-apres", status: "PAYE", paidAt: d("2026-10-16"), amount: 150_000 }),
+      cost({ id: "paye-le-jour", status: "PAYE", paidAt: balanceDate, amount: 70_000 }),
+      cost({ id: "paye-sans-date", status: "PAYE", paidAt: null, amount: 80_000 }),
+      cost({ id: "retard", status: "FACTURE", dueDate: d("2026-10-16"), amount: 50_000 }),
+    ],
+    contracts: [
+      {
+        id: "cm",
+        label: "CM",
+        monthlyAmount: 150_000,
+        startDate: d("2026-01-17"),
+        endDate: null,
+        status: "ACTIF",
+      },
+    ],
+    charges: [
+      {
+        id: "loyer",
+        label: "Loyer",
+        amount: 200_000,
+        frequency: "MENSUELLE" as const,
+        nextDate: d("2026-01-16"),
+        endDate: null,
+      },
+      {
+        id: "abonnement",
+        label: "Abonnement",
+        amount: 10_000,
+        frequency: "MENSUELLE" as const,
+        nextDate: balanceDate, // le jour du solde : déjà dans le solde
+        endDate: null,
+      },
+    ],
+  });
+  const week1 = (f: ReturnType<typeof treasuryForecast>) =>
+    Object.fromEntries(f.weeks[0].items.map((i) => [i.href, i]));
+
+  it("premier jour compté : lendemain du solde, sinon aujourd'hui", () => {
+    expect(iso(forecastFrom(balanceDate, monday))).toBe("2026-10-15");
+    expect(iso(forecastFrom(monday, monday))).toBe("2026-10-20");
+    expect(iso(forecastFrom(d("2026-10-25"), monday))).toBe("2026-10-20");
+    expect(iso(forecastFrom(null, monday))).toBe("2026-10-19");
+  });
+
+  it("encaissements : total et part reçue après le solde", () => {
+    expect(splitPayments(payments, balanceDate)).toEqual({
+      paid: 500_000,
+      receivedSinceBalance: [{ amount: 300_000, date: d("2026-10-15") }],
+    });
+    expect(splitPayments(payments, null)).toEqual({ paid: 500_000, receivedSinceBalance: [] });
+    // Trop-perçu : seul l'encaissement reçu après le solde reste à compter.
+    expect(
+      billingInflows([
+        billing({ amount: 400_000, ...splitPayments(payments, balanceDate), plannedDate: d("2026-10-01") }),
+      ]),
+    ).toEqual([
+      {
+        label: "Acompte · Campagne",
+        amount: 300_000,
+        date: d("2026-10-15"),
+        href: "/finance/echeances/b1",
+        sinceBalance: true,
+      },
+    ]);
+  });
+
+  it("coût payé après le solde : sortie à sa date de paiement ; le jour du solde ou sans date : exclu", () => {
+    const items = costOutflows(rows(balanceDate).costs, balanceDate);
+    expect(items.map((i) => [i.href, iso(i.date), i.sinceBalance ?? false])).toEqual([
+      ["/finance/couts/paye-apres", "2026-10-16", true],
+      ["/finance/couts/retard", "2026-10-16", false],
+    ]);
+    expect(costOutflows(rows(balanceDate).costs).map((i) => i.href)).toEqual(["/finance/couts/retard"]);
+  });
+
+  it("loyer, contrat, encaissement et coût payé entre le solde et aujourd'hui tombent en semaine 1", () => {
+    const f = treasuryForecast({ today: monday, startBalance: 2_000_000, balanceDate, ...rows(balanceDate) });
+    const w = week1(f);
+    expect(Object.keys(w).sort()).toEqual(
+      [
+        "/finance/contrats/cm",
+        "/finance/couts/paye-apres",
+        "/finance/couts/retard",
+        "/finance/echeances/solde",
+        "/finance/tresorerie/charges/loyer",
+      ].sort(),
+    );
+    // Passés, pas en retard : ils ont eu lieu, mais le solde du 14 ne les contient pas.
+    for (const href of [
+      "/finance/tresorerie/charges/loyer",
+      "/finance/contrats/cm",
+      "/finance/echeances/solde",
+      "/finance/couts/paye-apres",
+    ]) {
+      expect(w[href]).toMatchObject({ sinceBalance: true, late: false });
+    }
+    expect(iso(w["/finance/tresorerie/charges/loyer"].date)).toBe("2026-10-16");
+    expect(w["/finance/couts/retard"].late).toBe(true);
+    expect(f.weeks[0].inflow).toBe(150_000 + 300_000);
+    expect(f.weeks[0].outflow).toBe(200_000 + 150_000 + 50_000);
+    expect(f.weeks[0].balance).toBe(2_000_000 + 450_000 - 400_000);
+    // Loyer : 16 oct. → 16 janv. (4) ; abonnement : 14 nov. → 14 janv. (3, pas le 14 oct.).
+    expect(f.totalOut).toBe(4 * 200_000 + 3 * 10_000 + 150_000 + 50_000);
+    // Contrat : 17 oct. → 17 janv. (4) ; échéance : reste 500 000 le 30 nov. + 300 000 reçus le 15 oct.
+    expect(f.totalIn).toBe(4 * 150_000 + 500_000 + 300_000);
+  });
+
+  it("sans date de solde (ou sans solde) : on part d'aujourd'hui, comme avant", () => {
+    const expected = {
+      inflow: 0,
+      outflow: 50_000,
+      totalIn: 3 * 150_000 + 500_000,
+      totalOut: 3 * 200_000 + 3 * 10_000 + 50_000,
+    };
+    for (const f of [
+      treasuryForecast({ today: monday, startBalance: 2_000_000, balanceDate: null, ...rows(null) }),
+      treasuryForecast({ today: monday, startBalance: null, balanceDate, ...rows(null) }),
+    ]) {
+      expect({
+        inflow: f.weeks[0].inflow,
+        outflow: f.weeks[0].outflow,
+        totalIn: f.totalIn,
+        totalOut: f.totalOut,
+      }).toEqual(expected);
+    }
   });
 });
 

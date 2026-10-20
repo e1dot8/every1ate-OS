@@ -97,8 +97,9 @@ async function Treasury() {
       ) : age != null && age > STALE_BALANCE_DAYS ? (
         <Notice tone="info">
           <p>
-            Solde saisi au {formatDay(balance.date)} (il y a {age} jours) : mettez-le à jour pour une
-            prévision fiable.{" "}
+            Solde saisi au {formatDay(balance.date)} (il y a {age} jours). Les mouvements datés depuis
+            (contrats, charges fixes, encaissements reçus, coûts payés) sont ajoutés en S+1 ; mettez le solde
+            à jour pour une prévision fiable.{" "}
             <a href="#solde-bancaire" className="font-bold underline">
               Mettre à jour
             </a>
@@ -167,8 +168,8 @@ async function Treasury() {
       <Card className="gap-2 p-3 md:p-5">
         <h2 className={sectionTitle}>Semaine par semaine</h2>
         <p className="text-sm text-muted-foreground">
-          Ouvrez une semaine pour voir le détail de ses mouvements. Les montants en retard sont comptés en S+1
-          (semaine en cours).
+          Ouvrez une semaine pour voir le détail de ses mouvements. Les montants en retard, comme les
+          mouvements datés entre le solde saisi et aujourd&apos;hui, sont comptés en S+1 (semaine en cours).
         </p>
         <WeekList forecast={forecast} />
       </Card>
@@ -184,7 +185,8 @@ async function Treasury() {
         <Card id="solde-bancaire" className="scroll-mt-20 gap-3">
           <h2 className={sectionTitle}>Solde bancaire</h2>
           <p className="text-sm text-muted-foreground">
-            Saisie manuelle (aucune connexion bancaire) : c&apos;est le point de départ de la prévision.
+            Saisie manuelle (aucune connexion bancaire) : c&apos;est le point de départ de la prévision. Le
+            solde est pris en fin de journée : les mouvements des jours suivants s&apos;y ajoutent.
           </p>
           <CashBalanceForm
             balance={balance ? centsToDecimal(balance.cents).replace(".", ",") : ""}
@@ -198,10 +200,11 @@ async function Treasury() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Prévision indicative, calculée uniquement à partir des saisies. Inclus : reste à encaisser des
-        échéances (date prévue, sinon facture + 30 jours), coûts engagés ou reçus non payés (échéance, sinon
-        facture + 30 jours), contrats récurrents actifs et charges fixes. Exclus : coûts seulement prévus.
-        Montants des projets HT ; la TVA n&apos;est pas modélisée.
+        Prévision indicative, calculée uniquement à partir des saisies. Inclus, projets archivés compris :
+        reste à encaisser des échéances (date prévue, sinon facture + 30 jours), coûts engagés ou reçus non
+        payés (échéance, sinon facture + 30 jours), contrats récurrents actifs et charges fixes, ainsi que les
+        encaissements reçus et coûts payés après la date du solde. Exclus : coûts seulement prévus. Montants
+        des projets HT ; la TVA n&apos;est pas modélisée.
       </p>
     </>
   );

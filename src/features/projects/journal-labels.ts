@@ -37,6 +37,9 @@ const LABELS: Record<string, string> = {
   "finance.cost_saved": "a enregistré un coût",
   "finance.billing_saved": "a mis à jour l'échéancier",
   "finance.payment_recorded": "a enregistré un encaissement",
+  "project.note_updated": "a modifié un compte rendu",
+  "project.note_archived": "a archivé un compte rendu",
+  "project.satisfaction": "a noté la satisfaction client",
 };
 
 export function journalLabel(action: string) {

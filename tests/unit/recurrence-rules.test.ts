@@ -113,10 +113,15 @@ describe("récurrence : occurrence suivante", () => {
   it("mensuelle : reste dans le mois cible", () => {
     const next = buildNextOccurrence(
       { ...weekly, recurrence: "MENSUELLE", startDate: null, dueDate: d("2026-01-31") },
-      open,
+      { today: d("2026-01-31"), projectOpen: true },
     )!;
     expect(next.startDate).toBeNull();
     expect(iso(next.dueDate)).toBe("2026-02-28");
+  });
+
+  it("terminée en retard : l'occurrence suivante ne naît pas déjà en retard", () => {
+    const next = buildNextOccurrence({ ...weekly, startDate: null, dueDate: d("2026-09-30") }, open)!;
+    expect(iso(next.dueDate)).toBe("2026-10-14");
   });
 
   it("priorité automatique recalculée pour la nouvelle échéance", () => {

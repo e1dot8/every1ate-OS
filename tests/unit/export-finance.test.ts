@@ -233,21 +233,59 @@ describe("export comptable : lignes", () => {
       marginForecast: 2000000,
       marginActual: 500000,
       timeCostLogged: 120000,
+      timeUnvaluedMinutes: 0,
     };
     const rows: SynthesisRow[] = [
       { project: "P", client: null, lot: null, status: "Actif", summary, minutes: 90 },
       { project: "P", client: null, lot: "Concept", status: "Actif", summary, minutes: null },
     ];
     const valued = synthesisSheet(rows, true);
-    expect(valued.columns.at(-1)?.header).toBe("Temps valorisé");
+    expect(valued.columns.slice(-2).map((c) => c.header)).toEqual([
+      "Temps valorisé",
+      "Temps non valorisé (h)",
+    ]);
     expect(valued.rows[0][2]).toBe("Ensemble du projet");
     expect(valued.rows[1][2]).toBe("Concept");
-    expect(valued.rows[0].slice(4, 14)).toEqual([
-      5000000, 3000000, 2500000, 1000000, 1500000, 500000, 2000000, 500000, 90, 120000,
+    expect(valued.rows[0].slice(4, 15)).toEqual([
+      5000000,
+      3000000,
+      2500000,
+      1000000,
+      1500000,
+      500000,
+      2000000,
+      500000,
+      90,
+      120000,
+      null,
     ]);
+    expect(valued.rows[0]).toHaveLength(valued.columns.length);
     const plain = synthesisSheet(rows, false);
     expect(plain.columns.map((c) => c.header)).not.toContain("Temps valorisé");
+    expect(plain.columns.map((c) => c.header)).not.toContain("Temps non valorisé (h)");
     expect(plain.rows[0]).toHaveLength(plain.columns.length);
+  });
+
+  it("synthèse : temps saisi sans coût horaire signalé à part, jamais compté à 0 €", () => {
+    const summary = {
+      revenuePlanned: 0,
+      forecastCost: 0,
+      costsCommitted: 0,
+      costsPaid: 0,
+      billingInvoiced: 0,
+      collected: 0,
+      marginForecast: 0,
+      marginActual: 0,
+      // 10 h valorisées à 60 €/h ; 50 h saisies par des associés sans taux (pas de taux d'agence).
+      timeCostLogged: 60000,
+      timeUnvaluedMinutes: 3000,
+    };
+    const sheet = synthesisSheet(
+      [{ project: "P", client: null, lot: null, status: "Actif", summary, minutes: 3600 }],
+      true,
+    );
+    expect(sheet.rows[0].slice(-3)).toEqual([3600, 60000, 3000]);
+    expect(excelValue("hours", sheet.rows[0].at(-1)!)).toBe(50);
   });
 
   it("valeurs Excel : euros pour les montants, heures décimales, vides", () => {

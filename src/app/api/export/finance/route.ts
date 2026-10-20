@@ -16,7 +16,7 @@ import {
   writeWorkbook,
   type SynthesisRow,
 } from "@/features/finance/export";
-import { financeOverview, projectFinance } from "@/features/finance/service";
+import { projectFinance, projectsOverview } from "@/features/finance/service";
 import { projectStatusLabels } from "@/features/projects/labels";
 import type { ProjectStatus } from "@/generated/prisma/enums";
 import { recordAudit } from "@/lib/audit/audit";
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
   const billingIn = billing.filter((b) => inRange(billingDate(b), range));
   const paymentsIn = payments.filter((p) => inRange(p.receivedAt, range));
 
-  // Synthèse : reprise des calculs de la finance (summarize) via projectFinance / financeOverview.
+  // Synthèse : reprise des calculs de la finance (summarize) via projectFinance / projectsOverview.
   let synthesis: SynthesisRow[] = [];
   let timeValued = false;
   if (project) {
@@ -132,25 +132,23 @@ export async function GET(request: NextRequest) {
     const touched = new Map<string, ProjectInfo>();
     for (const r of [...costsIn, ...billingIn, ...paymentsIn]) touched.set(r.projectId, r.project);
     if (touched.size) {
-      const overview = new Map((await financeOverview()).map((o) => [o.id, o]));
-      synthesis = (
-        await Promise.all(
-          [...touched].map(async ([id, p]): Promise<SynthesisRow | null> => {
-            const base = {
+      // Une seule synthèse groupée des projets touchés (archivés compris) : nombre fixe de requêtes.
+      const overview = new Map((await projectsOverview([...touched.keys()])).map((o) => [o.id, o]));
+      synthesis = [...touched]
+        .flatMap(([id, p]): SynthesisRow[] => {
+          const o = overview.get(id);
+          if (!o) return [];
+          return [
+            {
               project: p.name,
               client: p.client?.name ?? null,
               lot: null,
               status: statusLabel(p),
-            };
-            const o = overview.get(id);
-            if (o) return { ...base, summary: o.summary, minutes: o.minutes };
-            // Projet archivé (absent de la vue agence) : synthèse calculée individuellement.
-            const f = await projectFinance(id);
-            return f ? { ...base, summary: f.summary, minutes: f.minutes } : null;
-          }),
-        )
-      )
-        .filter((r): r is SynthesisRow => r !== null)
+              summary: o.summary,
+              minutes: o.minutes,
+            },
+          ];
+        })
         .sort((a, b) => a.project.localeCompare(b.project, "fr"));
       timeValued = synthesis.some((r) => r.summary.timeCostLogged != null);
     }

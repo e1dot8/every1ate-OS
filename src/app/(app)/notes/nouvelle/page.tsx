@@ -43,11 +43,14 @@ async function NewNote({ searchParams }: { searchParams: Promise<Search> }) {
       eventTitle = e.title;
       eventPrivate = e.visibility === "OCCUPE";
       initial.eventId = e.id;
-      initial.title = `Compte rendu — ${e.title}`.slice(0, 200);
+      // Réunion non partagée : son titre ne doit pas se retrouver dans un compte rendu visible
+      // de tous ; pas d'opportunité préremplie (l'historique commercial reprendrait le titre).
+      initial.title = eventPrivate ? "Compte rendu de réunion" : `Compte rendu — ${e.title}`.slice(0, 200);
       initial.occurredAt = localDay(e.startsAt);
       if (has(options.projects, e.projectId)) initial.projectId = e.projectId!;
       if (has(options.clients, e.clientId)) initial.clientId = e.clientId!;
-      if (has(options.opportunities, e.opportunityId)) initial.opportunityId = e.opportunityId!;
+      if (!eventPrivate && has(options.opportunities, e.opportunityId))
+        initial.opportunityId = e.opportunityId!;
     } else eventHidden = true;
   }
   const projectId = one(sp.projet);

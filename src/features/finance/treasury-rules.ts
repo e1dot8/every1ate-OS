@@ -65,26 +65,61 @@ export type BillingRow = {
   invoicedAt: Date | null;
   /** Total encaissé sur cette échéance (centimes). */
   paid: number;
+  /** Encaissements reçus après la date du solde (inclus dans `paid`), pas encore dans le solde. */
+  receivedSinceBalance?: { amount: number; date: Date }[];
 };
+
+// ─── Date du solde ──────────────────────────────────────────────────────────
+
+/**
+ * Premier jour compté par la prévision. Le solde saisi est arrêté en fin de journée : les
+ * mouvements du jour du solde y sont déjà, ceux des jours suivants non. Sans date de solde
+ * (ou sans solde), on part d'aujourd'hui. Une date future est ramenée à aujourd'hui.
+ */
+export function forecastFrom(balanceDate: Date | null, today: Date): Date {
+  if (!balanceDate) return today;
+  return addDays(balanceDate < today ? balanceDate : today, 1);
+}
+
+/**
+ * Encaissements d'une échéance : total encaissé et, à part, ceux reçus après la date du solde
+ * (déjà sur le compte mais pas dans le solde saisi). Sans date de solde, rien n'est mis à part.
+ */
+export function splitPayments(
+  payments: { amount: number; receivedAt: Date }[],
+  balanceDate: Date | null,
+): Pick<BillingRow, "paid" | "receivedSinceBalance"> {
+  return {
+    paid: payments.reduce((n, p) => n + p.amount, 0),
+    receivedSinceBalance: balanceDate
+      ? payments
+          .filter((p) => p.receivedAt > balanceDate && p.amount > 0)
+          .map((p) => ({ amount: p.amount, date: p.receivedAt }))
+      : [],
+  };
+}
 
 /**
  * Encaissements attendus : reste à encaisser (montant − encaissements) de chaque échéance
  * non annulée. Date : date prévue ; à défaut, facture + 30 jours ; sinon non datée.
+ * S'y ajoutent les encaissements reçus après la date du solde, à leur date de réception.
  */
 export function billingInflows(rows: BillingRow[]): CashItem[] {
   return rows.flatMap((b) => {
     if (b.status === "ANNULE") return [];
+    const label = `${b.label} · ${b.projectName}`;
+    const href = treasuryHref.billing(b.id);
+    const received = (b.receivedSinceBalance ?? []).map((p): CashItem => ({
+      label,
+      amount: p.amount,
+      date: p.date,
+      href,
+      sinceBalance: true,
+    }));
     const remaining = b.amount - b.paid;
-    if (remaining <= 0) return [];
+    if (remaining <= 0) return received;
     const date = b.plannedDate ?? (b.invoicedAt ? addDays(b.invoicedAt, DEFAULT_PAYMENT_TERM_DAYS) : null);
-    return [
-      {
-        label: `${b.label} · ${b.projectName}`,
-        amount: remaining,
-        date,
-        href: treasuryHref.billing(b.id),
-      },
-    ];
+    return [{ label, amount: remaining, date, href }, ...received];
   });
 }
 
@@ -97,26 +132,30 @@ export type CostRow = {
   status: "PREVU" | "ENGAGE" | "FACTURE" | "PAYE" | "ANNULE";
   dueDate: Date | null;
   invoiceDate: Date | null;
+  paidAt: Date | null;
 };
 
 /**
  * Décaissements : coûts engagés ou reçus, pas encore payés. Les coûts seulement prévus,
  * payés ou annulés sont exclus. Date : échéance ; à défaut, facture + 30 jours ; sinon non datée.
+ * Exception : un coût payé après la date du solde (pas encore dans le solde) sort à sa date de paiement.
  */
-export function costOutflows(rows: CostRow[]): CashItem[] {
+export function costOutflows(rows: CostRow[], balanceDate: Date | null = null): CashItem[] {
   return rows.flatMap((c) => {
-    if (c.status !== "ENGAGE" && c.status !== "FACTURE") return [];
     if (c.amount <= 0) return [];
-    const date = c.dueDate ?? (c.invoiceDate ? addDays(c.invoiceDate, DEFAULT_PAYMENT_TERM_DAYS) : null);
     const who = c.supplier ? `${c.supplier} — ` : "";
-    return [
-      {
-        label: `${who}${c.description} · ${c.projectName}`,
-        amount: c.amount,
-        date,
-        href: treasuryHref.cost(c.id),
-      },
-    ];
+    const item = {
+      label: `${who}${c.description} · ${c.projectName}`,
+      amount: c.amount,
+      href: treasuryHref.cost(c.id),
+    };
+    if (c.status === "PAYE")
+      return balanceDate && c.paidAt && c.paidAt > balanceDate
+        ? [{ ...item, date: c.paidAt, sinceBalance: true }]
+        : [];
+    if (c.status !== "ENGAGE" && c.status !== "FACTURE") return [];
+    const date = c.dueDate ?? (c.invoiceDate ? addDays(c.invoiceDate, DEFAULT_PAYMENT_TERM_DAYS) : null);
+    return [{ ...item, date }];
   });
 }
 
@@ -124,9 +163,15 @@ export function costOutflows(rows: CostRow[]): CashItem[] {
  * Occurrences d'un contrat ou d'une charge dans l'horizon. La règle de répétition reste
  * celle de cash.ts (appelée pour cette seule source) : on y ajoute seulement le lien.
  */
-function occurrences(today: Date, href: string, source: { contract: Contract } | { charge: Charge }) {
+function occurrences(
+  today: Date,
+  from: Date,
+  href: string,
+  source: { contract: Contract } | { charge: Charge },
+) {
   const f = cashForecast({
     today,
+    from,
     startBalance: null,
     inflows: [],
     outflows: [],
@@ -135,37 +180,57 @@ function occurrences(today: Date, href: string, source: { contract: Contract } |
     weeks: TREASURY_WEEKS,
   });
   return f.weeks.flatMap((w) =>
-    w.items.map(({ label, amount, date }): CashItem => ({ label, amount, date, href })),
+    w.items.map(({ label, amount, date, sinceBalance }): CashItem => ({
+      label,
+      amount,
+      date,
+      href,
+      ...(sinceBalance ? { sinceBalance } : {}),
+    })),
   );
 }
 
 export type ContractRow = Contract & { id: string };
 export type ChargeRow = Charge & { id: string };
 
-/** Mensualités des contrats récurrents actifs (le jour du début de contrat, chaque mois). */
-export function contractInflows(contracts: ContractRow[], today: Date): CashItem[] {
-  return contracts.flatMap((c) => occurrences(today, treasuryHref.contract(c.id), { contract: c }));
+/**
+ * Mensualités des contrats récurrents actifs (le jour du début de contrat, chaque mois), à partir
+ * de `from` (défaut : aujourd'hui).
+ */
+export function contractInflows(contracts: ContractRow[], today: Date, from: Date = today): CashItem[] {
+  return contracts.flatMap((c) => occurrences(today, from, treasuryHref.contract(c.id), { contract: c }));
 }
 
-/** Échéances des charges fixes (mensuelles, trimestrielles ou annuelles). */
-export function chargeOutflows(charges: ChargeRow[], today: Date): CashItem[] {
-  return charges.flatMap((c) => occurrences(today, treasuryHref.charge(c.id), { charge: c }));
+/** Échéances des charges fixes (mensuelles, trimestrielles ou annuelles), à partir de `from`. */
+export function chargeOutflows(charges: ChargeRow[], today: Date, from: Date = today): CashItem[] {
+  return charges.flatMap((c) => occurrences(today, from, treasuryHref.charge(c.id), { charge: c }));
 }
 
-/** Prévision complète à partir des lignes lues en base. */
+/**
+ * Prévision complète à partir des lignes lues en base. `balanceDate` : date du solde saisi ;
+ * les mouvements postérieurs (occurrences, coûts payés, encaissements via `receivedSinceBalance`)
+ * sont ajoutés, ceux en retard tombant en semaine 1.
+ */
 export function treasuryForecast(input: {
   today: Date;
   startBalance: number | null;
+  balanceDate?: Date | null;
   billing: BillingRow[];
   costs: CostRow[];
   contracts: ContractRow[];
   charges: ChargeRow[];
 }) {
+  // Sans solde saisi, la prévision est relative : pas de date de coupure.
+  const balanceDate = input.startBalance == null ? null : (input.balanceDate ?? null);
+  const from = forecastFrom(balanceDate, input.today);
   return cashForecast({
     today: input.today,
     startBalance: input.startBalance,
-    inflows: [...billingInflows(input.billing), ...contractInflows(input.contracts, input.today)],
-    outflows: [...costOutflows(input.costs), ...chargeOutflows(input.charges, input.today)],
+    inflows: [...billingInflows(input.billing), ...contractInflows(input.contracts, input.today, from)],
+    outflows: [
+      ...costOutflows(input.costs, balanceDate),
+      ...chargeOutflows(input.charges, input.today, from),
+    ],
     contracts: [],
     charges: [],
     weeks: TREASURY_WEEKS,

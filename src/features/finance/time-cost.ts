@@ -25,6 +25,8 @@ export function loggedTimeCost(entries: { userId: string; minutes: number }[], r
 /**
  * Temps prévu : pour chaque tâche non annulée, la plus grande valeur entre l'estimation
  * et le temps déjà passé, au taux du responsable (taux par défaut si non assignée).
+ * Minutes des tâches dont le responsable n'a aucun taux (ni le sien, ni celui de l'agence) :
+ * comptées à part, comme pour le temps passé.
  */
 export function plannedTimeCost(
   tasks: {
@@ -36,11 +38,13 @@ export function plannedTimeCost(
   rateOf: RateOf,
 ) {
   let cost = 0;
+  let unvalued = 0;
   for (const t of tasks) {
     if (t.cancelled) continue;
     const minutes = Math.max(t.estimatedMinutes ?? 0, t.loggedMinutes);
     const r = rateOf(t.ownerId);
-    if (r != null) cost += minutesCost(minutes, r);
+    if (r == null) unvalued += minutes;
+    else cost += minutesCost(minutes, r);
   }
-  return cost;
+  return { cost, unvaluedMinutes: unvalued };
 }

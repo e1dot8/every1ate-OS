@@ -1,6 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import type { AuditAction } from "@/lib/audit/audit";
+import { diff, recordAudit, type AuditAction } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { getEvent } from "@/features/calendar/service";
@@ -206,6 +206,34 @@ export async function saveNote(
       data,
     });
     if (!updated.count) return failed(STALE_EDIT);
+    const changes = diff(
+      {
+        title: before.title,
+        occurredAt: before.occurredAt,
+        projectId: before.projectId,
+        clientId: before.clientId,
+        opportunityId: before.opportunityId,
+        bodyLength: before.body.length,
+      },
+      {
+        title: data.title,
+        occurredAt: data.occurredAt,
+        projectId: data.projectId,
+        clientId: data.clientId,
+        opportunityId: data.opportunityId,
+        bodyLength: data.body.length,
+      },
+    );
+    if (changes.changed)
+      await recordAudit({
+        action: "project.note_updated",
+        actorId: actor.id,
+        projectId: data.projectId ?? before.projectId,
+        targetType: "meeting_note",
+        targetId: id,
+        before: changes.before,
+        after: changes.after,
+      });
     return done({ id });
   }
   const error = await checkLinks(input, null);
@@ -236,11 +264,24 @@ export async function saveNote(
 }
 
 /** Archive (masque) un compte rendu ; les tâches déjà créées restent. */
-export async function archiveNote(id: string): Promise<ServiceResult<null>> {
+export async function archiveNote(id: string, actor: Actor): Promise<ServiceResult<null>> {
   const db = getDb();
-  const note = await db.meetingNote.findUnique({ where: { id }, select: { archivedAt: true } });
+  const note = await db.meetingNote.findUnique({
+    where: { id },
+    select: { archivedAt: true, title: true, projectId: true },
+  });
   if (!note) return failed("Compte rendu introuvable.");
-  if (!note.archivedAt) await db.meetingNote.update({ where: { id }, data: { archivedAt: new Date() } });
+  if (!note.archivedAt) {
+    await db.meetingNote.update({ where: { id }, data: { archivedAt: new Date() } });
+    await recordAudit({
+      action: "project.note_archived",
+      actorId: actor.id,
+      projectId: note.projectId,
+      targetType: "meeting_note",
+      targetId: id,
+      before: { title: note.title },
+    });
+  }
   return done(null);
 }
 

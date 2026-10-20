@@ -83,10 +83,10 @@ export async function saveNoteAction(_prev: FormState, formData: FormData): Prom
 }
 
 export async function archiveNoteAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const noteId = z.string().min(1).max(100).safeParse(formData.get("noteId"));
   if (!noteId.success) return;
-  const result = await archiveNote(noteId.data);
+  const result = await archiveNote(noteId.data, user);
   if (!result.ok) return;
   revalidatePath("/notes");
   redirect("/notes");

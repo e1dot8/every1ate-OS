@@ -16,6 +16,7 @@ import { notify } from "@/features/notifications/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
+import { closureHints } from "@/features/projects/closure-auto";
 import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
 import { buildNextOccurrence, normalizeRecurrence, recurrenceIssue } from "@/features/projects/recurrence";
 import {
@@ -478,7 +479,8 @@ export async function toggleClosureItem(
       checked,
       checkedAt: checked ? new Date() : null,
       checkedById: checked ? actor.id : null,
-      note: note?.trim() || item.note,
+      // Décocher efface la note : une ancienne « vérification automatique » ne survit pas.
+      note: checked ? note?.trim() || item.note : null,
     },
   });
   await recordAudit({
@@ -1002,17 +1004,35 @@ export async function closureFacts(projectId: string) {
   return { openTasks, costsNotPaid, billingNotCollected, documents };
 }
 
-/** Coche en une fois les points que les données confirment ; trace « vérifié automatiquement ». */
+/**
+ * Coche en une fois les points que les données confirment ; trace « vérifié automatiquement ».
+ * Les données sont relues ici : un point proposé à l'affichage mais qui ne se vérifie plus
+ * (coût ajouté, encaissement supprimé entre-temps) n'est pas coché et est renvoyé dans `refused`.
+ */
 export async function checkVerifiedClosureItems(
   projectId: string,
   keys: string[],
   actor: Actor,
-): Promise<ServiceResult<{ checked: number }>> {
+): Promise<ServiceResult<{ checked: number; refused: string[] }>> {
   const db = getDb();
-  const items = await db.closureItem.findMany({ where: { projectId, key: { in: keys }, checked: false } });
-  const note = `Vérifié automatiquement le ${new Date().toISOString().slice(0, 10)}`;
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { closingReview: true, status: true, archivedAt: true },
+  });
+  if (!project || project.archivedAt || project.status === "TERMINE" || project.status === "ARCHIVE")
+    return failed("Projet introuvable ou déjà clôturé.");
+  const hints = closureHints({
+    ...(await closureFacts(projectId)),
+    hasReview: !!project.closingReview?.trim(),
+  });
+  const allowed = keys.filter((k) => hints[k]?.verifiable && hints[k]?.ok);
+  const refused = keys.filter((k) => !allowed.includes(k));
+  const items = allowed.length
+    ? await db.closureItem.findMany({ where: { projectId, key: { in: allowed }, checked: false } })
+    : [];
+  const note = `Vérifié automatiquement le ${todayDate().toISOString().slice(0, 10)}`;
   for (const item of items) await toggleClosureItem(projectId, item.id, true, note, actor);
-  return done({ checked: items.length });
+  return done({ checked: items.length, refused });
 }
 
 export async function saveSatisfaction(

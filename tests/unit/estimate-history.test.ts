@@ -60,6 +60,34 @@ describe("chiffrage par l'historique : préparation", () => {
     expect(reopened).toMatchObject({ closed: false, durationDays: null });
   });
 
+  it("projet archivé après sa clôture (TERMINE → ARCHIVE) : toujours terminé, durée conservée", () => {
+    const [archived] = historyFromOverview([
+      row({
+        id: "a",
+        status: "ARCHIVE",
+        startDate: d("2026-01-05"),
+        closedAt: new Date("2026-02-10T10:00:00Z"),
+      }),
+    ]);
+    expect(archived).toMatchObject({ closed: true, durationDays: 36 });
+  });
+
+  it("projets terminés puis archivés : repères « clôturés », pas « en cours inclus »", () => {
+    const closedAt = new Date("2026-03-01T10:00:00Z");
+    const budget = (revenue: number) => ({ budgetRevenue: revenue, billingInvoiced: 0, costsCommitted: 0 });
+    const e = estimateFromHistory(
+      historyFromOverview([
+        row({ id: "termine", status: "TERMINE", closedAt, summary: budget(1000000) }),
+        row({ id: "archive", status: "ARCHIVE", closedAt, summary: budget(3000000) }),
+        row({ id: "en cours", summary: budget(9000000) }),
+      ]),
+      "campagne-creative",
+    );
+    expect(e.basis).toBe("clotures");
+    expect(e.projects.map((p) => p.id)).toEqual(["termine", "archive"]);
+    expect(e.revenue?.median).toBe(2000000);
+  });
+
   it("le projet comparé est exclu de ses propres repères", () => {
     const rows = [
       row({ id: "moi", summary: { budgetRevenue: 9900000, billingInvoiced: 0, costsCommitted: 0 } }),
