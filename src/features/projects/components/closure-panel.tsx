@@ -74,7 +74,7 @@ export async function ClosurePanel(props: {
   return (
     <div className="flex flex-col gap-4">
       {closed ? (
-        <FormAlert tone="success" title={`Projet clôturé le ${formatDay(p.closedAt)}.`} />
+        <FormAlert tone="success" title={`Projet clôturé le ${formatDay(p.closedAt)}`} />
       ) : (
         <FormAlert
           tone={left ? "warning" : "success"}

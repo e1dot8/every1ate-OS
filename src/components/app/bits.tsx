@@ -169,7 +169,7 @@ export function Tabs({
   active: string;
 }) {
   return (
-    <nav aria-label="Sections" className="flex gap-5 overflow-x-auto border-b">
+    <nav aria-label="Sections" className="relative flex gap-5 overflow-x-auto border-b">
       {items.map((t) => (
         <Link
           key={t.key}

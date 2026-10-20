@@ -107,7 +107,7 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
             {sp.moi ? <input type="hidden" name="moi" value="1" /> : null}
           </form>
           {opps.length ? (
-            <div className="-mx-4 flex flex-col gap-4 px-4 md:flex-row md:overflow-x-auto md:pb-2">
+            <div className="relative -mx-4 flex flex-col gap-4 px-4 md:flex-row md:overflow-x-auto md:pb-2">
               {STAGES.map((stage) => {
                 const list = opps.filter((o) => o.stage === stage);
                 const closed = !OPEN_STAGES.includes(stage);

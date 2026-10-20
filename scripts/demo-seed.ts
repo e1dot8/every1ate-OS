@@ -608,6 +608,10 @@ async function main() {
       where: { projectId: id },
       data: { status: "TERMINE", completedAt: at(close, "18:00") },
     });
+    await db.closureItem.updateMany({
+      where: { projectId: id },
+      data: { checked: true, checkedAt: at(close, "17:00"), checkedById: owner.id },
+    });
     await db.project.update({
       where: { id },
       data: {

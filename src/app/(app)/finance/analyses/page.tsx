@@ -92,7 +92,7 @@ function ProfitTable({
       role="region"
       aria-label={caption}
       tabIndex={0}
-      className="overflow-x-auto rounded-xl border bg-card contain-inline-size"
+      className="relative overflow-x-auto rounded-xl border bg-card contain-inline-size"
     >
       <table className="w-full min-w-[44rem] text-sm">
         <caption className="px-4 pt-3 pb-1 text-left font-bold">{caption}</caption>

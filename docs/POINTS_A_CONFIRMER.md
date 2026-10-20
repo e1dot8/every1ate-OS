@@ -14,3 +14,7 @@
 | 10  | RPO / RTO                                                   | Proposition : 24 h (copie) ou minutes (PITR) / 4 h                                          | Associés                        |
 | 11  | Accès collaborateurs V2                                     | Hors V1 (lot 8)                                                                             | Associés                        |
 | 12  | Seuils de marge et règles de calcul                         | Formules documentées (ADR-0013), à valider                                                  | Comptable                       |
+| 13  | Coûts horaires internes et capacités                        | Saisis dans Plus › Réglages (vides = temps non valorisé) ; journalisés                      | Associés                        |
+| 14  | Objectifs annuels (CA, marge, nombre de projets)            | Saisis dans Finance › Analyses ; définitions affichées sur la page (ADR-0016)               | Associés                        |
+| 15  | Domaine d'envoi des e-mails (Resend)                        | Domaine de l'agence à vérifier (DKIM/SPF) avant tout envoi réel                             | Associés (accès DNS)            |
+| 16  | Récap e-mail du matin                                       | Désactivé par défaut, activable par chaque associé                                          | Chaque associé                  |

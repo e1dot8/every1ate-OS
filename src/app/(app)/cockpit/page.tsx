@@ -54,7 +54,7 @@ function LoadTable({ load }: { load: UpcomingLoad }) {
       role="region"
       aria-label="Charge à venir par associé"
       tabIndex={0}
-      className="overflow-x-auto rounded-xl border bg-card contain-inline-size"
+      className="relative overflow-x-auto rounded-xl border bg-card contain-inline-size"
     >
       <table className="w-full min-w-[38rem] text-sm">
         <caption className="sr-only">
