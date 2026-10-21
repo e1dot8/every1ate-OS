@@ -630,7 +630,8 @@ export function projectsOverview(ids: string[]) {
 async function overviewFor(where: Prisma.ProjectWhereInput) {
   const db = getDb();
   const projects = await db.project.findMany({
-    where,
+    // Le projet interne n'a ni budget ni client : jamais dans les synthèses financières.
+    where: { AND: [where, { internal: false }] },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

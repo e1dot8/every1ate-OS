@@ -259,6 +259,8 @@ model Project {
   clientId           String?
   client             Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
   templateKey        String?
+  /// Projet interne unique « La maison » : tâches sans client (agence, gestion, visibilité…).
+  internal           Boolean             @default(false)
   ownerId            String
   owner              User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   phase              ProjectPhase        @default(RECETTE)
@@ -364,6 +366,14 @@ model Task {
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
+  /// Temps restant estimé, mis à jour par le responsable (à défaut : estimation − temps suivi).
+  remainingMinutes  Int?
+  category          TaskCategory      @default(CLIENT)
+  /// Mini-bilan facultatif quand le réel dépasse nettement l'estimation (jamais une sanction).
+  overrunReason     OverrunReason?
+  overrunNote       String?
+  /// Bilan fait ou passé : la question n'est plus posée.
+  overrunReviewedAt DateTime?
   /// Complexité choisie à la création : fixe les XP gagnés à la clôture (jamais déduite du temps).
   complexity        TaskComplexity?
   blockedReason     String?
@@ -478,6 +488,8 @@ model TimeEntry {
   endedAt         DateTime?
   durationMinutes Int?
   source          TimeSource
+  /// Segment de chronomètre terminé par une pause : « Reprendre » relance la même tâche.
+  resumable       Boolean    @default(false)
   comment         String?
   deletedAt       DateTime?
   createdAt       DateTime   @default(now())
@@ -1190,4 +1202,26 @@ model DailyPriority {
   @@unique([userId, day, taskId])
   @@unique([userId, day, position])
   @@map("daily_priority")
+}
+
+// ─── Temps et estimation (lot G2) ──────────────────────────────────────────
+
+enum TaskCategory {
+  CLIENT
+  AGENCE
+  GESTION
+  BRANDING
+  APPRENTISSAGE
+  ENTRAIDE
+  RITUEL
+}
+
+enum OverrunReason {
+  ESTIMATION_COURTE
+  BRIEF_INCOMPLET
+  RETOURS_SUPPLEMENTAIRES
+  BLOCAGE_EXTERNE
+  PERIMETRE_MODIFIE
+  QUALITE
+  AUTRE
 }

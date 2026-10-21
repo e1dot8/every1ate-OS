@@ -339,6 +339,7 @@ export async function objectiveProgressFor(year: number, today = todayDate()): P
     }),
     db.project.findMany({
       where: {
+        internal: false,
         OR: [
           { startDate: range },
           { startDate: null, actualStartDate: range },
@@ -396,6 +397,7 @@ export async function profitabilityFor(
   const db = getDb();
   const [all, { rateOf, anyRate }] = await Promise.all([
     db.project.findMany({
+      where: { internal: false },
       select: {
         id: true,
         status: true,

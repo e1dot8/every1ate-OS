@@ -7,6 +7,7 @@ import type {
   TaskStatus,
   Priority,
   Recurrence,
+  TaskCategory,
   TaskComplexity,
 } from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
@@ -65,6 +66,8 @@ export async function listProjects(filter: ProjectFilter) {
       : filter.scope === "termines"
         ? { archivedAt: null, status: "TERMINE" }
         : { archivedAt: null, status: { notIn: ["TERMINE", "ARCHIVE"] } };
+  // Le projet interne (« La maison ») a sa propre entrée : il n'est pas un projet client.
+  where.internal = false;
   if (filter.mine) where.ownerId = filter.mine;
   if (filter.phase) where.phase = filter.phase;
   if (filter.q) {
@@ -638,6 +641,8 @@ export type TaskInput = {
   estimatedMinutes: number | null;
   /** Complexité (barème d'XP). Omise : inchangée en modification. */
   complexity?: TaskComplexity | null;
+  /** Catégorie (client, agence, gestion…). Omise : inchangée, ou « client » en création. */
+  category?: TaskCategory;
   /**
    * Répétition : à la clôture, l'occurrence suivante est créée (voir changeTaskStatus).
    * Omise : inchangée en modification, « Aucune » en création.

@@ -6,6 +6,7 @@ import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { TaskForm } from "@/features/projects/components/forms";
 import { getProject, listAssociates } from "@/features/projects/service";
+import { estimateHints } from "@/features/time/estimate-service";
 import { requireUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Nouvelle tâche" };
@@ -19,7 +20,7 @@ async function NewTask({
 }) {
   await requireUser();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [project, associates] = await Promise.all([getProject(id), listAssociates()]);
+  const [project, associates, hints] = await Promise.all([getProject(id), listAssociates(), estimateHints()]);
   if (!project || project.archivedAt) notFound();
   return (
     <>
@@ -28,6 +29,8 @@ async function NewTask({
       <Card className="max-w-2xl">
         <TaskForm
           projectId={id}
+          internal={project.internal}
+          hints={hints}
           defaultLotId={sp.lot}
           lots={project.workPackages.map((l) => ({ value: l.id, label: l.name }))}
           associates={associates.map((a) => ({ value: a.id, label: a.name }))}

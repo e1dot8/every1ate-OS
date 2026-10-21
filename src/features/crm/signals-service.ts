@@ -332,7 +332,7 @@ export async function loadCommercialSignals(today = todayDate()): Promise<Detect
   const [clients, projects, opportunities, activities, notes, contracts] = await Promise.all([
     db.client.findMany({ where: { archivedAt: null }, select: { id: true, name: true } }),
     db.project.findMany({
-      where: { clientId: { not: null } },
+      where: { clientId: { not: null }, internal: false },
       select: {
         id: true,
         name: true,

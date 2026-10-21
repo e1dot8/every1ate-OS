@@ -37,7 +37,7 @@ export async function agencyCockpit(opts: { userId: string; team: boolean; perio
     time,
   ] = await Promise.all([
     db.project.findMany({
-      where: projectWhere,
+      where: { ...projectWhere, internal: false },
       select: { id: true, name: true, status: true, plannedEndDate: true },
     }),
     crmForecast(mine),

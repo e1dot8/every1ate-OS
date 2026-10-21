@@ -24,7 +24,11 @@ import { DocumentsPanel } from "@/features/documents/components/documents-panel"
 import { listComments, taskPrioritySuggestion } from "@/features/planning/service";
 import { formatMinutes } from "@/features/planning/rules";
 import { ManualTimeForm, TimerControl } from "@/features/time/components/timer";
-import { getActiveTimer, taskTime } from "@/features/time/service";
+import { getActiveTimer, getPausedTimer, taskTime } from "@/features/time/service";
+import { taskTimeSummary } from "@/features/time/estimate-service";
+import { OverrunReview, RemainingForm } from "@/features/time/components/estimate-forms";
+import { categoryLabels, overrunReasonLabels } from "@/features/time/estimate-rules";
+import { complexityLabels } from "@/features/projects/labels";
 import { toDateInput, todayDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Tâche" };
@@ -54,12 +58,18 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
       : null,
   ]);
   const repeats = recurrenceSummary(task.recurrence, task.recurrenceUntil);
-  const [suggestion, comments, time, active] = await Promise.all([
+  const [suggestion, comments, time, active, paused, summary] = await Promise.all([
     taskPrioritySuggestion(id),
     listComments(id),
     taskTime(id),
     getActiveTimer(user.id),
+    getPausedTimer(user.id),
+    taskTimeSummary(id),
   ]);
+  const gap = summary?.variance;
+  const gapLabel = gap
+    ? `${gap.absolute >= 0 ? "+" : "−"}${formatMinutes(Math.abs(gap.absolute))} (${gap.absolute >= 0 ? "+" : "−"}${Math.round(Math.abs(gap.relative ?? 0) * 100)} %)`
+    : "—";
   const runningHere = active?.taskId === id ? active.startedAt!.toISOString() : null;
   const names = new Map(
     (await db.user.findMany({ select: { id: true, name: true } })).map((u) => [u.id, u.name]),
@@ -137,7 +147,12 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
                 "Priorité",
                 `${priorityLabels[task.priority]}${task.priorityLocked ? " · verrouillée" : " · auto"}`,
               ],
-              ["Temps passé", time.total ? formatMinutes(time.total) : "—"],
+              ["Catégorie", categoryLabels[task.category]],
+              ["Complexité", task.complexity ? complexityLabels[task.complexity] : "Non précisée"],
+              ["Temps suivi", time.total ? formatMinutes(time.total) : "—"],
+              ["Restant estimé", summary?.remaining != null ? formatMinutes(summary.remaining) : "—"],
+              ["Écart prévu / réel", gapLabel],
+              ...(task.overrunReason ? [["Raison de l'écart", overrunReasonLabels[task.overrunReason]]] : []),
             ].map(([k, v]) => (
               <div
                 key={String(k)}
@@ -223,7 +238,19 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
           {!task.archivedAt ? (
             <Card className="gap-3">
               <CardTitle>Suivi du temps</CardTitle>
-              <TimerControl taskId={id} startedAt={runningHere} />
+              <TimerControl taskId={id} startedAt={runningHere} paused={paused?.taskId === id} />
+              {summary?.askReview && gap && (!task.ownerId || task.ownerId === user.id) ? (
+                <OverrunReview
+                  taskId={id}
+                  summary={`Estimé ${formatMinutes(gap.estimated)}, suivi ${formatMinutes(gap.actual)}.`}
+                />
+              ) : null}
+              {task.status !== "TERMINE" && task.status !== "ANNULE" ? (
+                <RemainingForm
+                  taskId={id}
+                  current={task.remainingMinutes != null ? formatMinutes(task.remainingMinutes) : ""}
+                />
+              ) : null}
               {active && !runningHere ? (
                 <p className="text-sm text-muted-foreground">
                   Chronomètre en cours sur « {active.task.title} ».

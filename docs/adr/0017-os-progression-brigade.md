@@ -38,3 +38,22 @@ inspirée de Duolingo et des MMORPG, dans l'univers « creative & strategic kitc
 - Les seuils sont des hypothèses : on les recalibre après quelques semaines d'usage, dans
   `config.ts` uniquement.
 - Les XP déjà acquis ne sont pas recalculés quand le barème change (le registre garde l'histoire).
+
+## Lot G2 — Temps et estimation
+
+8. **Pause** : elle clôt le segment de chronomètre (le temps de pause n'est jamais compté) et le
+   marque « reprenable » ; « Reprendre » ouvre un nouveau segment sur la même tâche. Démarrer un
+   autre chronomètre ou terminer la session efface la pause en attente.
+9. **Catégories de tâche** (client, développement agence, gestion, personal branding,
+   apprentissage, entraide, rituel) : seule « client » compte comme temps client.
+10. **Tâches sans client** : rangées dans un projet interne unique, « La maison Every1.ate »
+    (`project.internal`, index unique partiel), créé au premier besoin. Il est exclu de la liste
+    des projets, de la finance, des analyses et des signaux commerciaux ; la liste des projets
+    garde un lien vers lui.
+11. **Estimation** : durées rapides, puis la médiane observée des tâches terminées de même
+    catégorie et complexité dès 3 exemples (taille de l'échantillon affichée) ; sinon une plage
+    indicative selon la complexité. Toujours une suggestion modifiable.
+12. **Temps restant** saisi par le responsable ; à défaut, estimation − temps suivi.
+13. **Mini-bilan** proposé une seule fois, tâche terminée, si le réel dépasse l'estimation de
+    plus de 25 % et d'au moins 30 minutes ; facultatif (« Passer »), réservé au responsable.
+14. **Rapport** : « Moi » ou « La brigade » en totaux agrégés, jamais de détail par personne.

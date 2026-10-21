@@ -44,6 +44,11 @@ export async function startTimer(taskId: string, force: boolean, actor: Actor): 
     };
   const now = new Date();
   const entry = await db.$transaction(async (tx) => {
+    // Une nouvelle session remplace toute pause en attente.
+    await tx.timeEntry.updateMany({
+      where: { userId: actor.id, resumable: true },
+      data: { resumable: false },
+    });
     if (active) {
       await tx.timeEntry.update({
         where: { id: active.id },
@@ -82,17 +87,30 @@ export async function startTimer(taskId: string, force: boolean, actor: Actor): 
   return done({ id: entry.id });
 }
 
-export async function stopTimer(actor: Actor): Promise<ServiceResult<{ minutes: number } | null>> {
+export async function stopTimer(
+  actor: Actor,
+  options: { pause?: boolean } = {},
+): Promise<ServiceResult<{ minutes: number } | null>> {
+  const db = getDb();
   const active = await getActiveTimer(actor.id);
-  if (!active) return done(null);
+  if (!active) {
+    // Arrêter pendant une pause : la session est close, plus rien à reprendre.
+    if (!options.pause)
+      await db.timeEntry.updateMany({
+        where: { userId: actor.id, resumable: true },
+        data: { resumable: false },
+      });
+    return done(null);
+  }
   const now = new Date();
   const minutes = minutesBetween(active.startedAt!, now);
-  await getDb().timeEntry.update({
+  // La pause clôt le segment (le temps de pause n'est jamais compté) et le rend reprenable.
+  await db.timeEntry.update({
     where: { id: active.id },
-    data: { endedAt: now, durationMinutes: minutes },
+    data: { endedAt: now, durationMinutes: minutes, resumable: !!options.pause },
   });
   await recordAudit({
-    action: "time.timer_stopped",
+    action: options.pause ? "time.timer_paused" : "time.timer_stopped",
     actorId: actor.id,
     projectId: active.projectId,
     targetType: "time_entry",
@@ -100,6 +118,24 @@ export async function stopTimer(actor: Actor): Promise<ServiceResult<{ minutes: 
     after: { durationMinutes: minutes },
   });
   return done({ minutes });
+}
+
+/** Session en pause (aucun chronomètre actif) : dernier segment reprenable. */
+export async function getPausedTimer(userId: string) {
+  const db = getDb();
+  if (await getActiveTimer(userId)) return null;
+  return db.timeEntry.findFirst({
+    where: { userId, resumable: true, deletedAt: null, task: { archivedAt: null } },
+    orderBy: { endedAt: "desc" },
+    include: entryInclude,
+  });
+}
+
+/** Reprendre après une pause : un nouveau segment sur la même tâche. */
+export async function resumeTimer(actor: Actor): Promise<StartResult> {
+  const paused = await getPausedTimer(actor.id);
+  if (!paused) return failed("Aucune session en pause.");
+  return startTimer(paused.taskId, false, actor);
 }
 
 export type ManualEntry = { taskId: string; date: Date; minutes: number; comment: string | null };

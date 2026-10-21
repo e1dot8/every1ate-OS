@@ -12,7 +12,7 @@ export async function projectLots(projectId: string) {
 
 export async function projectOptions() {
   const projects = await getDb().project.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: null, internal: false },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

@@ -3,14 +3,18 @@ import { Bell, Search, Timer } from "lucide-react";
 import { QuickAdd } from "@/components/app/quick-add";
 import { Elapsed } from "@/features/time/components/timer";
 import { unreadCount } from "@/features/notifications/service";
-import { getActiveTimer } from "@/features/time/service";
+import { getActiveTimer, getPausedTimer } from "@/features/time/service";
 import { getCurrentUser } from "@/lib/auth/session";
 
 /** Barre d'état : chronomètre en cours et cloche des notifications. */
 export async function TopBar() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const [active, unread] = await Promise.all([getActiveTimer(user.id), unreadCount(user.id)]);
+  const [active, paused, unread] = await Promise.all([
+    getActiveTimer(user.id),
+    getPausedTimer(user.id),
+    unreadCount(user.id),
+  ]);
   return (
     <div className="mb-4 flex items-center justify-end gap-2">
       {active ? (
@@ -21,6 +25,14 @@ export async function TopBar() {
           <Timer aria-hidden="true" className="size-4 shrink-0" />
           <span className="truncate">{active.task.title}</span>
           <Elapsed startedAt={active.startedAt!.toISOString()} />
+        </Link>
+      ) : paused ? (
+        <Link
+          href={`/taches/${paused.taskId}`}
+          className="mr-auto inline-flex min-h-tap max-w-[70%] items-center gap-2 rounded-full border-2 border-dashed border-ink px-3 text-sm font-bold"
+        >
+          <Timer aria-hidden="true" className="size-4 shrink-0" />
+          <span className="truncate">En pause · {paused.task.title}</span>
         </Link>
       ) : null}
       <Link

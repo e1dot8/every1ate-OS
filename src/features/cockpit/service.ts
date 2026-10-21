@@ -89,6 +89,7 @@ export async function myActiveProjects(userId: string) {
   const projects = await getDb().project.findMany({
     where: {
       archivedAt: null,
+      internal: false,
       status: { notIn: ["TERMINE", "ARCHIVE"] },
       OR: [
         { ownerId: userId },

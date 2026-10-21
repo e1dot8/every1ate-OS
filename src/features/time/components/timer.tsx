@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Play, Square } from "lucide-react";
+import { Pause, Play, Square } from "lucide-react";
 import { Field } from "@/components/forms/field";
 import { FormAlert } from "@/components/forms/form-alert";
 import { FormMessages } from "@/components/forms/form-messages";
@@ -12,6 +12,8 @@ import { initialFormState } from "@/lib/forms";
 import {
   addTimeAction,
   correctTimeAction,
+  pauseTimerAction,
+  resumeTimerAction,
   startTimerAction,
   stopTimerAction,
   type TimerState,
@@ -47,20 +49,55 @@ const idle: TimerState = { status: "idle" };
  * Démarrer / arrêter le chronomètre d'une tâche. Si un autre tourne, une confirmation
  * explicite est demandée avant de l'arrêter (§8).
  */
-export function TimerControl({ taskId, startedAt }: { taskId: string; startedAt: string | null }) {
+export function TimerControl({
+  taskId,
+  startedAt,
+  paused = false,
+}: {
+  taskId: string;
+  startedAt: string | null;
+  /** Session de cette tâche en pause : « Reprendre » ou « Arrêter ». */
+  paused?: boolean;
+}) {
   const [state, action] = useActionState(startTimerAction, idle);
   if (startedAt)
     return (
-      <form action={stopTimerAction} className="flex flex-wrap items-center gap-3">
-        <input type="hidden" name="taskId" value={taskId} />
+      <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-2 text-lg font-bold">
           <span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-danger" />
           <Elapsed startedAt={startedAt} />
         </span>
-        <SubmitButton variant="destructive" pendingLabel="Arrêt…">
-          <Square aria-hidden="true" /> Arrêter
-        </SubmitButton>
-      </form>
+        <form action={pauseTimerAction}>
+          <input type="hidden" name="taskId" value={taskId} />
+          <SubmitButton variant="outline" pendingLabel="Pause…">
+            <Pause aria-hidden="true" /> Pause
+          </SubmitButton>
+        </form>
+        <form action={stopTimerAction}>
+          <input type="hidden" name="taskId" value={taskId} />
+          <SubmitButton variant="destructive" pendingLabel="Arrêt…">
+            <Square aria-hidden="true" /> Arrêter
+          </SubmitButton>
+        </form>
+      </div>
+    );
+  if (paused)
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-annotation text-sm font-bold text-pen-strong">en pause (non comptée)</span>
+        <form action={resumeTimerAction}>
+          <input type="hidden" name="taskId" value={taskId} />
+          <SubmitButton pendingLabel="Reprise…">
+            <Play aria-hidden="true" /> Reprendre
+          </SubmitButton>
+        </form>
+        <form action={stopTimerAction}>
+          <input type="hidden" name="taskId" value={taskId} />
+          <SubmitButton variant="outline" pendingLabel="Arrêt…">
+            <Square aria-hidden="true" /> Terminer la session
+          </SubmitButton>
+        </form>
+      </div>
     );
   return (
     <div className="flex flex-col gap-3">

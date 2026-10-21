@@ -9,6 +9,7 @@ import type {
   ProjectPhase,
   ProjectStatus,
   Recurrence,
+  TaskCategory,
   TaskComplexity,
   TaskStatus,
 } from "@/generated/prisma/enums";
@@ -49,6 +50,15 @@ const TASK_STATUSES = [
 const PRIORITIES = ["AUTO", "BASSE", "NORMALE", "HAUTE", "URGENTE"] as const;
 const IMPACTS = ["FAIBLE", "MOYEN", "FORT"] as const;
 const COMPLEXITIES = ["SIMPLE", "MOYENNE", "COMPLEXE"] as const;
+const CATEGORIES = [
+  "CLIENT",
+  "AGENCE",
+  "GESTION",
+  "BRANDING",
+  "APPRENTISSAGE",
+  "ENTRAIDE",
+  "RITUEL",
+] as const;
 
 const optionalText = z
   .string()
@@ -273,6 +283,7 @@ const taskSchema = z
     priority: z.enum(PRIORITIES),
     impact: z.enum(IMPACTS).default("MOYEN"),
     complexity: z.enum(COMPLEXITIES).default("SIMPLE"),
+    category: z.enum(CATEGORIES).optional(),
     startDate: dateInput,
     dueDate: dateInput,
     estimatedHours: z
@@ -307,6 +318,7 @@ export async function saveTaskAction(_prev: FormState, formData: FormData): Prom
       priority: data.priority as Priority | "AUTO",
       impact: data.impact as Impact,
       complexity: data.complexity as TaskComplexity,
+      category: data.category as TaskCategory | undefined,
       recurrence: data.recurrence as Recurrence,
       estimatedMinutes: estimatedHours,
       contributorIds: formData.getAll("contributorIds").map(String),

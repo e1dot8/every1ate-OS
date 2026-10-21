@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { House } from "lucide-react";
+import { getDb } from "@/lib/db/client";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AlertOctagon, CalendarDays, ListChecks, Plus, Search } from "lucide-react";
@@ -28,6 +30,16 @@ async function ProjectList({ searchParams }: { searchParams: Promise<Search> }) 
     phase,
     q: sp.q?.trim() || undefined,
   });
+  const house = await getDb().project.findFirst({
+    where: { internal: true },
+    select: {
+      id: true,
+      _count: {
+        select: { tasks: { where: { archivedAt: null, status: { notIn: ["TERMINE", "ANNULE"] } } } },
+      },
+    },
+  });
+  const internal = house ? { id: house.id, open: house._count.tasks } : null;
   const href = (patch: Partial<Search>) => {
     const p = new URLSearchParams(
       Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][],
@@ -76,6 +88,15 @@ async function ProjectList({ searchParams }: { searchParams: Promise<Search> }) 
           Archives
         </Chip>
       </div>
+      {internal && scope === "en-cours" ? (
+        <Link
+          href={`/projets/${internal.id}`}
+          className="flex min-h-tap w-fit items-center gap-2 rounded-full border-2 border-ink bg-cream px-3 text-sm font-bold hover:bg-highlight/40"
+        >
+          <House aria-hidden="true" className="size-4" /> La maison · {internal.open} tâche
+          {internal.open > 1 ? "s" : ""} interne{internal.open > 1 ? "s" : ""}
+        </Link>
+      ) : null}
       {projects.length === 0 ? (
         <EmptyState title="Aucun projet ici.">
           <Link href="/projets/nouveau" className="font-bold underline">

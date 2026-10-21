@@ -130,6 +130,12 @@ export default function TimePage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Temps" description="Chronomètre, saisies manuelles et corrections historisées." />
+      <Link
+        href="/temps/rapport"
+        className="inline-flex min-h-tap w-fit items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
+      >
+        Prévu vs réel, client vs interne : le rapport
+      </Link>
       <Suspense fallback={<PageLoading />}>
         <TimeView />
       </Suspense>

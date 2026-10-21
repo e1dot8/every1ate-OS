@@ -8,6 +8,8 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { recurrenceOptions } from "@/features/projects/recurrence";
+import { EstimateField } from "@/features/time/components/estimate-field";
+import { categoryLabels, type EstimateHint } from "@/features/time/estimate-rules";
 import { initialFormState, type FormState } from "@/lib/forms";
 import {
   addDependencyAction,
@@ -240,6 +242,10 @@ export function TaskForm(props: {
   lots: Opt[];
   associates: Opt[];
   defaultLotId?: string;
+  /** Projet interne : catégorie par défaut « Développement agence ». */
+  internal?: boolean;
+  /** Suggestions d'estimation par `catégorie:complexité` (historique de l'équipe ou plage). */
+  hints?: Record<string, EstimateHint>;
   task?: {
     id: string;
     title: string;
@@ -251,6 +257,7 @@ export function TaskForm(props: {
     priorityLocked: boolean;
     impact: string;
     complexity: string;
+    category: string;
     startDate: string;
     dueDate: string;
     estimatedHours: string;
@@ -266,6 +273,10 @@ export function TaskForm(props: {
   const [recurrence, setRecurrence] = useState(v?.recurrence ?? t?.recurrence ?? "AUCUNE");
   // Les cases cochées ne tiennent pas dans les valeurs renvoyées (une seule par clé) : suivies ici.
   const [contributors, setContributors] = useState<string[]>(t?.contributorIds ?? []);
+  const [category, setCategory] = useState(
+    v?.category ?? t?.category ?? (props.internal ? "AGENCE" : "CLIENT"),
+  );
+  const [complexity, setComplexity] = useState(v?.complexity ?? t?.complexity ?? "SIMPLE");
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <Messages state={state} />
@@ -298,13 +309,28 @@ export function TaskForm(props: {
             options={Object.entries(impactLabels).map(([value, label]) => ({ value, label }))}
           />
         </div>
-        <SelectField
-          name="complexity"
-          label="Complexité"
-          hint="Fixe les XP gagnés à la clôture (barème dans Ma progression). Jamais déduite du temps passé."
-          defaultValue={v?.complexity ?? t?.complexity ?? "SIMPLE"}
-          options={complexityOptions}
-        />
+        <div
+          className="grid gap-4 md:grid-cols-2"
+          onChange={(e) => {
+            const field = e.target as unknown as HTMLSelectElement;
+            if (field.name === "category") setCategory(field.value);
+            if (field.name === "complexity") setComplexity(field.value);
+          }}
+        >
+          <SelectField
+            name="category"
+            label="Catégorie"
+            defaultValue={category}
+            options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))}
+          />
+          <SelectField
+            name="complexity"
+            label="Complexité"
+            hint="Fixe les XP gagnés à la clôture. Jamais déduite du temps passé."
+            defaultValue={complexity}
+            options={complexityOptions}
+          />
+        </div>
         <SelectField
           name="priority"
           label="Priorité"
@@ -336,7 +362,7 @@ export function TaskForm(props: {
             defaultValues={contributors}
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Field
             name="startDate"
             type="date"
@@ -353,14 +379,12 @@ export function TaskForm(props: {
             defaultValue={v?.dueDate ?? t?.dueDate}
             error={state.fieldErrors?.dueDate}
           />
-          <Field
-            name="estimatedHours"
-            label="Durée estimée (h)"
-            required={false}
-            defaultValue={v?.estimatedHours ?? t?.estimatedHours}
-            error={state.fieldErrors?.estimatedHours}
-          />
         </div>
+        <EstimateField
+          defaultValue={v?.estimatedHours ?? t?.estimatedHours ?? ""}
+          error={state.fieldErrors?.estimatedHours}
+          hint={props.hints?.[`${category}:${complexity}`]}
+        />
         <div className="grid gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="champ-recurrence">Répétition</Label>
