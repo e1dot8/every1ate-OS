@@ -57,3 +57,20 @@ inspirée de Duolingo et des MMORPG, dans l'univers « creative & strategic kitc
 13. **Mini-bilan** proposé une seule fois, tâche terminée, si le réel dépasse l'estimation de
     plus de 25 % et d'au moins 30 minutes ; facultatif (« Passer »), réservé au responsable.
 14. **Rapport** : « Moi » ou « La brigade » en totaux agrégés, jamais de détail par personne.
+
+## Lot G3 — Briefings
+
+15. **La mise en place** (`daily_briefing`, un par associé et par jour) : l'OS pré-remplit les
+    priorités et la charge prévue (temps restant des priorités face à la capacité hebdomadaire ÷ 5,
+    hypothèse affichée) ; l'associé ajoute s'il le souhaite son état du jour (privé sauf partage
+    explicite), un blocage, une demande d'aide (prévient la brigade une fois par jour) et un
+    objectif personnel. Valider confirme les priorités suggérées. Aucune XP, aucune heure imposée,
+    aucune pénalité en cas d'absence.
+16. **Le menu de la semaine** (`weekly_briefing`, unique par lundi, et `weekly_item`) : l'OS
+    prépare le bilan des 7 jours précédents, les échéances à deux semaines, retards, blocages,
+    décisions en attente et la charge par associé ; la brigade note au plus 3 objectifs
+    collectifs et 3 blocages, ainsi que décisions et actions (responsable, échéance). Les
+    objectifs de la semaine précédente sont repris dans le bilan pour comparer le prévu au réel.
+    La page reste modifiable après validation ; toutes les modifications sont journalisées.
+17. **Objectifs collectifs vs personnels** : les objectifs de la semaine sont collectifs ;
+    l'objectif personnel vit dans la mise en place.

@@ -1,7 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowUpRight, CalendarDays, Check, Clock3, Gauge, Inbox, ListChecks, Timer } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  Clock3,
+  Coffee,
+  Gauge,
+  Inbox,
+  ListChecks,
+  Timer,
+  UtensilsCrossed,
+} from "lucide-react";
+import { briefingStatus } from "@/features/briefing/service";
 import { EmptyState, Meta, isLate } from "@/components/app/bits";
 import { PageLoading } from "@/components/layout/page-header";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -155,7 +167,8 @@ async function Priorities({ userId }: { userId: string }) {
 
 async function Cockpit() {
   const user = await requireUser();
-  const [brief, progress, unread, active, totals, projects, events, day] = await Promise.all([
+  const [rituals, brief, progress, unread, active, totals, projects, events, day] = await Promise.all([
+    briefingStatus(user.id),
     getBrief(user.id),
     getProgress(user.id),
     unreadCount(user.id),
@@ -187,6 +200,41 @@ async function Cockpit() {
           <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
         </Link>
       </header>
+
+      <nav aria-label="Rituels" className="grid gap-2 sm:grid-cols-2">
+        <Link
+          href="/mise-en-place"
+          className={cn(
+            "flex min-h-14 items-center gap-3 rounded-xl border-2 px-4 py-2",
+            rituals.dailyDone ? "border-border" : "border-ink bg-highlight/50 hover:bg-highlight",
+          )}
+        >
+          <Coffee aria-hidden="true" className="size-5 shrink-0" />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b>La mise en place</b>
+            <span className="text-sm text-muted-foreground">
+              {rituals.dailyDone ? "Faite aujourd'hui · ajuster" : "3 minutes pour lancer la journée"}
+            </span>
+          </span>
+          {rituals.dailyDone ? <Check aria-label="Faite" className="size-4 text-success" /> : null}
+        </Link>
+        <Link
+          href="/menu-semaine"
+          className="flex min-h-14 items-center gap-3 rounded-xl border-2 border-border px-4 py-2 hover:border-ink"
+        >
+          <UtensilsCrossed aria-hidden="true" className="size-5 shrink-0" />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b>Le menu de la semaine</b>
+            <span className="text-sm text-muted-foreground">
+              {rituals.weekValidated
+                ? "Validé · consulter"
+                : rituals.weekOpened
+                  ? "Ouvert · à valider"
+                  : "Synthèse prête · à ouvrir"}
+            </span>
+          </span>
+        </Link>
+      </nav>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Suspense

@@ -20,7 +20,13 @@ export type NotificationInput = {
     | "planning"
     | "action"
     | "import"
-    | "relance";
+    | "relance"
+    | "aide"
+    | "menu"
+    | "mention"
+    | "commentaire"
+    | "badge"
+    | "felicitations";
   title: string;
   body?: string;
   href?: string;

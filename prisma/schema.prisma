@@ -70,6 +70,8 @@ model User {
   meetingNotes       MeetingNote[]
   xpTransactions     XpTransaction[]       @relation("XpRecipient")
   dailyPriorities    DailyPriority[]
+  dailyBriefings     DailyBriefing[]
+  weeklyItemsOwned   WeeklyItem[]          @relation("WeeklyItemOwner")
 
   @@map("user")
 }
@@ -1224,4 +1226,89 @@ enum OverrunReason {
   PERIMETRE_MODIFIE
   QUALITE
   AUTRE
+}
+
+// ─── Briefings (lot G3) ────────────────────────────────────────────────────
+
+enum DayMood {
+  EN_FORME
+  NORMAL
+  CHARGE_ELEVEE
+  BESOIN_ALLEGER
+}
+
+/// « La mise en place » : briefing quotidien, 3 à 5 minutes. Tout est facultatif sauf le jour.
+model DailyBriefing {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Jour calendaire (Europe/Paris).
+  day            DateTime @db.Date
+  mood           DayMood?
+  /// L'état du jour reste privé sauf choix explicite.
+  moodShared     Boolean  @default(false)
+  blocker        String?
+  /// Le blocage devient une demande d'aide envoyée à la brigade.
+  helpWanted     Boolean  @default(false)
+  personalGoal   String?
+  /// Charge prévue au moment du briefing (minutes), pour comparer au réel.
+  plannedMinutes Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, day])
+  @@map("daily_briefing")
+}
+
+enum WeeklyItemKind {
+  OBJECTIF
+  BLOCAGE
+  DECISION
+  ACTION
+}
+
+enum WeeklyItemStatus {
+  OUVERT
+  ATTEINT
+  NON_ATTEINT
+  FAIT
+}
+
+/// « Le menu de la semaine » : une page par semaine, préparée par l'OS, décidée par la brigade.
+model WeeklyBriefing {
+  id            String       @id @default(cuid())
+  /// Lundi de la semaine.
+  weekStart     DateTime     @unique @db.Date
+  /// Compétence, méthode ou amélioration travaillée cette semaine.
+  progressFocus String?
+  notes         String?
+  validatedAt   DateTime?
+  validatedById String?
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         WeeklyItem[]
+
+  @@map("weekly_briefing")
+}
+
+/// Objectifs (3 au plus), blocages (3 au plus), décisions et actions d'une semaine.
+model WeeklyItem {
+  id         String           @id @default(cuid())
+  briefingId String
+  briefing   WeeklyBriefing   @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  kind       WeeklyItemKind
+  title      String
+  /// Objectif : critère de réussite. Blocage : piste de résolution.
+  detail     String?
+  ownerId    String?
+  owner      User?            @relation("WeeklyItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  dueDate    DateTime?        @db.Date
+  status     WeeklyItemStatus @default(OUVERT)
+  position   Int              @default(0)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([briefingId, kind])
+  @@map("weekly_item")
 }

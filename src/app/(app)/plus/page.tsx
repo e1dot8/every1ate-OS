@@ -15,6 +15,8 @@ import {
   SlidersHorizontal,
   Smartphone,
   Sparkles,
+  Coffee,
+  UtensilsCrossed,
   Timer,
   UserPlus,
   Wallet,
@@ -62,6 +64,18 @@ async function Menu() {
         icon={CalendarDays}
         title="Calendrier"
         detail="Réunions, échéances, abonnement Google/Apple"
+      />
+      <Row
+        href="/mise-en-place"
+        icon={Coffee}
+        title="La mise en place"
+        detail="Briefing du jour, 3 à 5 minutes"
+      />
+      <Row
+        href="/menu-semaine"
+        icon={UtensilsCrossed}
+        title="Le menu de la semaine"
+        detail="Bilan, charge, objectifs et décisions, historisés"
       />
       <Row
         href="/progression"
