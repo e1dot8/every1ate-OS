@@ -21,6 +21,7 @@ import {
 import {
   PHASES,
   impactLabels,
+  complexityOptions,
   priorityLabels,
   projectStatusLabels,
   taskStatusLabels,
@@ -249,6 +250,7 @@ export function TaskForm(props: {
     priority: string;
     priorityLocked: boolean;
     impact: string;
+    complexity: string;
     startDate: string;
     dueDate: string;
     estimatedHours: string;
@@ -296,6 +298,13 @@ export function TaskForm(props: {
             options={Object.entries(impactLabels).map(([value, label]) => ({ value, label }))}
           />
         </div>
+        <SelectField
+          name="complexity"
+          label="Complexité"
+          hint="Fixe les XP gagnés à la clôture (barème dans Ma progression). Jamais déduite du temps passé."
+          defaultValue={v?.complexity ?? t?.complexity ?? "SIMPLE"}
+          options={complexityOptions}
+        />
         <SelectField
           name="priority"
           label="Priorité"

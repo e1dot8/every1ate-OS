@@ -9,6 +9,7 @@ import type {
   ProjectPhase,
   ProjectStatus,
   Recurrence,
+  TaskComplexity,
   TaskStatus,
 } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth/session";
@@ -31,6 +32,7 @@ import {
   updateProject,
 } from "@/features/projects/service";
 import { addComment, deleteComment } from "@/features/planning/service";
+import { xpMessage } from "@/features/progression/labels";
 import { RECURRENCES, occurrenceCreatedMessage, recurrenceIssue } from "@/features/projects/recurrence";
 
 const PHASES = ["RECETTE", "PREPARATION", "CUISSON", "DRESSAGE", "SERVICE"] as const;
@@ -46,6 +48,7 @@ const TASK_STATUSES = [
 ] as const;
 const PRIORITIES = ["AUTO", "BASSE", "NORMALE", "HAUTE", "URGENTE"] as const;
 const IMPACTS = ["FAIBLE", "MOYEN", "FORT"] as const;
+const COMPLEXITIES = ["SIMPLE", "MOYENNE", "COMPLEXE"] as const;
 
 const optionalText = z
   .string()
@@ -269,6 +272,7 @@ const taskSchema = z
       .transform((v) => v || null),
     priority: z.enum(PRIORITIES),
     impact: z.enum(IMPACTS).default("MOYEN"),
+    complexity: z.enum(COMPLEXITIES).default("SIMPLE"),
     startDate: dateInput,
     dueDate: dateInput,
     estimatedHours: z
@@ -302,6 +306,7 @@ export async function saveTaskAction(_prev: FormState, formData: FormData): Prom
       ...data,
       priority: data.priority as Priority | "AUTO",
       impact: data.impact as Impact,
+      complexity: data.complexity as TaskComplexity,
       recurrence: data.recurrence as Recurrence,
       estimatedMinutes: estimatedHours,
       contributorIds: formData.getAll("contributorIds").map(String),
@@ -335,9 +340,17 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
   revalidatePath(`/taches/${parsed.data.taskId}`);
   revalidatePath(`/projets/${result.data.projectId}`);
   const next = result.data.nextOccurrence;
+  revalidatePath("/");
+  revalidatePath("/progression");
   return {
     status: "success",
-    message: next ? `Statut mis à jour. ${occurrenceCreatedMessage(next.dueDate)}` : "Statut mis à jour.",
+    message: [
+      "Statut mis à jour.",
+      next ? occurrenceCreatedMessage(next.dueDate) : null,
+      result.data.xp ? xpMessage(result.data.xp) : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
   };
 }
 

@@ -1,4 +1,15 @@
-import { CheckSquare, FolderKanban, Handshake, Home, MoreHorizontal, type LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  CheckSquare,
+  FolderKanban,
+  Handshake,
+  Home,
+  Inbox,
+  MoreHorizontal,
+  Sparkles,
+  Timer,
+  type LucideIcon,
+} from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -15,4 +26,12 @@ export const primaryNav: NavItem[] = [
   { label: "Projets", href: "/projets", icon: FolderKanban },
   { label: "CRM", href: "/crm", icon: Handshake },
   { label: "Plus", href: "/plus", icon: MoreHorizontal },
+];
+
+/** Raccourcis du rail ordinateur (sur mobile, ils sont dans « Plus »). */
+export const secondaryNav: NavItem[] = [
+  { label: "Le courrier", href: "/notifications", icon: Inbox },
+  { label: "Temps", href: "/temps", icon: Timer },
+  { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
+  { label: "Ma progression", href: "/progression", icon: Sparkles },
 ];

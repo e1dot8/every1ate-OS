@@ -1,3 +1,4 @@
+import { TASK_XP } from "@/features/progression/config";
 import type { Priority, ProjectPhase, ProjectStatus, TaskStatus } from "@/generated/prisma/enums";
 import type { StatusTone } from "@/components/ui/status-badge";
 
@@ -62,3 +63,15 @@ export const impactLabels: Record<"FAIBLE" | "MOYEN" | "FORT", string> = {
   MOYEN: "Moyen",
   FORT: "Fort",
 };
+
+export const complexityLabels: Record<"SIMPLE" | "MOYENNE" | "COMPLEXE", string> = {
+  SIMPLE: "Simple",
+  MOYENNE: "Intermédiaire",
+  COMPLEXE: "Complexe",
+};
+
+/** Options du formulaire, avec les XP du barème central. */
+export const complexityOptions = (["SIMPLE", "MOYENNE", "COMPLEXE"] as const).map((value) => ({
+  value,
+  label: `${complexityLabels[value]} · ${TASK_XP[value]} XP`,
+}));

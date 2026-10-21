@@ -15,3 +15,4 @@ Une décision n'est jamais réécrite : on en crée une nouvelle qui remplace l'
 | [0009](0009-maquette-figma-par-lot.md)        | Une maquette Figma pour chaque lot             | Acceptée        |
 | [0010](0010-securite-connexion.md)            | Détails de sécurité de la connexion            | Acceptée        |
 | [0016](0016-v1-1-pilotage-gratuit-sans-ia.md) | V1.1 : pilotage gratuit et sans IA             | Acceptée        |
+| [0017](0017-os-progression-brigade.md)        | Cockpit, progression et vie de brigade (G1-G5) | Acceptée        |

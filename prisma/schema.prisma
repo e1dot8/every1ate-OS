@@ -68,6 +68,8 @@ model User {
   calendarFeed       CalendarFeed?
   filesAdded         FileReference[]
   meetingNotes       MeetingNote[]
+  xpTransactions     XpTransaction[]       @relation("XpRecipient")
+  dailyPriorities    DailyPriority[]
 
   @@map("user")
 }
@@ -362,6 +364,8 @@ model Task {
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
+  /// Complexité choisie à la création : fixe les XP gagnés à la clôture (jamais déduite du temps).
+  complexity        TaskComplexity?
   blockedReason     String?
   blockedNextAction String?
   blockedReviewDate DateTime?         @db.Date
@@ -379,6 +383,7 @@ model Task {
   timeEntries       TimeEntry[]
   comments          TaskComment[]
   files             FileReference[]
+  dailyPriorities   DailyPriority[]
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -1135,4 +1140,54 @@ model MeetingNote {
   @@index([clientId])
   @@index([opportunityId])
   @@map("meeting_note")
+}
+
+// ─── Progression (lot G1) ──────────────────────────────────────────────────
+
+enum TaskComplexity {
+  SIMPLE
+  MOYENNE
+  COMPLEXE
+}
+
+/// Registre des XP : chaque gain ou correction est une ligne, jamais un compteur modifiable.
+/// La clé d'idempotence garantit une seule attribution par événement, même rejoué.
+model XpTransaction {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation("XpRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  /// Peut être négatif (correction) ou nul (plafond du jour atteint, conservé pour la transparence).
+  amount         Int
+  /// Règle appliquée (voir src/features/progression/config.ts).
+  kind           String
+  label          String
+  sourceType     String?
+  sourceId       String?
+  idempotencyKey String         @unique
+  /// Correction : transaction annulée par celle-ci.
+  reversesId     String?        @unique
+  reverses       XpTransaction? @relation("XpReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy     XpTransaction? @relation("XpReversal")
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@map("xp_transaction")
+}
+
+/// Jusqu'à trois priorités par associé et par jour (cockpit, mise en place).
+model DailyPriority {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Jour calendaire (Europe/Paris).
+  day       DateTime @db.Date
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position  Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, day, taskId])
+  @@unique([userId, day, position])
+  @@map("daily_priority")
 }

@@ -7,12 +7,14 @@ import type {
   TaskStatus,
   Priority,
   Recurrence,
+  TaskComplexity,
 } from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { toCents } from "@/lib/money";
 import { notify } from "@/features/notifications/service";
+import { awardTaskCompletion, type XpAward } from "@/features/progression/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
@@ -634,6 +636,8 @@ export type TaskInput = {
   startDate: Date | null;
   dueDate: Date | null;
   estimatedMinutes: number | null;
+  /** Complexité (barème d'XP). Omise : inchangée en modification. */
+  complexity?: TaskComplexity | null;
   /**
    * Répétition : à la clôture, l'occurrence suivante est créée (voir changeTaskStatus).
    * Omise : inchangée en modification, « Aucune » en création.
@@ -766,6 +770,8 @@ export type TaskStatusChange = {
   projectId: string;
   /** Occurrence créée par ce passage à « Terminé » (tâche répétée), sinon null. */
   nextOccurrence: { id: string; dueDate: Date } | null;
+  /** XP gagnés par ce passage à « Terminé » (première clôture uniquement), sinon null. */
+  xp: XpAward | null;
 };
 
 /** Conflit d'écriture concurrente (contrainte unique ou transaction en conflit) : jamais une erreur 500. */
@@ -788,7 +794,7 @@ export async function changeTaskStatus(
     },
   });
   if (!task || task.archivedAt) return failed("Tâche introuvable.");
-  const unchanged = done<TaskStatusChange>({ projectId: task.projectId, nextOccurrence: null });
+  const unchanged = done<TaskStatusChange>({ projectId: task.projectId, nextOccurrence: null, xp: null });
   if (task.status === to && to !== "BLOQUE") return unchanged;
   const unfinished = task.dependsOn
     .filter((d) => !TASK_DONE_STATES.includes(d.dependsOn.status))
@@ -915,9 +921,12 @@ export async function changeTaskStatus(
         email: true,
       });
   }
+  // Progression : une seule attribution par tâche (clé d'idempotence), même rouverte puis refermée.
+  const xp = to === "TERMINE" ? await awardTaskCompletion(task, actor) : null;
   return done({
     projectId: task.projectId,
     nextOccurrence: next ? { id: next.id, dueDate: next.dueDate } : null,
+    xp,
   });
 }
 

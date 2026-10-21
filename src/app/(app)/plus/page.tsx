@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Smartphone,
+  Sparkles,
   Timer,
   UserPlus,
   Wallet,
@@ -61,6 +62,12 @@ async function Menu() {
         icon={CalendarDays}
         title="Calendrier"
         detail="Réunions, échéances, abonnement Google/Apple"
+      />
+      <Row
+        href="/progression"
+        icon={Sparkles}
+        title="Ma progression"
+        detail="Niveau, rang, journal des XP et règles du jeu"
       />
       <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
       <Row

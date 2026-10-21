@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { primaryNav, type NavItem } from "@/lib/navigation";
+import { primaryNav, secondaryNav, type NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; layout: "bar" | "rail" }) {
@@ -76,6 +76,10 @@ export function AppNavShell({ pathname }: { pathname: string }) {
       >
         <p className="mb-4 px-3 text-lg font-bold tracking-tight">EVERY1.ATE OS</p>
         {primaryNav.map((item) => (
+          <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="rail" />
+        ))}
+        <p className="mt-5 mb-1 px-3 font-annotation text-xs text-muted-foreground">raccourcis</p>
+        {secondaryNav.map((item) => (
           <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="rail" />
         ))}
       </nav>
