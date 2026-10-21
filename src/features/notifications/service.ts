@@ -8,6 +8,7 @@ import { formatDay, todayDate } from "@/lib/dates";
 import { isDueSoon, overdueLevel, suggestPriority } from "@/features/planning/rules";
 import { dueFollowUps } from "@/features/crm/service";
 import { sendDigests } from "@/features/brief/digest";
+import { ACTIONABLE_KINDS_EXCLUDED, kindsOf, tierOf, type Tier } from "@/features/notifications/tiers";
 
 export type NotificationInput = {
   userId: string;
@@ -68,12 +69,47 @@ export async function notify(input: NotificationInput): Promise<boolean> {
   return true;
 }
 
-export async function listNotifications(userId: string) {
-  return getDb().notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 });
+export type CourrierView = Tier | "TOUT" | "ARCHIVE";
+
+/** Le courrier : par niveau, ou tout ce qui n'est pas classé, ou les archives. */
+export async function listNotifications(userId: string, view: CourrierView = "TOUT") {
+  const where =
+    view === "ARCHIVE"
+      ? { userId, archivedAt: { not: null } }
+      : view === "TOUT"
+        ? { userId, archivedAt: null }
+        : { userId, archivedAt: null, kind: { in: kindsOf(view) } };
+  return getDb().notification.findMany({ where, orderBy: { createdAt: "desc" }, take: 100 });
 }
 
+/** Non lus qui demandent une action ou une attention (les informations ne comptent pas). */
 export async function unreadCount(userId: string) {
-  return getDb().notification.count({ where: { userId, readAt: null } });
+  return getDb().notification.count({
+    where: { userId, readAt: null, archivedAt: null, kind: { notIn: ACTIONABLE_KINDS_EXCLUDED } },
+  });
+}
+
+/** Non lus par niveau, pour les onglets du courrier. */
+export async function unreadByTier(userId: string) {
+  const rows = await getDb().notification.groupBy({
+    by: ["kind"],
+    where: { userId, readAt: null, archivedAt: null },
+    _count: { _all: true },
+  });
+  const out: Record<Tier, number> = { PRIORITAIRE: 0, A_SUIVRE: 0, INFO: 0 };
+  for (const r of rows) out[tierOf(r.kind)] += r._count._all;
+  return out;
+}
+
+/** Classer : une notification (lue d'office) ou toutes celles déjà lues. */
+export async function archiveNotifications(userId: string, id: string | "lues") {
+  const now = new Date();
+  await getDb().notification.updateMany({
+    where: id === "lues" ? { userId, archivedAt: null, readAt: { not: null } } : { userId, id },
+    data: { archivedAt: now },
+  });
+  if (id !== "lues")
+    await getDb().notification.updateMany({ where: { userId, id, readAt: null }, data: { readAt: now } });
 }
 
 export async function markRead(userId: string, id: string | "all") {

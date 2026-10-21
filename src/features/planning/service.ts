@@ -1,4 +1,5 @@
 import "server-only";
+import { fold, mentionedNames } from "@/features/notifications/tiers";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
@@ -281,10 +282,35 @@ export async function addComment(taskId: string, body: string, actor: Actor): Pr
   );
   people.delete(actor.id);
   const author = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
-  for (const userId of people)
+  // Mentions « @Prénom » : un prénom porté par un seul associé, sinon ambigu et ignoré.
+  const names = mentionedNames(body);
+  const mentioned = new Set<string>();
+  if (names.length) {
+    const associates = await db.user.findMany({
+      where: { role: "associe" },
+      select: { id: true, name: true },
+    });
+    for (const n of names) {
+      const matches = associates.filter((a) => fold(a.name.split(/\s+/)[0]) === n);
+      if (matches.length === 1 && matches[0].id !== actor.id) mentioned.add(matches[0].id);
+    }
+  }
+  for (const userId of mentioned)
     await notify({
       userId,
-      kind: "action",
+      kind: "mention",
+      title: `${author?.name ?? "Un associé"} vous mentionne sur « ${task.title} »`,
+      body: body.slice(0, 200),
+      href: `/taches/${taskId}#commentaires`,
+      projectId: task.projectId,
+      taskId,
+      dedupeKey: `mention:${comment.id}`,
+    });
+  for (const userId of people) {
+    if (mentioned.has(userId)) continue;
+    await notify({
+      userId,
+      kind: "commentaire",
       title: `${author?.name ?? "Un associé"} a commenté « ${task.title} »`,
       body: body.slice(0, 200),
       href: `/taches/${taskId}#commentaires`,
@@ -292,6 +318,7 @@ export async function addComment(taskId: string, body: string, actor: Actor): Pr
       taskId,
       dedupeKey: `commentaire:${comment.id}`,
     });
+  }
   return done(null);
 }
 

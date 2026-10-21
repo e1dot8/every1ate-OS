@@ -521,19 +521,21 @@ model TaskComment {
 /// Centre de notifications. La clé de dédoublonnage évite les alertes répétitives
 /// et la table conserve l'historique des alertes émises (§13.3).
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind      String
-  title     String
-  body      String?
-  href      String?
-  projectId String?
-  taskId    String?
-  dedupeKey String
-  emailedAt DateTime?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String
+  title      String
+  body       String?
+  href       String?
+  projectId  String?
+  taskId     String?
+  dedupeKey  String
+  emailedAt  DateTime?
+  readAt     DateTime?
+  /// Classée : disparaît du courrier, reste consultable dans « Archivé ».
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt])
@@ -1097,6 +1099,11 @@ model AgencySetting {
   /// Solde bancaire saisi à la main (point de départ de la trésorerie prévisionnelle).
   cashBalance            Decimal?  @db.Decimal(12, 2)
   cashBalanceDate        DateTime? @db.Date
+  /// La Cuisine (CRM) : seuils des situations, modifiables dans Réglages CRM.
+  crmSilenceDays         Int       @default(21)
+  crmPaymentTermDays     Int       @default(30)
+  crmBillingHorizonDays  Int       @default(7)
+  crmLowSatisfaction     Int       @default(2)
   updatedAt              DateTime  @updatedAt
 
   @@map("agency_setting")

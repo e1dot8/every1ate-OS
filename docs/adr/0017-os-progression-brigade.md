@@ -74,3 +74,21 @@ inspirée de Duolingo et des MMORPG, dans l'univers « creative & strategic kitc
     La page reste modifiable après validation ; toutes les modifications sont journalisées.
 17. **Objectifs collectifs vs personnels** : les objectifs de la semaine sont collectifs ;
     l'objectif personnel vit dans la mise en place.
+
+## Lot G4 — Le courrier et La Cuisine
+
+18. **Le courrier** : chaque type de notification appartient à un niveau (`tiers.ts`) —
+    _Prioritaire_ (assignation, mention, blocage, retard, escalade, demande d'aide, décision,
+    menu), _À suivre_ (commentaire, échéance, planning, relance, import), _Information_ (badge,
+    félicitations). Le compteur ne compte que les deux premiers. Une notification se classe
+    (`archivedAt`) et reste consultable dans « Archivé ».
+19. **Mentions** : « @Prénom » dans un commentaire prévient l'associé (niveau prioritaire). Un
+    prénom porté par plusieurs associés est ambigu : la mention est ignorée plutôt que mal
+    adressée.
+20. **La Cuisine** : quatre vues calculées à partir des données existantes (opportunités,
+    échéancier de facturation, encaissements, satisfaction, signaux commerciaux), jamais des
+    étiquettes manuelles. Chaque entrée donne la règle déclenchée, la raison, le responsable
+    (« À attribuer » s'il n'y en a pas), la prochaine action, l'échéance et une priorité. Un
+    même client peut apparaître dans plusieurs vues. Les seuils (silence, délai de paiement,
+    horizon de facturation, satisfaction basse) sont réglables dans Réglages CRM et journalisés ;
+    les règles sont décrites sur la page.
