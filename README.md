@@ -17,6 +17,20 @@ Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8
 | 6   | Calendrier interne, abonnement ICS Google/Apple, références Google Drive                                  |
 | 7   | PWA (cache limité, hors ligne, purge à la déconnexion), sauvegardes, durcissement sécurité                |
 
+### Every1.ate OS — cockpit, rituels et progression (lots G1 à G5, [ADR-0017](docs/adr/0017-os-progression-brigade.md))
+
+| Lot | Contenu                                                                                                              | Pages                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| G1  | Cockpit personnel (3 priorités, courrier, temps, projets), XP idempotents, niveaux et rangs culinaires configurables | `/`, `/priorites`, `/progression`              |
+| G2  | Pause/reprise du chrono, catégories, tâches internes (« La maison »), estimations, restant, écart, mini-bilan        | `/taches/[id]`, `/temps/rapport`               |
+| G3  | La mise en place (briefing quotidien) et le menu de la semaine (hebdomadaire, historisé)                             | `/mise-en-place`, `/menu-semaine`              |
+| G4  | Le courrier (3 niveaux, archive, @mentions) et La Cuisine (CRM : À risque, En attente, À encaisser, À développer)    | `/notifications`, `/crm/cuisine`               |
+| G5  | Compétences (6 branches), badges, série de régularité, préférences, bureau commun et fil de la brigade               | `/competences`, `/bureau`, `/plus/preferences` |
+
+Barème d'XP, paliers et rangs : `src/features/progression/config.ts`. Badges : `src/features/badges/catalog.ts`.
+Arbre de compétences : `src/features/skills/tree.ts`. Seuils de La Cuisine : Réglages CRM.
+À venir (P1) : bâtiment interactif, avatar et appartement personnalisable, quêtes, carnet de recettes, portail client (lot 8).
+
 ## Stack
 
 Next.js 16 (App Router, Cache Components) · React 19 · TypeScript 6 · Tailwind CSS 4 · composants shadcn/ui ·

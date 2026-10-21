@@ -71,6 +71,16 @@ model User {
   xpTransactions     XpTransaction[]       @relation("XpRecipient")
   dailyPriorities    DailyPriority[]
   dailyBriefings     DailyBriefing[]
+  skills             UserSkill[]
+  skillEvidence      SkillEvidence[]
+  endorsementsGiven  SkillEndorsement[]    @relation("EndorsementBy")
+  endorsementsGot    SkillEndorsement[]    @relation("EndorsementFor")
+  badges             UserBadge[]           @relation("BadgeHolder")
+  badgesGiven        UserBadge[]           @relation("BadgeGiver")
+  preference         UserPreference?
+  streakPauses       StreakPause[]
+  brigadeEvents      BrigadeEvent[]
+  cheers             BrigadeCheer[]
   weeklyItemsOwned   WeeklyItem[]          @relation("WeeklyItemOwner")
 
   @@map("user")
@@ -1318,4 +1328,135 @@ model WeeklyItem {
 
   @@index([briefingId, kind])
   @@map("weekly_item")
+}
+
+// ─── Compétences, badges et brigade (lot G5) ────────────────────────────────
+
+/// Niveau de maîtrise d'une compétence (1 Découverte → 5 Transmission), auto-évalué et corrigeable.
+model UserSkill {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Clé de la compétence (src/features/skills/tree.ts).
+  skillKey  String
+  level     Int      @default(1)
+  /// Compétence travaillée en priorité ce mois-ci (une seule à la fois).
+  target    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skillKey])
+  @@map("user_skill")
+}
+
+/// Preuve de progression : un livrable, un projet, un apprentissage, un retour.
+model SkillEvidence {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillKey  String
+  text      String
+  url       String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, skillKey])
+  @@map("skill_evidence")
+}
+
+/// Reconnaissance d'un associé : constructive et jamais obligatoire.
+model SkillEndorsement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("EndorsementFor", fields: [userId], references: [id], onDelete: Cascade)
+  byId      String
+  by        User     @relation("EndorsementBy", fields: [byId], references: [id], onDelete: Cascade)
+  skillKey  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, byId, skillKey])
+  @@map("skill_endorsement")
+}
+
+/// Badge obtenu : une fois par badge et par associé (collection).
+model UserBadge {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("BadgeHolder", fields: [userId], references: [id], onDelete: Cascade)
+  /// Clé du badge (src/features/badges/catalog.ts).
+  badgeKey   String
+  /// Pourquoi : la réussite qui l'a déclenché.
+  reason     String
+  sourceType String?
+  sourceId   String?
+  /// Décerné par un associé (reconnaissance), sinon automatique.
+  givenById  String?
+  givenBy    User?     @relation("BadgeGiver", fields: [givenById], references: [id], onDelete: SetNull)
+  visible    Boolean   @default(true)
+  favorite   Boolean   @default(false)
+  /// Célébration vue (le bandeau ne revient pas).
+  seenAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, badgeKey])
+  @@map("user_badge")
+}
+
+model UserPreference {
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Animations de célébration (sinon, un simple message).
+  celebrations  Boolean  @default(true)
+  /// Série de régularité affichée ou non.
+  streakEnabled Boolean  @default(true)
+  /// Jours actifs nécessaires pour qu'une semaine compte (2 à 5).
+  streakDays    Int      @default(3)
+  /// Nouveaux badges visibles par la brigade par défaut.
+  badgesPublic  Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+
+  @@map("user_preference")
+}
+
+/// Semaine en pause (congés, maladie, période creuse) : ne compte pas et ne casse pas la série.
+model StreakPause {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStart])
+  @@map("streak_pause")
+}
+
+/// Fil de la brigade : réussites à célébrer (jamais un journal d'activité ou de présence).
+model BrigadeEvent {
+  id        String         @id @default(cuid())
+  /// Associé concerné (null : réussite collective).
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  detail    String?
+  href      String?
+  dedupeKey String         @unique
+  createdAt DateTime       @default(now())
+  cheers    BrigadeCheer[]
+
+  @@index([createdAt])
+  @@map("brigade_event")
+}
+
+model BrigadeCheer {
+  id        String       @id @default(cuid())
+  eventId   String
+  event     BrigadeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  createdAt DateTime     @default(now())
+
+  @@unique([eventId, userId])
+  @@map("brigade_cheer")
 }

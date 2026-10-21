@@ -12,6 +12,8 @@ import { getAgencySettings } from "@/features/settings/service";
 import { entryMinutes } from "@/features/time/service";
 import { remaining } from "@/features/time/estimate-rules";
 import { dayCapacityMinutes, dayLoad, itemLimitError } from "./rules";
+import { checkAutoBadges } from "@/features/badges/service";
+import { postBrigadeEvent } from "@/features/brigade/service";
 
 type Actor = { id: string };
 const ok = <T>(data: T): ServiceResult<T> => ({ ok: true, data });
@@ -112,6 +114,7 @@ export async function saveDailyBriefing(actor: Actor, input: DailyInput, now = n
         dedupeKey: `aide:${actor.id}:${day.toISOString().slice(0, 10)}`,
       });
   }
+  await checkAutoBadges(actor.id);
   return ok(saved);
 }
 
@@ -287,6 +290,14 @@ export async function setWeeklyItemStatus(id: string, status: WeeklyItemStatus, 
   const item = await db.weeklyItem.findUnique({ where: { id } });
   if (!item) return fail("Élément introuvable.");
   await db.weeklyItem.update({ where: { id }, data: { status } });
+  if (item.kind === "OBJECTIF" && status === "ATTEINT")
+    await postBrigadeEvent({
+      userId: null,
+      kind: "objectif",
+      title: `Objectif de la semaine atteint : ${item.title}`,
+      href: "/menu-semaine",
+      dedupeKey: `objectif:${id}`,
+    });
   await recordAudit({
     action: "briefing.item_status",
     actorId: actor.id,

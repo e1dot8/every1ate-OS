@@ -15,6 +15,8 @@ import {
   SlidersHorizontal,
   Smartphone,
   Sparkles,
+  Users,
+  GraduationCap,
   Coffee,
   UtensilsCrossed,
   Timer,
@@ -76,6 +78,24 @@ async function Menu() {
         icon={UtensilsCrossed}
         title="Le menu de la semaine"
         detail="Bilan, charge, objectifs et décisions, historisés"
+      />
+      <Row
+        href="/bureau"
+        icon={Users}
+        title="Le bureau commun"
+        detail="Objectifs, charge, coups de main et réussites"
+      />
+      <Row
+        href="/competences"
+        icon={GraduationCap}
+        title="Compétences"
+        detail="Six branches, niveaux, preuves et reconnaissances"
+      />
+      <Row
+        href="/plus/preferences"
+        icon={SlidersHorizontal}
+        title="Préférences"
+        detail="Célébrations, badges, série de régularité"
       />
       <Row
         href="/progression"

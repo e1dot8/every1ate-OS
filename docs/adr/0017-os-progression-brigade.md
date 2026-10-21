@@ -92,3 +92,29 @@ inspirée de Duolingo et des MMORPG, dans l'univers « creative & strategic kitc
     même client peut apparaître dans plusieurs vues. Les seuils (silence, délai de paiement,
     horizon de facturation, satisfaction basse) sont réglables dans Réglages CRM et journalisés ;
     les règles sont décrites sur la page.
+
+## Lot G5 — Compétences, badges et bureau commun
+
+21. **Compétences** (`src/features/skills/tree.ts`) : six branches ouvertes à tous, chaque
+    compétence avec description, exemples de preuves et actions pour progresser. Niveau 1 à 5
+    (Découverte → Transmission) **auto-évalué** et corrigeable à tout moment ; les preuves et
+    les reconnaissances d'associés _suggèrent_ un niveau sans l'imposer. Une seule compétence
+    cible à la fois. Indépendant du rang et du nombre de tâches.
+22. **Badges** (`src/features/badges/catalog.ts`) : automatiques (calculés sur le travail réel :
+    tâches et projets terminés, satisfaction, tâches débloquées, estimations justes, mises en
+    place) ou de reconnaissance (décernés par un associé, jamais par soi-même, avec la raison).
+    Un badge par associé (contrainte unique) ; les XP bonus passent par le registre idempotent.
+    Chaque badge peut être masqué à la brigade ; trois favoris au plus.
+23. **Célébration** : un bandeau sur le cockpit jusqu'au « Merci » (jamais une fenêtre
+    bloquante) ; animation désactivable dans les préférences et coupée par « réduire les
+    animations ». Le fil reçoit l'événement, les autres associés une notification de niveau
+    _Information_ (non comptée).
+24. **Série de régularité par semaine** : une semaine compte avec N jours actifs (2 à 5, réglable ;
+    jour actif = mise en place faite ou tâche terminée). La semaine en cours ne casse jamais la
+    série ; une semaine en pause (congés, maladie) ne compte pas et ne casse rien ; la série se
+    désactive.
+25. **Bureau commun** : objectifs de la semaine, progression de la maison (projets livrés +
+    objectifs atteints, paliers dans `house.ts`, séparée des niveaux individuels), coups de main
+    demandés et blocages, météo partagée (uniquement les états partagés), charge de la semaine,
+    livrables à venir, fil de la brigade (réussites uniquement, félicitations une fois par
+    réussite) et reconnaissance. Aucun classement.

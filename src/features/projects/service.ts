@@ -16,6 +16,8 @@ import { todayDate } from "@/lib/dates";
 import { toCents } from "@/lib/money";
 import { notify } from "@/features/notifications/service";
 import { awardTaskCompletion, type XpAward } from "@/features/progression/service";
+import { checkAutoBadges } from "@/features/badges/service";
+import { postBrigadeEvent } from "@/features/brigade/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
@@ -438,6 +440,17 @@ export async function changeProjectStatus(
     after: { status: to },
     reason: reason ?? undefined,
   });
+  if (to === "TERMINE" && !project.internal) {
+    // Réussite de brigade : projet livré (fil commun), puis badges du responsable.
+    await postBrigadeEvent({
+      userId: project.ownerId,
+      kind: "projet",
+      title: `Projet livré : ${project.name}`,
+      href: `/projets/${id}`,
+      dedupeKey: `projet:${id}`,
+    });
+    await checkAutoBadges(project.ownerId);
+  }
   return done(null);
 }
 
@@ -777,6 +790,8 @@ export type TaskStatusChange = {
   nextOccurrence: { id: string; dueDate: Date } | null;
   /** XP gagnés par ce passage à « Terminé » (première clôture uniquement), sinon null. */
   xp: XpAward | null;
+  /** Badges obtenus grâce à cette clôture. */
+  badges: string[];
 };
 
 /** Conflit d'écriture concurrente (contrainte unique ou transaction en conflit) : jamais une erreur 500. */
@@ -799,7 +814,12 @@ export async function changeTaskStatus(
     },
   });
   if (!task || task.archivedAt) return failed("Tâche introuvable.");
-  const unchanged = done<TaskStatusChange>({ projectId: task.projectId, nextOccurrence: null, xp: null });
+  const unchanged = done<TaskStatusChange>({
+    projectId: task.projectId,
+    nextOccurrence: null,
+    xp: null,
+    badges: [],
+  });
   if (task.status === to && to !== "BLOQUE") return unchanged;
   const unfinished = task.dependsOn
     .filter((d) => !TASK_DONE_STATES.includes(d.dependsOn.status))
@@ -928,10 +948,24 @@ export async function changeTaskStatus(
   }
   // Progression : une seule attribution par tâche (clé d'idempotence), même rouverte puis refermée.
   const xp = to === "TERMINE" ? await awardTaskCompletion(task, actor) : null;
+  const holder = task.ownerId ?? actor.id;
+  if (xp?.levelUp?.rankTitle) {
+    const who = await db.user.findUnique({ where: { id: holder }, select: { name: true } });
+    await postBrigadeEvent({
+      userId: holder,
+      kind: "rang",
+      title: `${who?.name ?? "Un associé"} devient ${xp.levelUp.rankTitle}`,
+      detail: `Niveau ${xp.levelUp.level} atteint.`,
+      href: "/bureau",
+      dedupeKey: `rang:${holder}:${xp.levelUp.rankTitle}`,
+    });
+  }
+  const badges = to === "TERMINE" ? await checkAutoBadges(holder) : [];
   return done({
     projectId: task.projectId,
     nextOccurrence: next ? { id: next.id, dueDate: next.dueDate } : null,
     xp,
+    badges: holder === actor.id ? badges : [],
   });
 }
 
@@ -1060,7 +1094,7 @@ export async function saveSatisfaction(
   const db = getDb();
   const before = await db.project.findUnique({
     where: { id: projectId },
-    select: { clientSatisfaction: true, satisfactionNote: true },
+    select: { clientSatisfaction: true, satisfactionNote: true, ownerId: true },
   });
   if (!before) return failed("Projet introuvable.");
   const data = { clientSatisfaction: score, satisfactionNote: note };
@@ -1075,5 +1109,6 @@ export async function saveSatisfaction(
     targetId: projectId,
     ...changes,
   });
+  await checkAutoBadges(before.ownerId);
   return done(null);
 }

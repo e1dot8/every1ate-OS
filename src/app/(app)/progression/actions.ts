@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import type { FormState } from "@/lib/forms";
 import { reverseXp } from "@/features/progression/service";
+import { updateBadge } from "@/features/badges/service";
 
 const schema = z.object({
   id: z.string().min(1),
@@ -20,4 +21,18 @@ export async function reverseXpAction(_prev: FormState, formData: FormData): Pro
   revalidatePath("/progression");
   revalidatePath("/");
   return { status: "success", message: "Attribution corrigée." };
+}
+
+/** Badge : visible ou masqué pour la brigade, favori (3 au plus), célébration vue. */
+export async function updateBadgeAction(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  const field = String(formData.get("field") ?? "");
+  const value = formData.get("value") === "true";
+  if (!id) return;
+  if (field === "visible") await updateBadge(user.id, id, { visible: value });
+  if (field === "favorite") await updateBadge(user.id, id, { favorite: value });
+  if (field === "seen") await updateBadge(user.id, id, { seen: true });
+  revalidatePath("/progression");
+  revalidatePath("/");
 }

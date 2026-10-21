@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { Suspense } from "react";
 import {
   ArrowUpRight,
+  Award,
   CalendarDays,
   Check,
   Clock3,
@@ -14,6 +16,8 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { briefingStatus } from "@/features/briefing/service";
+import { badgeByKey } from "@/features/badges/catalog";
+import { getPreferences, unseenBadges, updateBadge, userStreak } from "@/features/badges/service";
 import { EmptyState, Meta, isLate } from "@/components/app/bits";
 import { PageLoading } from "@/components/layout/page-header";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -52,6 +56,14 @@ async function keepSuggestion(taskIds: string[], formData: FormData) {
   "use server";
   for (const id of taskIds) formData.append("taskIds", id);
   await setPrioritiesAction({ status: "idle" }, formData);
+}
+
+/** Célébration vue : le bandeau ne revient pas. */
+async function markBadgesSeen(ids: string[]) {
+  "use server";
+  const user = await requireUser();
+  for (const id of ids) await updateBadge(user.id, id, { seen: true });
+  revalidatePath("/");
 }
 
 async function Priorities({ userId }: { userId: string }) {
@@ -167,17 +179,21 @@ async function Priorities({ userId }: { userId: string }) {
 
 async function Cockpit() {
   const user = await requireUser();
-  const [rituals, brief, progress, unread, active, totals, projects, events, day] = await Promise.all([
-    briefingStatus(user.id),
-    getBrief(user.id),
-    getProgress(user.id),
-    unreadCount(user.id),
-    getActiveTimer(user.id),
-    userTotals(user.id),
-    myActiveProjects(user.id),
-    upcomingEvents(user.id),
-    getDayPriorities(user.id),
-  ]);
+  const [celebrate, prefs, streak, rituals, brief, progress, unread, active, totals, projects, events, day] =
+    await Promise.all([
+      unseenBadges(user.id),
+      getPreferences(user.id),
+      userStreak(user.id),
+      briefingStatus(user.id),
+      getBrief(user.id),
+      getProgress(user.id),
+      unreadCount(user.id),
+      getActiveTimer(user.id),
+      userTotals(user.id),
+      myActiveProjects(user.id),
+      upcomingEvents(user.id),
+      getDayPriorities(user.id),
+    ]);
   const planned = day.tasks
     .filter((t) => !DONE.includes(t.status))
     .reduce((sum, t) => sum + (t.estimatedMinutes ?? 0), 0);
@@ -200,6 +216,47 @@ async function Cockpit() {
           <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
         </Link>
       </header>
+
+      {celebrate.length ? (
+        <section
+          aria-labelledby="celebration"
+          className={cn(
+            "flex flex-wrap items-center gap-4 rounded-2xl border-2 border-ink bg-highlight p-4",
+            prefs.celebrations && "animate-in fade-in zoom-in-95 duration-500",
+          )}
+        >
+          <Award
+            aria-hidden="true"
+            className={cn("size-10 shrink-0", prefs.celebrations && "animate-bounce")}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <h2 id="celebration" className="text-lg font-bold">
+              {celebrate.length > 1 ? `${celebrate.length} nouveaux badges !` : "Nouveau badge !"}
+            </h2>
+            <p className="text-sm">
+              {celebrate
+                .map((b) => `« ${badgeByKey(b.badgeKey)?.name ?? b.badgeKey} » — ${b.reason}`)
+                .join(" · ")}
+            </p>
+          </div>
+          <form
+            action={markBadgesSeen.bind(
+              null,
+              celebrate.map((b) => b.id),
+            )}
+          >
+            <button
+              type="submit"
+              className="inline-flex min-h-tap items-center rounded-lg bg-ink px-4 text-sm font-bold text-paper"
+            >
+              Merci, au travail
+            </button>
+          </form>
+          <Link href="/progression" className="text-sm font-bold underline">
+            Ma collection
+          </Link>
+        </section>
+      ) : null}
 
       <nav aria-label="Rituels" className="grid gap-2 sm:grid-cols-2">
         <Link
@@ -246,7 +303,7 @@ async function Cockpit() {
         >
           <Priorities userId={user.id} />
         </Suspense>
-        <ProgressSummary progress={progress} />
+        <ProgressSummary progress={progress} streakWeeks={streak?.weeks ?? null} />
       </div>
 
       <BriefCard brief={brief} />

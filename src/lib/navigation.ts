@@ -8,6 +8,8 @@ import {
   MoreHorizontal,
   Sparkles,
   Timer,
+  Users,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,5 +35,7 @@ export const secondaryNav: NavItem[] = [
   { label: "Le courrier", href: "/notifications", icon: Inbox },
   { label: "Temps", href: "/temps", icon: Timer },
   { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
+  { label: "Bureau commun", href: "/bureau", icon: Users },
   { label: "Ma progression", href: "/progression", icon: Sparkles },
+  { label: "Compétences", href: "/competences", icon: GraduationCap },
 ];

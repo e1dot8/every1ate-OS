@@ -5,8 +5,11 @@ import type { LevelInfo } from "@/features/progression/rules";
 /** Progression en une ligne : rang, niveau, XP vers le niveau suivant. Rien de plus sur le cockpit. */
 export function ProgressSummary({
   progress,
+  streakWeeks = null,
 }: {
   progress: LevelInfo & { last: { amount: number; label: string } | null };
+  /** Série de régularité (null si désactivée). */
+  streakWeeks?: number | null;
 }) {
   return (
     <Link
@@ -21,6 +24,11 @@ export function ProgressSummary({
           <span className="text-sm text-muted-foreground">
             Niveau {progress.level} · {progress.xp} XP
           </span>
+          {streakWeeks ? (
+            <span className="text-xs font-bold">
+              Série : {streakWeeks} semaine{streakWeeks > 1 ? "s" : ""}
+            </span>
+          ) : null}
         </div>
         <ChevronRight aria-hidden="true" className="mt-1 size-4 text-muted-foreground group-hover:text-ink" />
       </div>

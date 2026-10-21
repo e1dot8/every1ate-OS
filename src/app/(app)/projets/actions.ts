@@ -360,6 +360,9 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
       "Statut mis à jour.",
       next ? occurrenceCreatedMessage(next.dueDate) : null,
       result.data.xp ? xpMessage(result.data.xp) : null,
+      result.data.badges.length
+        ? `Nouveau badge : ${result.data.badges.map((b) => `« ${b} »`).join(", ")} !`
+        : null,
     ]
       .filter(Boolean)
       .join(" "),
