@@ -134,7 +134,11 @@ export function BuildingMap({ previews }: { previews: Record<string, string> }) 
                   if (pointer.current === "mouse" || selected === r.key) open(r);
                   else setSelected(r.key);
                 }}
-                onFocus={() => setSelected(r.key)}
+                onFocus={(e) => {
+                  // Seul le focus clavier sélectionne : un tap donne aussi le focus, et le
+                  // premier tap doit rester un aperçu.
+                  if (e.currentTarget.matches(":focus-visible")) setSelected(r.key);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -184,6 +188,9 @@ export function BuildingMap({ previews }: { previews: Record<string, string> }) 
                   x={b.label[0]}
                   y={b.label[1]}
                   textAnchor="middle"
+                  stroke="var(--paper)"
+                  strokeWidth={4}
+                  paintOrder="stroke"
                   className={cn("fill-ink text-[12px] font-bold", soon && "fill-muted-foreground")}
                 >
                   {SHORT[r.key]}
