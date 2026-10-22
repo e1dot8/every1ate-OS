@@ -128,6 +128,12 @@ test("aucun défilement horizontal sur les écrans du cockpit, des rituels et de
     "/notifications",
     "/temps/rapport",
     "/priorites",
+    "/maison",
+    "/appartement",
+    "/appartement/amenager",
+    "/atelier",
+    "/recettes",
+    "/recettes/nouvelle",
   ]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");

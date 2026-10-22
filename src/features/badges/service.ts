@@ -2,7 +2,7 @@ import "server-only";
 import { recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
-import { notify } from "@/features/notifications/service";
+import { notifyMany } from "@/features/notifications/service";
 import { awardXp } from "@/features/progression/service";
 import type { ServiceResult } from "@/features/projects/service";
 import { postBrigadeEvent } from "@/features/brigade/service";
@@ -38,7 +38,7 @@ export async function savePreferences(
 export async function badgeStats(userId: string): Promise<BadgeStats> {
   const db = getDb();
   const doneWhere = { ownerId: userId, status: "TERMINE" as const };
-  const [byCategory, delivered, fiveStar, briefings, recent, doneIds] = await Promise.all([
+  const [byCategory, delivered, fiveStar, briefings, recent, doneIds, reused] = await Promise.all([
     db.task.groupBy({ by: ["category"], where: doneWhere, _count: { _all: true } }),
     db.project.count({ where: { ownerId: userId, internal: false, closedAt: { not: null } } }),
     db.project.count({
@@ -58,6 +58,7 @@ export async function badgeStats(userId: string): Promise<BadgeStats> {
       },
     }),
     db.task.findMany({ where: doneWhere, select: { id: true } }),
+    db.recipeUse.count({ where: { recipe: { authorId: userId }, userId: { not: userId } } }),
   ]);
   const rescued = doneIds.length
     ? await db.auditEvent.findMany({
@@ -88,6 +89,7 @@ export async function badgeStats(userId: string): Promise<BadgeStats> {
         })),
     ),
     briefings,
+    recipesReused: reused,
   };
 }
 
@@ -140,15 +142,16 @@ async function grant(
       where: { role: "associe", id: { not: userId } },
       select: { id: true },
     });
-    for (const o of others)
-      await notify({
-        userId: o.id,
+    await notifyMany(
+      others.map((o) => o.id),
+      {
         kind: "badge",
         title: `${holder?.name ?? "Un associé"} obtient « ${badge.name} »`,
         body: reason,
         href: "/bureau",
         dedupeKey: `badge:${badge.key}:${userId}`,
-      });
+      },
+    );
   }
   return true;
 }

@@ -16,6 +16,8 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { briefingStatus } from "@/features/briefing/service";
+import { BrigadeAvatar } from "@/features/maison/components/avatar";
+import { getAvatar } from "@/features/maison/service";
 import { badgeByKey } from "@/features/badges/catalog";
 import { getPreferences, unseenBadges, updateBadge, userStreak } from "@/features/badges/service";
 import { EmptyState, Meta, isLate } from "@/components/app/bits";
@@ -179,21 +181,35 @@ async function Priorities({ userId }: { userId: string }) {
 
 async function Cockpit() {
   const user = await requireUser();
-  const [celebrate, prefs, streak, rituals, brief, progress, unread, active, totals, projects, events, day] =
-    await Promise.all([
-      unseenBadges(user.id),
-      getPreferences(user.id),
-      userStreak(user.id),
-      briefingStatus(user.id),
-      getBrief(user.id),
-      getProgress(user.id),
-      unreadCount(user.id),
-      getActiveTimer(user.id),
-      userTotals(user.id),
-      myActiveProjects(user.id),
-      upcomingEvents(user.id),
-      getDayPriorities(user.id),
-    ]);
+  const [
+    celebrate,
+    look,
+    prefs,
+    streak,
+    rituals,
+    brief,
+    progress,
+    unread,
+    active,
+    totals,
+    projects,
+    events,
+    day,
+  ] = await Promise.all([
+    unseenBadges(user.id),
+    getAvatar(user.id),
+    getPreferences(user.id),
+    userStreak(user.id),
+    briefingStatus(user.id),
+    getBrief(user.id),
+    getProgress(user.id),
+    unreadCount(user.id),
+    getActiveTimer(user.id),
+    userTotals(user.id),
+    myActiveProjects(user.id),
+    upcomingEvents(user.id),
+    getDayPriorities(user.id),
+  ]);
   const planned = day.tasks
     .filter((t) => !DONE.includes(t.status))
     .reduce((sum, t) => sum + (t.estimatedMinutes ?? 0), 0);
@@ -209,12 +225,21 @@ async function Cockpit() {
             on s&apos;y met : trois priorités, pas plus.
           </p>
         </div>
-        <Link
-          href="/cockpit"
-          className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
-        >
-          <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/appartement"
+            aria-label="Mon appartement"
+            className="rounded-full hover:ring-2 hover:ring-ink"
+          >
+            <BrigadeAvatar look={look} size={48} />
+          </Link>
+          <Link
+            href="/cockpit"
+            className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
+          >
+            <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
+          </Link>
+        </div>
       </header>
 
       {celebrate.length ? (
@@ -305,7 +330,28 @@ async function Cockpit() {
         >
           <Priorities userId={user.id} />
         </Suspense>
-        <ProgressSummary progress={progress} streakWeeks={streak?.weeks ?? null} />
+        <Card className="gap-2">
+          <div className="flex items-baseline justify-between">
+            <CardTitle>Rendez-vous</CardTitle>
+            <Link href="/calendrier" className="text-sm font-bold text-pen-strong hover:underline">
+              Calendrier
+            </Link>
+          </div>
+          {events.length ? (
+            <ul className="flex flex-col gap-1.5 text-sm">
+              {events.slice(0, 4).map((e) => (
+                <li key={e.id} className="flex flex-col">
+                  <span className="text-muted-foreground">{formatDateTime(e.startsAt)}</span>
+                  <Link href={`/calendrier/${e.id}`} className="truncate font-bold hover:underline">
+                    {e.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun rendez-vous dans les 14 jours.</p>
+          )}
+        </Card>
       </div>
 
       <BriefCard brief={brief} />
@@ -362,28 +408,7 @@ async function Cockpit() {
           </dl>
         </Card>
 
-        <Card className="gap-2">
-          <div className="flex items-baseline justify-between">
-            <CardTitle>Rendez-vous</CardTitle>
-            <Link href="/calendrier" className="text-sm font-bold text-pen-strong hover:underline">
-              Calendrier
-            </Link>
-          </div>
-          {events.length ? (
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {events.slice(0, 3).map((e) => (
-                <li key={e.id} className="flex flex-col">
-                  <span className="text-muted-foreground">{formatDateTime(e.startsAt)}</span>
-                  <Link href={`/calendrier/${e.id}`} className="truncate font-bold hover:underline">
-                    {e.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucun rendez-vous dans les 14 jours.</p>
-          )}
-        </Card>
+        <ProgressSummary progress={progress} streakWeeks={streak?.weeks ?? null} />
       </div>
 
       <Card className="gap-2">
@@ -425,6 +450,17 @@ async function Cockpit() {
           </EmptyState>
         )}
       </Card>
+
+      <Link href="/maison" className="group flex flex-col gap-2 rounded-2xl bg-ink p-5 text-paper">
+        <span className="flex items-center justify-between">
+          <span className="text-xl font-bold">Le bâtiment</span>
+          <ArrowUpRight aria-hidden="true" className="size-5 text-highlight" />
+        </span>
+        <span className="text-paper/80">
+          Mon appartement · Bureau commun · La Cuisine · L&apos;atelier · Le carnet de recettes
+        </span>
+        <span className="font-bold text-highlight group-hover:underline">EXPLORER LES ESPACES →</span>
+      </Link>
     </>
   );
 }

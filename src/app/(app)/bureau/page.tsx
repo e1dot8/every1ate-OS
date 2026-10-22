@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Award, HeartHandshake, House, PartyPopper, Target, TrendingUp } from "lucide-react";
+import { Award, BookOpen, HeartHandshake, House, PartyPopper, Target, TrendingUp } from "lucide-react";
 import { Avatar, EmptyState } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,13 @@ import { PEER_BADGES } from "@/features/badges/catalog";
 import { moodLabels } from "@/features/briefing/rules";
 import { getWeek, weekContext, weekOf } from "@/features/briefing/service";
 import { CheerForm, PeerBadgeForm } from "@/features/brigade/components/forms";
+import { HelpForm } from "@/features/brigade/components/help-form";
+import { openHelpRequests } from "@/features/brigade/service";
+import { BrigadeAvatar } from "@/features/maison/components/avatar";
+import { houseDecorFor } from "@/features/maison/cosmetics";
+import { availabilities, availabilityLabels, avatarsOf } from "@/features/maison/service";
+import { SKILLS, skillByKey } from "@/features/skills/tree";
+import { reactionAction, resolveHelpAction, takeHelpAction } from "./actions";
 import { houseProgress } from "@/features/brigade/house";
 import { listFeed } from "@/features/brigade/service";
 import { formatMinutes } from "@/features/planning/rules";
@@ -25,6 +32,7 @@ const EVENT_ICONS = {
   rang: TrendingUp,
   projet: PartyPopper,
   objectif: Target,
+  recette: BookOpen,
   aide: HeartHandshake,
 };
 
@@ -33,26 +41,59 @@ async function Office() {
   const db = getDb();
   const today = todayDate();
   const week = weekOf(today);
-  const [menu, ctx, feed, associates, delivered, goalsReached, help, moods] = await Promise.all([
-    getWeek(week),
-    weekContext(week),
-    listFeed(user.id),
-    listAssociates(),
-    db.project.count({ where: { internal: false, closedAt: { not: null } } }),
-    db.weeklyItem.count({ where: { kind: "OBJECTIF", status: "ATTEINT" } }),
-    db.dailyBriefing.findMany({
-      where: { day: today, helpWanted: true },
-      select: { id: true, blocker: true, user: { select: { id: true, name: true } } },
-    }),
-    db.dailyBriefing.findMany({
-      where: { day: today, moodShared: true, mood: { not: null } },
-      select: { mood: true, user: { select: { name: true } } },
-    }),
-  ]);
+  const [menu, ctx, feed, associates, delivered, goalsReached, help, moods, requests, avail] =
+    await Promise.all([
+      getWeek(week),
+      weekContext(week),
+      listFeed(user.id),
+      listAssociates(),
+      db.project.count({ where: { internal: false, closedAt: { not: null } } }),
+      db.weeklyItem.count({ where: { kind: "OBJECTIF", status: "ATTEINT" } }),
+      db.dailyBriefing.findMany({
+        where: { day: today, helpWanted: true },
+        select: { id: true, blocker: true, user: { select: { id: true, name: true } } },
+      }),
+      db.dailyBriefing.findMany({
+        where: { day: today, moodShared: true, mood: { not: null } },
+        select: { mood: true, user: { select: { name: true } } },
+      }),
+      openHelpRequests(),
+      availabilities(today),
+    ]);
+  const looks = await avatarsOf(associates.map((a) => a.id));
   const house = houseProgress(delivered, goalsReached);
+  const decor = houseDecorFor(house.points);
+  const nextDecor = decor.find((d) => !d.unlocked);
   const goals = menu?.items.filter((i) => i.kind === "OBJECTIF") ?? [];
   return (
     <>
+      <section aria-labelledby="brigade" className="flex flex-col gap-3">
+        <h2 id="brigade" className="sr-only">
+          La brigade
+        </h2>
+        <ul className="flex flex-wrap gap-3">
+          {associates.map((a) => {
+            const status = avail.get(a.id);
+            return (
+              <li key={a.id}>
+                <Link
+                  href={a.id === user.id ? "/appartement" : `/appartement?associe=${a.id}`}
+                  className="flex items-center gap-2 rounded-full border bg-card py-1 pr-4 pl-1 hover:border-ink"
+                >
+                  <BrigadeAvatar look={looks.get(a.id)!} size={40} />
+                  <span className="flex flex-col leading-tight">
+                    <b className="text-sm">{a.id === user.id ? `${a.name} (moi)` : a.name}</b>
+                    <span className="text-xs text-muted-foreground">
+                      {status ? availabilityLabels[status] : "Visiter l'appartement"}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="gap-3 md:col-span-2">
           <div className="flex items-baseline justify-between gap-2">
@@ -118,12 +159,84 @@ async function Office() {
             {house.next ? `prochain palier : ${house.next}` : "tous les paliers sont atteints"}
           </p>
           <p className="text-xs text-paper/60">Progression collective, séparée des niveaux de chacun.</p>
+          <ul className="flex flex-wrap gap-1.5" aria-label="Décor de la salle commune">
+            {decor.map((d) => (
+              <li
+                key={d.key}
+                title={d.unlocked ? d.name : `${d.name} : au palier ${d.points}`}
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                  d.unlocked ? "bg-highlight text-ink" : "border border-paper/30 text-paper/50",
+                )}
+              >
+                {d.unlocked ? d.name : `palier ${d.points}`}
+              </li>
+            ))}
+          </ul>
+          {nextDecor ? (
+            <p className="text-xs text-paper/70">
+              Prochain décor : {nextDecor.name.toLowerCase()} au palier {nextDecor.points}.
+            </p>
+          ) : null}
         </section>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="gap-3">
           <CardTitle>Coups de main demandés</CardTitle>
+          {requests.length ? (
+            <ul className="flex flex-col gap-2 text-sm">
+              {requests.map((r) => (
+                <li key={r.id} className="flex flex-col gap-1.5 rounded-lg bg-highlight/40 p-2">
+                  <span className="flex items-start gap-2">
+                    <HeartHandshake aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      <b>{r.user.name}</b> : {r.message}
+                      {r.taskId ? (
+                        <>
+                          {" "}
+                          <Link href={`/taches/${r.taskId}`} className="font-bold underline">
+                            voir la tâche
+                          </Link>
+                        </>
+                      ) : null}
+                      {r.skillKey ? (
+                        <span className="text-muted-foreground"> · {skillByKey(r.skillKey)?.name}</span>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 pl-6">
+                    {r.takenBy ? (
+                      <span className="text-xs font-bold">{r.takenBy.name} s&apos;en occupe</span>
+                    ) : null}
+                    {!r.takenBy && r.user.id !== user.id ? (
+                      <form action={takeHelpAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button
+                          type="submit"
+                          className="inline-flex min-h-tap items-center rounded-full border border-ink bg-paper px-3 text-xs font-bold"
+                        >
+                          Je m&apos;en occupe
+                        </button>
+                      </form>
+                    ) : null}
+                    {r.user.id === user.id || r.takenBy?.id === user.id ? (
+                      <form action={resolveHelpAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button
+                          type="submit"
+                          className="inline-flex min-h-tap items-center rounded-full border px-3 text-xs font-bold"
+                        >
+                          Réglé
+                        </button>
+                      </form>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <HelpForm skills={SKILLS.map((k) => ({ value: k.key, label: `${k.branch.name} · ${k.name}` }))} />
           {help.length || ctx.blocked.length ? (
             <ul className="flex flex-col gap-2 text-sm">
               {help.map((h) => (
@@ -148,7 +261,7 @@ async function Office() {
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : requests.length ? null : (
             <p className="text-sm text-muted-foreground">Personne n&apos;est bloqué. Belle cuisine.</p>
           )}
           {moods.length ? (
@@ -229,10 +342,36 @@ async function Office() {
                         <Icon aria-hidden="true" className="size-4" />
                       </span>
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-bold">{e.title}</span>
+                        {e.href ? (
+                          <Link href={e.href} className="font-bold hover:underline">
+                            {e.title}
+                          </Link>
+                        ) : (
+                          <span className="font-bold">{e.title}</span>
+                        )}
                         {e.detail ? <span className="text-sm text-muted-foreground">{e.detail}</span> : null}
                         <span className="text-xs text-muted-foreground">{formatDateTime(e.createdAt)}</span>
                       </div>
+                    </div>
+                    <div className="ml-12 flex flex-wrap gap-1.5" aria-label="Réactions">
+                      {e.reactionCounts.map((r) => (
+                        <form key={r.emoji} action={reactionAction}>
+                          <input type="hidden" name="eventId" value={e.id} />
+                          <input type="hidden" name="emoji" value={r.emoji} />
+                          <button
+                            type="submit"
+                            aria-pressed={r.mine}
+                            aria-label={`Réagir ${r.emoji}${r.count ? ` (${r.count})` : ""}`}
+                            className={cn(
+                              "inline-flex min-h-9 min-w-11 items-center justify-center gap-1 rounded-full border px-2 text-sm",
+                              r.mine ? "border-ink bg-highlight" : "hover:bg-muted",
+                            )}
+                          >
+                            <span aria-hidden="true">{r.emoji}</span>
+                            {r.count ? <span className="text-xs font-bold">{r.count}</span> : null}
+                          </button>
+                        </form>
+                      ))}
                     </div>
                     {e.cheers.length ? (
                       <ul className="ml-12 flex flex-col gap-0.5 text-sm">

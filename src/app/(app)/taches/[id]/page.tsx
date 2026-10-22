@@ -29,6 +29,8 @@ import { taskTimeSummary } from "@/features/time/estimate-service";
 import { OverrunReview, RemainingForm } from "@/features/time/components/estimate-forms";
 import { categoryLabels, overrunReasonLabels } from "@/features/time/estimate-rules";
 import { complexityLabels } from "@/features/projects/labels";
+import { HelpForm } from "@/features/brigade/components/help-form";
+import { SKILLS } from "@/features/skills/tree";
 import { toDateInput, todayDate } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Tâche" };
@@ -284,6 +286,12 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
                 </ul>
               ) : null}
             </Card>
+          ) : null}
+          {!task.archivedAt && task.status !== "TERMINE" && task.status !== "ANNULE" ? (
+            <HelpForm
+              taskId={id}
+              skills={SKILLS.map((k) => ({ value: k.key, label: `${k.branch.name} · ${k.name}` }))}
+            />
           ) : null}
           <Card className="gap-3">
             <CardTitle>Dépendances</CardTitle>

@@ -17,6 +17,8 @@ export type BadgeStats = {
   /** Tâches estimées terminées d'affilée (les plus récentes) à ±15 % de l'estimation. */
   accurateStreak: number;
   briefings: number;
+  /** Recettes de l'associé réutilisées par d'autres associés. */
+  recipesReused: number;
 };
 
 export type Badge = {
@@ -134,8 +136,10 @@ export const BADGES: Badge[] = [
     key: "transmission-du-savoir",
     name: "Transmission du savoir",
     family: "brigade",
-    description: "Une méthode partagée et réutilisée par la brigade.",
+    description: "Une recette du carnet réutilisée par un autre associé.",
     xp: BONUS_XP.recipe,
+    earned: (s) => s.recipesReused >= 1,
+    because: "Une de vos recettes a été réutilisée par la brigade.",
   },
   {
     key: "sens-du-dressage",

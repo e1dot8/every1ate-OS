@@ -5,7 +5,7 @@ import { getDb } from "@/lib/db/client";
 import { addDays, startOfWeek, todayDate } from "@/lib/dates";
 import { zonedToUtc } from "@/features/calendar/rules";
 import { getDayPriorities } from "@/features/cockpit/service";
-import { notify } from "@/features/notifications/service";
+import { notify, notifyMany } from "@/features/notifications/service";
 import { upcomingLoad } from "@/features/planning/load-service";
 import type { ServiceResult } from "@/features/projects/service";
 import { getAgencySettings } from "@/features/settings/service";
@@ -104,15 +104,16 @@ export async function saveDailyBriefing(actor: Actor, input: DailyInput, now = n
       db.user.findUnique({ where: { id: actor.id }, select: { name: true } }),
       db.user.findMany({ where: { role: "associe", id: { not: actor.id } }, select: { id: true } }),
     ]);
-    for (const o of others)
-      await notify({
-        userId: o.id,
+    await notifyMany(
+      others.map((o) => o.id),
+      {
         kind: "aide",
         title: `${me?.name ?? "Un associé"} demande un coup de main`,
         body: data.blocker ?? undefined,
         href: "/bureau",
         dedupeKey: `aide:${actor.id}:${day.toISOString().slice(0, 10)}`,
-      });
+      },
+    );
   }
   await checkAutoBadges(actor.id);
   return ok(saved);

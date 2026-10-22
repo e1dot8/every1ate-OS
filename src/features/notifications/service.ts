@@ -69,6 +69,18 @@ export async function notify(input: NotificationInput): Promise<boolean> {
   return true;
 }
 
+/**
+ * Même notification (sans e-mail) pour plusieurs associés, en une seule écriture.
+ * La clé de dédoublonnage reste unique par associé : rejouer ne crée rien de plus.
+ */
+export async function notifyMany(userIds: string[], input: Omit<NotificationInput, "userId" | "email">) {
+  if (!userIds.length) return;
+  await getDb().notification.createMany({
+    data: userIds.map((userId) => ({ ...input, userId })),
+    skipDuplicates: true,
+  });
+}
+
 export type CourrierView = Tier | "TOUT" | "ARCHIVE";
 
 /** Le courrier : par niveau, ou tout ce qui n'est pas classé, ou les archives. */

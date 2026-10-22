@@ -16,6 +16,10 @@ import {
   Smartphone,
   Sparkles,
   Users,
+  Building,
+  DoorOpen,
+  Hammer,
+  BookOpen,
   GraduationCap,
   Coffee,
   UtensilsCrossed,
@@ -78,6 +82,25 @@ async function Menu() {
         icon={UtensilsCrossed}
         title="Le menu de la semaine"
         detail="Bilan, charge, objectifs et décisions, historisés"
+      />
+      <Row href="/maison" icon={Building} title="La maison" detail="Le bâtiment et ses pièces" />
+      <Row
+        href="/appartement"
+        icon={DoorOpen}
+        title="Mon appartement"
+        detail="Avatar, profil, collection et décoration"
+      />
+      <Row
+        href="/atelier"
+        icon={Hammer}
+        title="L'atelier"
+        detail="Projets, livrables et temps en un coup d'œil"
+      />
+      <Row
+        href="/recettes"
+        icon={BookOpen}
+        title="Le carnet de recettes"
+        detail="Méthodes, modèles et procédures"
       />
       <Row
         href="/bureau"

@@ -81,6 +81,13 @@ model User {
   streakPauses       StreakPause[]
   brigadeEvents      BrigadeEvent[]
   cheers             BrigadeCheer[]
+  avatar             UserAvatar?
+  apartmentItems     ApartmentItem[]
+  recipes            Recipe[]
+  recipeUses         RecipeUse[]
+  helpRequests       HelpRequest[]         @relation("HelpAuthor")
+  helpTaken          HelpRequest[]         @relation("HelpTaker")
+  reactions          BrigadeReaction[]
   weeklyItemsOwned   WeeklyItem[]          @relation("WeeklyItemOwner")
 
   @@map("user")
@@ -1403,17 +1410,20 @@ model UserBadge {
 }
 
 model UserPreference {
-  userId        String   @id
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String    @id
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Animations de célébration (sinon, un simple message).
-  celebrations  Boolean  @default(true)
+  celebrations    Boolean   @default(true)
   /// Série de régularité affichée ou non.
-  streakEnabled Boolean  @default(true)
+  streakEnabled   Boolean   @default(true)
   /// Jours actifs nécessaires pour qu'une semaine compte (2 à 5).
-  streakDays    Int      @default(3)
+  streakDays      Int       @default(3)
   /// Nouveaux badges visibles par la brigade par défaut.
-  badgesPublic  Boolean  @default(true)
-  updatedAt     DateTime @updatedAt
+  badgesPublic    Boolean   @default(true)
+  /// Disponibilité facultative (DISPONIBLE, CONCENTRE, ABSENT), valable le jour indiqué seulement.
+  availability    String?
+  availabilityDay DateTime? @db.Date
+  updatedAt       DateTime  @updatedAt
 
   @@map("user_preference")
 }
@@ -1432,17 +1442,18 @@ model StreakPause {
 
 /// Fil de la brigade : réussites à célébrer (jamais un journal d'activité ou de présence).
 model BrigadeEvent {
-  id        String         @id @default(cuid())
+  id        String            @id @default(cuid())
   /// Associé concerné (null : réussite collective).
   userId    String?
-  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      String
   title     String
   detail    String?
   href      String?
-  dedupeKey String         @unique
-  createdAt DateTime       @default(now())
+  dedupeKey String            @unique
+  createdAt DateTime          @default(now())
   cheers    BrigadeCheer[]
+  reactions BrigadeReaction[]
 
   @@index([createdAt])
   @@map("brigade_event")
@@ -1459,4 +1470,95 @@ model BrigadeCheer {
 
   @@unique([eventId, userId])
   @@map("brigade_cheer")
+}
+
+// ─── La maison : avatar, appartement, recettes, entraide (lot G6) ──────────
+
+/// Avatar cosmétique : identité, jamais une permission ni une compétence.
+model UserAvatar {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skin      String   @default("s3")
+  hat       String   @default("toque")
+  apron     String   @default("noir")
+  accessory String   @default("aucun")
+  backdrop  String   @default("creme")
+  updatedAt DateTime @updatedAt
+
+  @@map("user_avatar")
+}
+
+/// Objet placé dans un emplacement de l'appartement (choisi parmi les objets débloqués).
+model ApartmentItem {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot    String
+  itemKey String
+
+  @@unique([userId, slot])
+  @@map("apartment_item")
+}
+
+/// Carnet de recettes : méthodes, modèles et procédures réutilisables.
+model Recipe {
+  id         String      @id @default(cuid())
+  title      String
+  category   String
+  summary    String
+  body       String
+  url        String?
+  authorId   String
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  uses       RecipeUse[]
+
+  @@index([category, archivedAt])
+  @@map("recipe")
+}
+
+/// « J'ai réutilisé cette recette » : une fois par associé et par recette.
+model RecipeUse {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([recipeId, userId])
+  @@map("recipe_use")
+}
+
+/// Demande d'aide reliée à une tâche ou à une compétence.
+model HelpRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("HelpAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  taskId     String?
+  skillKey   String?
+  message    String
+  takenById  String?
+  takenBy    User?     @relation("HelpTaker", fields: [takenById], references: [id], onDelete: SetNull)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([resolvedAt, createdAt])
+  @@map("help_request")
+}
+
+/// Réaction rapide sur une réussite du fil.
+model BrigadeReaction {
+  id      String       @id @default(cuid())
+  eventId String
+  event   BrigadeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji   String
+
+  @@unique([eventId, userId, emoji])
+  @@map("brigade_reaction")
 }

@@ -22,6 +22,7 @@ const zero: BadgeStats = {
   rescuedTasks: 0,
   accurateStreak: 0,
   briefings: 0,
+  recipesReused: 0,
 };
 
 describe("badges", () => {
@@ -56,6 +57,7 @@ describe("badges", () => {
       briefings: 99,
       agencyTasksDone: 99,
       brandingTasksDone: 99,
+      recipesReused: 9,
     };
     const keys = newlyEarned(all, new Set()).map((b) => b.key);
     for (const p of PEER_BADGES) expect(keys).not.toContain(p.key);
