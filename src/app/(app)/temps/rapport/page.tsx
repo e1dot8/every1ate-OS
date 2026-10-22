@@ -92,7 +92,7 @@ async function Report({ searchParams }: { searchParams: Promise<{ periode?: stri
         </p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="gap-3">
           <CardTitle>Prévu vs réel</CardTitle>
           <p className="text-sm text-muted-foreground">

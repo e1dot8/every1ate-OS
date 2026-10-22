@@ -101,3 +101,37 @@ test.describe("compétences, badges et bureau commun", () => {
     await expect(page.getByRole("button", { name: "Mettre cette semaine en pause" })).toBeVisible();
   });
 });
+
+test("aucun défilement horizontal sur les écrans du cockpit, des rituels et de la brigade", async ({
+  page,
+}) => {
+  await activateAssociate(page, `Noa${letters()}`);
+  // Une tâche à long titre : les textes tronqués ne doivent jamais élargir la page.
+  const projectId = await createProjectFromTemplate(page, `Débordement ${letters()}`, "Projet vierge");
+  await page.goto(`/projets/${projectId}/taches/nouvelle`);
+  await page
+    .getByLabel("Titre")
+    .fill("Préparer la réunion de lancement avec un titre volontairement très long pour tester");
+  await page.getByRole("button", { name: "Créer la tâche" }).click();
+  await page.getByText("Terminé", { exact: true }).first().click();
+  await page.getByRole("button", { name: "Mettre à jour" }).click();
+  await expect(page.getByText(/Statut mis à jour\./)).toBeVisible();
+  for (const path of [
+    "/",
+    "/mise-en-place",
+    "/menu-semaine",
+    "/bureau",
+    "/crm/cuisine",
+    "/progression",
+    "/competences",
+    "/competences/etude-de-cas",
+    "/notifications",
+    "/temps/rapport",
+    "/priorites",
+  ]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
+});

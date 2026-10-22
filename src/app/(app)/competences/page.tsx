@@ -50,7 +50,7 @@ async function Tree({ searchParams }: { searchParams: Promise<{ associe?: string
           choisissez une compétence cible pour le mois depuis sa fiche.
         </p>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {BRANCHES.map((b) => (
           <Card key={b.key} className="gap-2">
             <div>
@@ -82,7 +82,7 @@ async function Tree({ searchParams }: { searchParams: Promise<{ associe?: string
       </div>
       <Card className="gap-2">
         <CardTitle>Les cinq niveaux</CardTitle>
-        <ol className="grid gap-2 text-sm md:grid-cols-5">
+        <ol className="grid grid-cols-1 gap-2 text-sm md:grid-cols-5">
           {MASTERY.map((m) => (
             <li key={m.level} className="rounded-lg bg-muted p-3">
               <b>

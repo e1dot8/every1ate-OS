@@ -51,7 +51,7 @@ export function WeeklyItemForm({
           {copy.detail}
         </label>
         <Input id={id("detail")} name="detail" maxLength={1000} />
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <label htmlFor={id("owner")} className="text-sm font-bold">
               Responsable

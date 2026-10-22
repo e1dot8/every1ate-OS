@@ -68,7 +68,7 @@ async function ProgressionView() {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="gap-2">
           <CardTitle>Série de régularité</CardTitle>
           {streak ? (
@@ -145,7 +145,7 @@ async function ProgressionView() {
           <summary className="min-h-tap cursor-pointer py-2 text-sm font-bold">
             Tous les badges et comment les obtenir
           </summary>
-          <ul className="grid gap-1 text-sm sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
             {BADGES.map((b) => (
               <li key={b.key}>
                 <b>{b.name}</b> — {b.description}
@@ -156,7 +156,7 @@ async function ProgressionView() {
         </details>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_20rem]">
         <Card className="gap-2">
           <CardTitle>Journal des XP</CardTitle>
           <p className="text-sm text-muted-foreground">

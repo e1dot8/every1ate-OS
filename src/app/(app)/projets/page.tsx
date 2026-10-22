@@ -105,7 +105,7 @@ async function ProjectList({ searchParams }: { searchParams: Promise<Search> }) 
           depuis un modèle ou à partir de zéro.
         </EmptyState>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2" aria-label="Projets">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="Projets">
           {projects.map((p) => (
             <li key={p.id}>
               <Card className="h-full gap-2.5 p-4">

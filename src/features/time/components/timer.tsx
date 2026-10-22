@@ -142,7 +142,7 @@ export function ManualTimeForm({ taskId, tasks, today }: { taskId?: string; task
           options={[{ value: "", label: "Choisir une tâche…" }, ...(tasks ?? [])]}
         />
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           name="date"
           type="date"
@@ -177,7 +177,7 @@ export function CorrectTimeForm({
     <form action={action} className="flex flex-col gap-4" noValidate>
       <FormMessages state={state} />
       <input type="hidden" name="entryId" value={entry.id} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field name="date" type="date" label="Date" defaultValue={v.date} error={state.fieldErrors?.date} />
         <Field name="duration" label="Durée" defaultValue={v.duration} error={state.fieldErrors?.duration} />
       </div>

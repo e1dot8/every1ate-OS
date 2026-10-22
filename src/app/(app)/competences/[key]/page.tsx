@@ -44,7 +44,7 @@ async function Detail({
         title={skill.name}
         description={skill.description}
       />
-      <div className="grid gap-4 md:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_20rem]">
         <div className="flex flex-col gap-4">
           <Card className="gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -53,7 +53,11 @@ async function Detail({
             </div>
             {own ? (
               <>
-                <div className="grid gap-2 sm:grid-cols-5" role="group" aria-label="Choisir mon niveau">
+                <div
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-5"
+                  role="group"
+                  aria-label="Choisir mon niveau"
+                >
                   {MASTERY.map((m) => (
                     <form key={m.level} action={setSkillLevelAction}>
                       <input type="hidden" name="skillKey" value={key} />

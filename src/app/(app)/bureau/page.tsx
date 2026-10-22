@@ -53,7 +53,7 @@ async function Office() {
   const goals = menu?.items.filter((i) => i.kind === "OBJECTIF") ?? [];
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="gap-3 md:col-span-2">
           <div className="flex items-baseline justify-between gap-2">
             <CardTitle>Les objectifs de la semaine</CardTitle>
@@ -121,7 +121,7 @@ async function Office() {
         </section>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="gap-3">
           <CardTitle>Coups de main demandés</CardTitle>
           {help.length || ctx.blocked.length ? (
@@ -196,7 +196,7 @@ async function Office() {
       <Card className="gap-3">
         <CardTitle>Les livrables à venir</CardTitle>
         {ctx.upcoming.length ? (
-          <ul className="grid gap-x-6 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
             {ctx.upcoming.slice(0, 8).map((t) => (
               <li key={t.id} className="flex items-center gap-3 border-b py-2 text-sm">
                 <span className="w-14 shrink-0 text-muted-foreground">{formatDay(t.dueDate)}</span>
@@ -212,7 +212,7 @@ async function Office() {
         )}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_22rem]">
         <Card className="gap-3">
           <CardTitle>Le fil de la brigade</CardTitle>
           <p className="text-sm text-muted-foreground">

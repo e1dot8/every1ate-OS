@@ -35,7 +35,7 @@ async function MiseEnPlace({ searchParams }: { searchParams: Promise<{ fait?: st
         </FormAlert>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="gap-3">
           <div className="flex items-center gap-2">
             <ListChecks aria-hidden="true" className="size-5" />

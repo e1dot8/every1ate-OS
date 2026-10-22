@@ -74,7 +74,7 @@ export function ProjectForm(props: {
         options={PHASES.map((p, i) => ({ value: p.value, label: `${i + 1}. ${p.label}` }))}
         hint="La phase est indépendante du statut opérationnel."
       />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field
           name="startDate"
           type="date"
@@ -212,7 +212,7 @@ export function LotForm(props: {
         options={props.associates}
         defaultValues={lot?.memberIds}
       />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field
           name="plannedStart"
           type="date"
@@ -295,7 +295,7 @@ export function TaskForm(props: {
           defaultValue={v?.workPackageId ?? t?.workPackageId ?? props.defaultLotId ?? ""}
           options={[{ value: "", label: "Aucun lot" }, ...props.lots]}
         />
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <SelectField
             name="ownerId"
             label="Responsable"
@@ -310,7 +310,7 @@ export function TaskForm(props: {
           />
         </div>
         <div
-          className="grid gap-4 md:grid-cols-2"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
           onChange={(e) => {
             const field = e.target as unknown as HTMLSelectElement;
             if (field.name === "category") setCategory(field.value);
@@ -362,7 +362,7 @@ export function TaskForm(props: {
             defaultValues={contributors}
           />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field
             name="startDate"
             type="date"
@@ -385,7 +385,7 @@ export function TaskForm(props: {
           error={state.fieldErrors?.estimatedHours}
           hint={props.hints?.[`${category}:${complexity}`]}
         />
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="champ-recurrence">Répétition</Label>
             <Select

@@ -51,7 +51,7 @@ async function Kitchen({ searchParams }: { searchParams: Promise<{ vue?: string;
       <p className="text-sm text-muted-foreground">{viewDescriptions[view.key]}</p>
 
       {list.length ? (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map((s) => (
             <li key={s.key}>
               <Card className="h-full gap-2 p-4">

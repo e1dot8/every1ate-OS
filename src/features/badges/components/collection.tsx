@@ -47,7 +47,7 @@ function Toggle({
 /** Collection de badges : favoris en tête ; chacun peut être masqué à la brigade. */
 export function BadgeCollection({ badges, editable }: { badges: Owned[]; editable: boolean }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {badges.map((b) => {
         const def = badgeByKey(b.badgeKey);
         if (!def) return null;

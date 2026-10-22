@@ -221,7 +221,7 @@ async function Cockpit() {
         <section
           aria-labelledby="celebration"
           className={cn(
-            "flex flex-wrap items-center gap-4 rounded-2xl border-2 border-ink bg-highlight p-4",
+            "flex flex-col gap-3 rounded-2xl border-2 border-ink bg-highlight p-4 sm:flex-row sm:items-center sm:gap-4",
             prefs.celebrations && "animate-in fade-in zoom-in-95 duration-500",
           )}
         >
@@ -233,11 +233,13 @@ async function Cockpit() {
             <h2 id="celebration" className="text-lg font-bold">
               {celebrate.length > 1 ? `${celebrate.length} nouveaux badges !` : "Nouveau badge !"}
             </h2>
-            <p className="text-sm">
-              {celebrate
-                .map((b) => `« ${badgeByKey(b.badgeKey)?.name ?? b.badgeKey} » — ${b.reason}`)
-                .join(" · ")}
-            </p>
+            <ul className="flex flex-col text-sm">
+              {celebrate.map((b) => (
+                <li key={b.id}>
+                  <b>« {badgeByKey(b.badgeKey)?.name ?? b.badgeKey} »</b> — {b.reason}
+                </li>
+              ))}
+            </ul>
           </div>
           <form
             action={markBadgesSeen.bind(
@@ -258,7 +260,7 @@ async function Cockpit() {
         </section>
       ) : null}
 
-      <nav aria-label="Rituels" className="grid gap-2 sm:grid-cols-2">
+      <nav aria-label="Rituels" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Link
           href="/mise-en-place"
           className={cn(
@@ -293,7 +295,7 @@ async function Cockpit() {
         </Link>
       </nav>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Suspense
           fallback={
             <Card className="md:col-span-2">
@@ -308,7 +310,7 @@ async function Cockpit() {
 
       <BriefCard brief={brief} />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Link
           href="/notifications"
           className="flex items-start gap-3 rounded-xl border bg-card p-5 hover:border-ink"
@@ -392,7 +394,7 @@ async function Cockpit() {
           </Link>
         </div>
         {projects.length ? (
-          <ul className="grid gap-x-6 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
             {projects.slice(0, 6).map((p) => (
               <li
                 key={p.id}
