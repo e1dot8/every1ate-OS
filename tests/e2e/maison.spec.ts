@@ -40,11 +40,13 @@ test.describe("la maison", () => {
     if (info.project.name !== "mobile") {
       // Clavier : focus = aperçu, Entrée = entrée.
       await page.goto("/maison");
-      await page.getByRole("button", { name: /^Méthodes & modèles — / }).focus();
-      await expect(page.getByRole("button", { name: /^Méthodes & modèles — / })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
+      // Le focus n'a d'effet qu'une fois la page interactive : on réessaie jusque-là.
+      const recipes = page.getByRole("button", { name: /^Méthodes & modèles — / });
+      await expect(async () => {
+        await recipes.blur();
+        await recipes.focus();
+        await expect(recipes).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+      }).toPass();
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/recettes$/);
 
