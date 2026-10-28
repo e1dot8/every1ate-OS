@@ -265,7 +265,11 @@ export function BuildingMap({ previews }: { previews: Record<string, string> }) 
                   isSel ? "z-10 border-ink" : "border-border",
                 )}
                 style={{
-                  left: `${(ANCHOR_X[s] / VB_W) * 100}%`,
+                  // Bornée pour que l'étiquette reste dans le cadre du plan (largeur w-52 = 13rem).
+                  left:
+                    s === "left"
+                      ? `max(${(ANCHOR_X.left / VB_W) * 100}%, 13rem)`
+                      : `min(${(ANCHOR_X.right / VB_W) * 100}%, calc(100% - 13rem))`,
                   top: `${(my / VB_H) * 100}%`,
                   transform: s === "left" ? "translate(-100%, -50%)" : "translate(0, -50%)",
                 }}
