@@ -19,7 +19,7 @@ import { briefingStatus } from "@/features/briefing/service";
 import { BrigadeAvatar } from "@/features/maison/components/avatar";
 import { getAvatar } from "@/features/maison/service";
 import { badgeByKey } from "@/features/badges/catalog";
-import { getPreferences, unseenBadges, updateBadge, userStreak } from "@/features/badges/service";
+import { getPreferences, shareBadge, unseenBadges, updateBadge } from "@/features/badges/service";
 import { EmptyState, Meta, isLate } from "@/components/app/bits";
 import { PageLoading } from "@/components/layout/page-header";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -31,8 +31,6 @@ import { setPrioritiesAction } from "@/app/(app)/priorites/actions";
 import { getDayPriorities, myActiveProjects } from "@/features/cockpit/service";
 import { unreadCount } from "@/features/notifications/service";
 import { formatMinutes } from "@/features/planning/rules";
-import { ProgressSummary } from "@/features/progression/components/progress-summary";
-import { getProgress } from "@/features/progression/service";
 import { Elapsed } from "@/features/time/components/timer";
 import { getActiveTimer, userTotals } from "@/features/time/service";
 import { requireUser } from "@/lib/auth/session";
@@ -61,6 +59,15 @@ async function keepSuggestion(taskIds: string[], formData: FormData) {
 }
 
 /** Célébration vue : le bandeau ne revient pas. */
+/** Partager : le badge rejoint le fil du bureau commun, la brigade peut féliciter. */
+async function shareBadges(ids: string[]) {
+  "use server";
+  const user = await requireUser();
+  for (const id of ids) await shareBadge(user.id, id);
+  revalidatePath("/");
+  revalidatePath("/bureau");
+}
+
 async function markBadgesSeen(ids: string[]) {
   "use server";
   const user = await requireUser();
@@ -107,16 +114,7 @@ async function Priorities({ userId }: { userId: string }) {
             const gained = xp.get(t.id);
             return (
               <li key={t.id} className="flex items-center gap-3 border-t py-2.5">
-                {finished ? (
-                  <span
-                    className="inline-flex size-tap shrink-0 items-center justify-center rounded-full bg-ink text-paper"
-                    aria-label="Terminée"
-                  >
-                    <Check aria-hidden="true" className="size-4" />
-                  </span>
-                ) : (
-                  <CompleteTask taskId={t.id} title={t.title} />
-                )}
+                <CompleteTask taskId={t.id} title={t.title} done={finished} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <Link
                     href={`/taches/${t.id}`}
@@ -162,7 +160,7 @@ async function Priorities({ userId }: { userId: string }) {
           >
             <button
               type="submit"
-              className="inline-flex min-h-tap items-center rounded-lg bg-ink px-4 text-sm font-bold text-paper hover:bg-ink/85"
+              className="inline-flex min-h-tap items-center rounded-lg border border-ink bg-highlight px-4 text-sm font-bold text-ink hover:bg-highlight/80"
             >
               Garder ces priorités
             </button>
@@ -181,35 +179,20 @@ async function Priorities({ userId }: { userId: string }) {
 
 async function Cockpit() {
   const user = await requireUser();
-  const [
-    celebrate,
-    look,
-    prefs,
-    streak,
-    rituals,
-    brief,
-    progress,
-    unread,
-    active,
-    totals,
-    projects,
-    events,
-    day,
-  ] = await Promise.all([
-    unseenBadges(user.id),
-    getAvatar(user.id),
-    getPreferences(user.id),
-    userStreak(user.id),
-    briefingStatus(user.id),
-    getBrief(user.id),
-    getProgress(user.id),
-    unreadCount(user.id),
-    getActiveTimer(user.id),
-    userTotals(user.id),
-    myActiveProjects(user.id),
-    upcomingEvents(user.id),
-    getDayPriorities(user.id),
-  ]);
+  const [celebrate, look, prefs, rituals, brief, unread, active, totals, projects, events, day] =
+    await Promise.all([
+      unseenBadges(user.id),
+      getAvatar(user.id),
+      getPreferences(user.id),
+      briefingStatus(user.id),
+      getBrief(user.id),
+      unreadCount(user.id),
+      getActiveTimer(user.id),
+      userTotals(user.id),
+      myActiveProjects(user.id),
+      upcomingEvents(user.id),
+      getDayPriorities(user.id),
+    ]);
   const planned = day.tasks
     .filter((t) => !DONE.includes(t.status))
     .reduce((sum, t) => sum + (t.estimatedMinutes ?? 0), 0);
@@ -246,7 +229,7 @@ async function Cockpit() {
         <section
           aria-labelledby="celebration"
           className={cn(
-            "flex flex-col gap-3 rounded-2xl border-2 border-ink bg-highlight p-4 sm:flex-row sm:items-center sm:gap-4",
+            "flex flex-col gap-3 rounded-lg border-2 border-ink bg-highlight p-4 sm:flex-row sm:items-center sm:gap-4",
             prefs.celebrations && "animate-in fade-in zoom-in-95 duration-500",
           )}
         >
@@ -266,19 +249,34 @@ async function Cockpit() {
               ))}
             </ul>
           </div>
-          <form
-            action={markBadgesSeen.bind(
-              null,
-              celebrate.map((b) => b.id),
-            )}
-          >
-            <button
-              type="submit"
-              className="inline-flex min-h-tap items-center rounded-lg bg-ink px-4 text-sm font-bold text-paper"
+          <div className="flex flex-wrap items-center gap-2">
+            <form
+              action={shareBadges.bind(
+                null,
+                celebrate.map((b) => b.id),
+              )}
             >
-              Merci, au travail
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="inline-flex min-h-tap items-center rounded-md bg-ink px-4 text-sm font-bold text-paper"
+              >
+                Partager au bureau commun
+              </button>
+            </form>
+            <form
+              action={markBadgesSeen.bind(
+                null,
+                celebrate.map((b) => b.id),
+              )}
+            >
+              <button
+                type="submit"
+                className="inline-flex min-h-tap items-center rounded-md border border-ink px-4 text-sm font-bold"
+              >
+                Garder pour moi
+              </button>
+            </form>
+          </div>
           <Link href="/progression" className="text-sm font-bold underline">
             Ma collection
           </Link>
@@ -303,12 +301,12 @@ async function Cockpit() {
           {rituals.dailyDone ? <Check aria-label="Faite" className="size-4 text-success" /> : null}
         </Link>
         <Link
-          href="/menu-semaine"
+          href="/service"
           className="flex min-h-14 items-center gap-3 rounded-xl border-2 border-border px-4 py-2 hover:border-ink"
         >
           <UtensilsCrossed aria-hidden="true" className="size-5 shrink-0" />
           <span className="flex min-w-0 flex-1 flex-col">
-            <b>Le menu de la semaine</b>
+            <b>Le service de la semaine</b>
             <span className="text-sm text-muted-foreground">
               {rituals.weekValidated
                 ? "Validé · consulter"
@@ -356,7 +354,7 @@ async function Cockpit() {
 
       <BriefCard brief={brief} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Link
           href="/notifications"
           className="flex items-start gap-3 rounded-xl border bg-card p-5 hover:border-ink"
@@ -407,8 +405,6 @@ async function Cockpit() {
             </div>
           </dl>
         </Card>
-
-        <ProgressSummary progress={progress} streakWeeks={streak?.weeks ?? null} />
       </div>
 
       <Card className="gap-2">
@@ -451,13 +447,13 @@ async function Cockpit() {
         )}
       </Card>
 
-      <Link href="/maison" className="group flex flex-col gap-2 rounded-2xl bg-ink p-5 text-paper">
+      <Link href="/maison" className="group flex flex-col gap-2 rounded-lg bg-ink p-5 text-paper">
         <span className="flex items-center justify-between">
           <span className="text-xl font-bold">Le bâtiment</span>
           <ArrowUpRight aria-hidden="true" className="size-5 text-highlight" />
         </span>
         <span className="text-paper/80">
-          Mon appartement · Bureau commun · La Cuisine · L&apos;atelier · Le carnet de recettes
+          Mon appartement · Bureau commun · La Salle · La Cuisine · Le carnet de recettes
         </span>
         <span className="font-bold text-highlight group-hover:underline">EXPLORER LES ESPACES →</span>
       </Link>

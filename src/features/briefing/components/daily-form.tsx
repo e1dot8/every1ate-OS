@@ -106,7 +106,9 @@ export function DailyForm({
         />
       </div>
       <div>
-        <SubmitButton>{initial ? "Mettre à jour" : "C'est parti"}</SubmitButton>
+        <SubmitButton variant={initial ? undefined : "highlight"}>
+          {initial ? "Mettre à jour" : "C'est parti"}
+        </SubmitButton>
       </div>
     </form>
   );

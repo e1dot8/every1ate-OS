@@ -190,8 +190,8 @@ export async function roomPreviews(userId: string) {
     appartement: `${progress.rank.title} · niveau ${progress.level} · ${badges} badge${badges > 1 ? "s" : ""}`,
     bureau: `${goals} objectif${goals > 1 ? "s" : ""} cette semaine · ${help} coup${help > 1 ? "s" : ""} de main demandé${help > 1 ? "s" : ""}`,
     recettes: `${recipes} recette${recipes > 1 ? "s" : ""} dans le carnet`,
-    cuisine: `${risky} relance${risky > 1 ? "s" : ""} en retard`,
-    atelier: `${openTasks} tâche${openTasks > 1 ? "s" : ""} pour moi · ${dueSoon} livrable${dueSoon > 1 ? "s" : ""} sous 7 jours`,
+    salle: `${risky} relance${risky > 1 ? "s" : ""} en retard`,
+    cuisine: `${openTasks} tâche${openTasks > 1 ? "s" : ""} pour moi · ${dueSoon} livrable${dueSoon > 1 ? "s" : ""} sous 7 jours`,
     client: "Pas encore ouvert",
   } as Record<string, string>;
 }

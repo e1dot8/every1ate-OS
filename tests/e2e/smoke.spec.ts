@@ -32,8 +32,8 @@ test.describe("socle connecté", () => {
   test("navigation : les cinq sections principales sont actives", async ({ page }) => {
     await activateAssociate(page);
     const nav = page.getByRole("navigation", { name: "Navigation principale" }).filter({ visible: true });
-    await expect(nav.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
-    for (const label of ["Tâches", "Projets", "CRM", "Plus"])
+    await expect(nav.getByRole("link", { name: "Cockpit" })).toHaveAttribute("aria-current", "page");
+    for (const label of ["Tâches", "Projets", "La maison", "Plus"])
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);

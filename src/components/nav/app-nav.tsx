@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { primaryNav, secondaryNav, type NavItem } from "@/lib/navigation";
+import { navGroups, primaryNav, type NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; layout: "bar" | "rail" }) {
   const Icon = item.icon;
   const base = cn(
     "flex min-h-tap items-center rounded-lg text-xs font-bold",
-    layout === "bar" ? "flex-1 flex-col justify-center gap-0.5 px-1" : "gap-3 px-3 text-sm",
+    layout === "bar" ? "flex-1 flex-col justify-center gap-0.5 px-1" : "gap-3 px-3 text-[13px]",
   );
 
   if (item.comingInLot !== undefined) {
@@ -33,10 +33,10 @@ function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; la
       className={cn(
         base,
         active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-        active && layout === "rail" && "bg-muted",
+        active && layout === "rail" && "bg-highlight text-ink",
       )}
     >
-      <Icon aria-hidden="true" className={cn("size-5", active && "text-pen")} />
+      <Icon aria-hidden="true" className={cn("size-5", active && layout === "bar" && "text-pen")} />
       <span
         className={cn(
           active && layout === "bar" && "underline decoration-pen decoration-2 underline-offset-4",
@@ -49,14 +49,16 @@ function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; la
 }
 
 /** Navigation active selon l'URL (lue côté client, sous Suspense). */
-export function AppNav() {
-  return <AppNavShell pathname={usePathname()} />;
+export function AppNav({ footer }: { footer?: React.ReactNode }) {
+  return <AppNavShell pathname={usePathname()} footer={footer} />;
 }
 
-/** Barre fixe en bas sur mobile, rail latéral sur ordinateur. */
-export function AppNavShell({ pathname }: { pathname: string }) {
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : !!pathname && pathname.startsWith(href);
+/** Barre fixe en bas sur mobile ; rail en trois niveaux sur ordinateur, profil discret en pied. */
+export function AppNavShell({ pathname, footer }: { pathname: string; footer?: React.ReactNode }) {
+  const isActive = (item: NavItem) =>
+    item.href === "/"
+      ? pathname === "/"
+      : !!pathname && (item.match ?? [item.href]).some((prefix) => pathname.startsWith(prefix));
 
   return (
     <>
@@ -66,22 +68,28 @@ export function AppNavShell({ pathname }: { pathname: string }) {
       >
         <div className="mx-auto flex h-bottom-nav max-w-lg items-stretch px-2">
           {primaryNav.map((item) => (
-            <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="bar" />
+            <NavEntry key={item.href} item={item} active={isActive(item)} layout="bar" />
           ))}
         </div>
       </nav>
       <nav
         aria-label="Navigation principale"
-        className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-1 border-r px-3 py-6 md:flex"
+        className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-paper md:flex"
       >
-        <p className="mb-4 px-3 text-lg font-bold tracking-tight">EVERY1.ATE OS</p>
-        {primaryNav.map((item) => (
-          <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="rail" />
-        ))}
-        <p className="mt-5 mb-1 px-3 font-annotation text-xs text-muted-foreground">raccourcis</p>
-        {secondaryNav.map((item) => (
-          <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="rail" />
-        ))}
+        <p className="px-6 pt-6 pb-4 text-xl font-bold tracking-[-0.03em]">every1.ate</p>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 pb-4">
+          {navGroups.map((group) => (
+            <div key={group.title} className="flex flex-col">
+              <p className="px-3 pb-1 font-annotation text-[11px] text-muted-foreground">
+                {group.title.toLowerCase()}
+              </p>
+              {group.items.map((item) => (
+                <NavEntry key={item.href} item={item} active={isActive(item)} layout="rail" />
+              ))}
+            </div>
+          ))}
+        </div>
+        {footer ? <div className="border-t p-3">{footer}</div> : null}
       </nav>
     </>
   );

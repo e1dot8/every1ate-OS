@@ -46,6 +46,14 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Lot G7 : les espaces ont été renommés ; les anciennes adresses restent valides.
+  async redirects() {
+    return [
+      { source: "/atelier", destination: "/cuisine", permanent: false },
+      { source: "/crm/cuisine", destination: "/crm/salle", permanent: false },
+      { source: "/menu-semaine", destination: "/service", permanent: false },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

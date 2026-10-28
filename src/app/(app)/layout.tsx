@@ -1,13 +1,20 @@
 import { Suspense } from "react";
 import { AppNav, AppNavShell } from "@/components/nav/app-nav";
 import { TopBar } from "@/components/app/top-bar";
+import { RailProfile } from "@/components/nav/rail-profile";
 
 /** Zone protégée : chaque page vérifie la session côté serveur (requireUser). */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="md:flex">
       <Suspense fallback={<AppNavShell pathname="" />}>
-        <AppNav />
+        <AppNav
+          footer={
+            <Suspense>
+              <RailProfile />
+            </Suspense>
+          }
+        />
       </Suspense>
       <main
         id="contenu"

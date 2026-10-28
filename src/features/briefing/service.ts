@@ -123,7 +123,7 @@ export async function dailyHistory(userId: string, take = 14) {
   return getDb().dailyBriefing.findMany({ where: { userId }, orderBy: { day: "desc" }, take });
 }
 
-// ─── Le menu de la semaine (hebdomadaire) ───────────────────────────────────
+// ─── Le service de la semaine (hebdomadaire) ───────────────────────────────────
 
 export const weekOf = (date: Date) => startOfWeek(date);
 
@@ -279,8 +279,8 @@ export async function addWeeklyItem(
     await notify({
       userId: input.ownerId,
       kind: "menu",
-      title: `Menu de la semaine : « ${input.title} » vous est confié`,
-      href: "/menu-semaine",
+      title: `Service de la semaine : « ${input.title} » vous est confié`,
+      href: "/service",
       dedupeKey: `menu:${item.id}`,
     });
   return ok({ id: item.id });
@@ -296,7 +296,7 @@ export async function setWeeklyItemStatus(id: string, status: WeeklyItemStatus, 
       userId: null,
       kind: "objectif",
       title: `Objectif de la semaine atteint : ${item.title}`,
-      href: "/menu-semaine",
+      href: "/service",
       dedupeKey: `objectif:${id}`,
     });
   await recordAudit({
@@ -363,7 +363,7 @@ export async function validateWeek(briefingId: string, actor: Actor) {
   return ok(null);
 }
 
-/** Pour le cockpit : la mise en place du jour est-elle faite ? Le menu de la semaine existe-t-il ? */
+/** Pour le cockpit : la mise en place du jour est-elle faite ? Le service de la semaine existe-t-il ? */
 export async function briefingStatus(userId: string, now = new Date()) {
   const db = getDb();
   const today = todayDate(now);

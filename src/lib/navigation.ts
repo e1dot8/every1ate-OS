@@ -1,19 +1,20 @@
 import {
+  BookOpen,
+  Building,
   CalendarDays,
   CheckSquare,
+  ChefHat,
+  ConciergeBell,
+  DoorOpen,
   FolderKanban,
-  Handshake,
-  Home,
+  GraduationCap,
   Inbox,
+  LayoutDashboard,
   MoreHorizontal,
-  Sparkles,
   Timer,
   Users,
-  GraduationCap,
-  Building,
-  DoorOpen,
-  Hammer,
-  BookOpen,
+  UtensilsCrossed,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,29 +22,58 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Préfixes d'URL qui rendent l'entrée active (par défaut : href). */
+  match?: string[];
   /** Lot qui livrera réellement la section. Tant qu'il est défini, l'entrée est désactivée. */
   comingInLot?: number;
 };
 
-/** Navigation principale (cahier des charges §4.1). Une entrée sans écran réel reste désactivée. */
+/**
+ * Barre basse (mobile) : le travail d'abord, la maison à un tap (lot G7).
+ * Le reste est dans « Plus ».
+ */
 export const primaryNav: NavItem[] = [
-  { label: "Accueil", href: "/", icon: Home },
+  { label: "Cockpit", href: "/", icon: LayoutDashboard },
   { label: "Tâches", href: "/taches", icon: CheckSquare },
   { label: "Projets", href: "/projets", icon: FolderKanban },
-  { label: "CRM", href: "/crm", icon: Handshake },
+  { label: "La maison", href: "/maison", icon: Building },
   { label: "Plus", href: "/plus", icon: MoreHorizontal },
 ];
 
-/** Raccourcis du rail ordinateur (sur mobile, ils sont dans « Plus »). */
-export const secondaryNav: NavItem[] = [
-  { label: "La maison", href: "/maison", icon: Building },
-  { label: "Le courrier", href: "/notifications", icon: Inbox },
-  { label: "Temps", href: "/temps", icon: Timer },
-  { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
-  { label: "Mon appartement", href: "/appartement", icon: DoorOpen },
-  { label: "Bureau commun", href: "/bureau", icon: Users },
-  { label: "L'atelier", href: "/atelier", icon: Hammer },
-  { label: "Recettes", href: "/recettes", icon: BookOpen },
-  { label: "Ma progression", href: "/progression", icon: Sparkles },
-  { label: "Compétences", href: "/competences", icon: GraduationCap },
+/**
+ * Rail (ordinateur) en trois niveaux : 1. le cockpit et le travail du jour ; 2. la maison et
+ * ses espaces ; 3. les outils spécialisés. Chaque espace reste atteignable sans la carte.
+ */
+export const navGroups: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Mon travail",
+    items: [
+      { label: "Cockpit", href: "/", icon: LayoutDashboard },
+      { label: "Mes tâches", href: "/taches", icon: CheckSquare },
+      { label: "Projets", href: "/projets", icon: FolderKanban },
+      { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
+      { label: "Le courrier", href: "/notifications", icon: Inbox },
+      { label: "Temps", href: "/temps", icon: Timer },
+    ],
+  },
+  {
+    title: "La maison",
+    items: [
+      { label: "La maison", href: "/maison", icon: Building },
+      { label: "Mon appartement", href: "/appartement", icon: DoorOpen },
+      { label: "Le bureau commun", href: "/bureau", icon: Users },
+      { label: "La Salle", href: "/crm/salle", icon: ConciergeBell, match: ["/crm"] },
+      { label: "La Cuisine", href: "/cuisine", icon: ChefHat },
+      { label: "Le carnet de recettes", href: "/recettes", icon: BookOpen },
+    ],
+  },
+  {
+    title: "Outils",
+    items: [
+      { label: "Le service de la semaine", href: "/service", icon: UtensilsCrossed },
+      { label: "Compétences", href: "/competences", icon: GraduationCap },
+      { label: "Finance", href: "/finance", icon: Wallet },
+      { label: "Plus", href: "/plus", icon: MoreHorizontal },
+    ],
+  },
 ];

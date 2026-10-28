@@ -1,71 +1,84 @@
 /**
- * Les pièces de la maison Every1.ate. Chaque pièce mène à une vraie page fonctionnelle ;
- * une pièce non livrée est affichée, étiquetée et non cliquable (AGENTS.md, règle 8).
+ * Les espaces de la maison Every1.ate (lot G7). Chaque pièce mène à une vraie page ;
+ * une pièce non livrée est affichée, étiquetée et non ouvrable (AGENTS.md, règle 8).
+ *
+ * Le parcours : une opportunité arrive dans la Salle, le projet est préparé et réalisé
+ * dans la Cuisine, les apprentissages rejoignent le Carnet de recettes ; le Bureau commun
+ * relie l'ensemble.
  */
-export type RoomKey = "appartement" | "bureau" | "recettes" | "cuisine" | "atelier" | "client";
+export type RoomKey = "appartement" | "bureau" | "recettes" | "salle" | "cuisine" | "client";
+
+/** Emplacement dans le bâtiment : étage et colonne du volume principal, ou l'annexe. */
+export type Cell = { floor: 0 | 1 | 2; column: 0 | 1 } | { annex: true };
 
 export type Room = {
   key: RoomKey;
+  number: number;
   name: string;
+  /** Sous-titre court de l'étiquette flottante. */
+  subtitle: string;
   /** Utilité réelle, en une phrase. */
   purpose: string;
   href: string | null;
-  /** Pas encore livrée : affichée, jamais ouvrable. */
   comingSoon?: string;
-  /** Position dans la vue éclatée : étage (0 rez-de-chaussée, 1 étage) et colonne. */
-  floor: 0 | 1;
-  column: 0 | 1 | 2;
+  cell: Cell;
 };
 
 export const ROOMS: Room[] = [
   {
     key: "appartement",
+    number: 1,
     name: "Mon appartement",
-    purpose: "Profil, avatar, objectifs, compétences, badges et décoration.",
+    subtitle: "Profil, compétences, collection",
+    purpose: "Votre espace : avatar, progression, compétences, badges et décoration.",
     href: "/appartement",
-    floor: 1,
-    column: 0,
+    cell: { floor: 2, column: 0 },
   },
   {
     key: "bureau",
+    number: 2,
     name: "Le bureau commun",
-    purpose: "Objectifs de la brigade, blocages, charge et réussites.",
+    subtitle: "La brigade, ses objectifs",
+    purpose: "Coordination de la brigade : objectifs collectifs, blocages, réussites.",
     href: "/bureau",
-    floor: 1,
-    column: 1,
+    cell: { floor: 1, column: 0 },
   },
   {
     key: "recettes",
+    number: 3,
     name: "Le carnet de recettes",
-    purpose: "Méthodes, modèles et procédures réutilisables.",
+    subtitle: "Méthodes et modèles",
+    purpose: "Bibliothèque : méthodes, modèles, procédures et enseignements des projets.",
     href: "/recettes",
-    floor: 1,
-    column: 2,
+    cell: { floor: 1, column: 1 },
+  },
+  {
+    key: "salle",
+    number: 4,
+    name: "La Salle de restaurant",
+    subtitle: "Clients et opportunités",
+    purpose: "Ce qui se passe dehors : CRM, prospects, clients, devis, factures et fidélisation.",
+    href: "/crm/salle",
+    cell: { floor: 0, column: 0 },
   },
   {
     key: "cuisine",
+    number: 5,
     name: "La Cuisine",
-    purpose: "CRM : situations à traiter, clients, opportunités et encaissements.",
-    href: "/crm/cuisine",
-    floor: 0,
-    column: 0,
-  },
-  {
-    key: "atelier",
-    name: "L'atelier",
-    purpose: "Production : projets, tâches, livrables, planning et temps passé.",
-    href: "/atelier",
-    floor: 0,
-    column: 1,
+    subtitle: "Production et projets",
+    purpose: "Ce qui se passe dedans : projets, tâches, planning, livrables et temps passé.",
+    href: "/cuisine",
+    cell: { floor: 0, column: 1 },
   },
   {
     key: "client",
-    name: "L'espace client",
-    purpose: "Portail sobre pour chaque client : avancement, livrables et validations.",
+    number: 6,
+    name: "Les espaces clients",
+    subtitle: "Portails dédiés",
+    purpose: "Un portail par client : avancement, planning, livrables et validations.",
     href: null,
     comingSoon: "Lot à venir (portail client)",
-    floor: 0,
-    column: 2,
+    cell: { annex: true },
   },
 ];
 

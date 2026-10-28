@@ -44,17 +44,17 @@ test.describe("briefings", () => {
     await expect(p1.getByText("Faite aujourd'hui · ajuster")).toBeVisible();
   });
 
-  test("le menu de la semaine : synthèse, trois objectifs au plus, statut, validation, historique", async ({
+  test("le service de la semaine : synthèse, trois objectifs au plus, statut, validation, historique", async ({
     page,
   }) => {
     await activateAssociate(page, "Charles");
     // Une semaine lointaine : la page est propre à ce test.
     const week = `20${31 + Math.floor(Math.random() * 60)}-0${1 + Math.floor(Math.random() * 9)}-0${1 + Math.floor(Math.random() * 7)}`;
-    await page.goto(`/menu-semaine?semaine=${week}`);
+    await page.goto(`/service?semaine=${week}`);
     await expect(page.getByRole("heading", { name: "Le bilan" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "La charge" })).toBeVisible();
 
-    const opened = page.getByRole("button", { name: "Ouvrir le menu de la semaine" });
+    const opened = page.getByRole("button", { name: "Ouvrir le service de la semaine" });
     if (await opened.isVisible()) await opened.click();
     await expect(page.getByRole("heading", { name: "Les objectifs de la semaine" })).toBeVisible();
 
@@ -84,7 +84,7 @@ test.describe("briefings", () => {
     await page.getByRole("button", { name: "Ajouter l'action" }).click();
     await expect(page.getByText("Relancer le prestataire son")).toBeVisible();
 
-    const validate = page.getByRole("button", { name: "Valider le menu de la semaine" });
+    const validate = page.getByRole("button", { name: "Valider le service de la semaine" });
     if (await validate.isVisible()) {
       await validate.click();
       await expect(page.getByText(/^Validé le /)).toBeVisible();

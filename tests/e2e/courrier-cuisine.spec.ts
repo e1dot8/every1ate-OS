@@ -69,7 +69,7 @@ test.describe("courrier et La Cuisine", () => {
     await expect(page.getByText("Étape mise à jour.")).toBeVisible();
 
     await page.goto("/crm");
-    await page.getByRole("link", { name: "La Cuisine" }).click();
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "La Salle" }).click();
     await page.getByRole("link", { name: "Les miennes" }).click();
     const risky = page.locator("li", { has: page.getByRole("link", { name: late, exact: true }) });
     await expect(risky.getByText("Relance en retard")).toBeVisible();

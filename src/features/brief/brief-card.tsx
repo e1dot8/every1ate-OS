@@ -10,8 +10,8 @@ export function BriefCard({ brief }: { brief: { items: BriefItem[]; summary: str
     <section
       aria-labelledby="brief-titre"
       className={cn(
-        "flex flex-col gap-2 rounded-2xl border-2 p-4",
-        brief.urgent ? "border-ink bg-highlight/40" : "border-border bg-card",
+        "flex flex-col gap-2 rounded-lg border-2 p-4",
+        brief.urgent ? "border-ink bg-card" : "border-border bg-card",
       )}
     >
       <div className="flex items-baseline justify-between gap-2">

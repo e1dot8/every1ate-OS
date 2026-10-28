@@ -17,7 +17,8 @@
   --highlight: #fff234;
 
   /* Tokens sémantiques (convention shadcn/ui) */
-  --background: var(--paper);
+  /* Fond blanc cassé : les surfaces de travail restent blanches par-dessus (lot G7). */
+  --background: #f6f5f1;
   --foreground: var(--ink);
   --card: var(--paper);
   --card-foreground: var(--ink);
@@ -45,7 +46,7 @@
   --danger: var(--pen-strong);
   --danger-soft: #fde9e7;
 
-  --radius: 0.875rem; /* 14px : cartes arrondies */
+  --radius: 0.5rem; /* 8px : coins sobres, pas de cartes « flottantes » (lot G7) */
   --tap-target: 2.75rem; /* 44px minimum */
   --bottom-nav-height: 4.25rem;
 }

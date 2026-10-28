@@ -11,7 +11,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDay, todayDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "La Cuisine" };
+export const metadata: Metadata = { title: "La Salle de restaurant" };
 
 const VIEWS: { key: SituationView; param: string }[] = [
   { key: "A_RISQUE", param: "a-risque" },
@@ -28,7 +28,7 @@ async function Kitchen({ searchParams }: { searchParams: Promise<{ vue?: string;
   const visible = mine ? situations.filter((s) => s.owner?.id === user.id) : situations;
   const view = VIEWS.find((v) => v.param === sp.vue) ?? VIEWS[0];
   const list = visible.filter((s) => s.view === view.key);
-  const href = (vue: string, moi: boolean) => `/crm/cuisine?vue=${vue}${moi ? "&moi=1" : ""}`;
+  const href = (vue: string, moi: boolean) => `/crm/salle?vue=${vue}${moi ? "&moi=1" : ""}`;
   const today = todayDate();
   return (
     <>
@@ -142,13 +142,13 @@ async function Kitchen({ searchParams }: { searchParams: Promise<{ vue?: string;
   );
 }
 
-export default function KitchenPage({ searchParams }: PageProps<"/crm/cuisine">) {
+export default function DiningRoomPage({ searchParams }: PageProps<"/crm/salle">) {
   return (
     <div className="flex flex-col gap-5">
       <BackLink href="/crm">CRM</BackLink>
       <PageHeader
         crumb="ce qui demande une action"
-        title="La Cuisine"
+        title="La Salle de restaurant"
         description="Chaque entrée dit pourquoi elle est là, qui s'en charge, et la prochaine action."
       />
       <Suspense fallback={<PageLoading />}>

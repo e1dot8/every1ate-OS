@@ -23,7 +23,7 @@ const optional = (max: number) =>
     .transform((v) => v || null);
 
 const refresh = () => {
-  revalidatePath("/menu-semaine");
+  revalidatePath("/service");
   revalidatePath("/");
 };
 

@@ -14,11 +14,11 @@ import { getDb } from "@/lib/db/client";
 import { addDays, formatDay, todayDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "L'atelier" };
+export const metadata: Metadata = { title: "La Cuisine" };
 
 const OPEN = ["A_FAIRE", "EN_COURS", "EN_REVUE", "EN_ATTENTE", "BLOQUE"] as const;
 
-/** L'atelier : la production en un coup d'œil, chaque ligne mène à la vraie page. */
+/** La Cuisine : la production en un coup d'œil, chaque ligne mène à la vraie page. */
 async function Workshop() {
   const user = await requireUser();
   const db = getDb();
@@ -163,7 +163,7 @@ export default function WorkshopPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         crumb="la fabrication"
-        title="L'atelier"
+        title="La Cuisine"
         description="Projets, tâches, livrables et temps : la production en un coup d'œil."
       />
       <Suspense fallback={<PageLoading />}>

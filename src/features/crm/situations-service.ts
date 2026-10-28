@@ -41,7 +41,7 @@ export async function saveThresholds(t: Thresholds, actor: { id: string }): Prom
 
 const person = { select: { id: true, name: true } } as const;
 
-/** Les quatre vues de La Cuisine, calculées à partir des données existantes (aucune étiquette manuelle). */
+/** Les quatre vues de La Salle, calculées à partir des données existantes (aucune étiquette manuelle). */
 export async function loadSituations(today = todayDate()) {
   const db = getDb();
   const [thresholds, opportunities, billing, closed, signals] = await Promise.all([

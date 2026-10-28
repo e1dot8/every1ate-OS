@@ -128,32 +128,53 @@ async function grant(
       sourceId: badge.key,
       createdById: givenById ?? undefined,
     });
-  const holder = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
-  if (prefs.badgesPublic) {
-    await postBrigadeEvent({
-      userId,
-      kind: "badge",
-      title: `${holder?.name ?? "Un associé"} obtient « ${badge.name} »`,
-      detail: reason,
-      href: "/bureau",
-      dedupeKey: `badge:${badge.key}:${userId}`,
-    });
-    const others = await db.user.findMany({
-      where: { role: "associe", id: { not: userId } },
-      select: { id: true },
-    });
-    await notifyMany(
-      others.map((o) => o.id),
-      {
-        kind: "badge",
-        title: `${holder?.name ?? "Un associé"} obtient « ${badge.name} »`,
-        body: reason,
-        href: "/bureau",
-        dedupeKey: `badge:${badge.key}:${userId}`,
-      },
-    );
-  }
+  // Un badge de reconnaissance est déjà un geste public ; un badge automatique se partage
+  // au moment de la célébration, si la personne le souhaite (lot G7).
+  if (givenById) await announceBadge(userId, badge, reason);
   return true;
+}
+
+/** Publie un badge dans le fil du bureau commun et prévient la brigade (une seule fois). */
+async function announceBadge(userId: string, badge: Badge, reason: string) {
+  const db = getDb();
+  const holder = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
+  const title = `${holder?.name ?? "Un associé"} obtient « ${badge.name} »`;
+  await postBrigadeEvent({
+    userId,
+    kind: "badge",
+    title,
+    detail: reason,
+    href: "/bureau",
+    dedupeKey: `badge:${badge.key}:${userId}`,
+  });
+  const others = await db.user.findMany({
+    where: { role: "associe", id: { not: userId } },
+    select: { id: true },
+  });
+  await notifyMany(
+    others.map((o) => o.id),
+    { kind: "badge", title, body: reason, href: "/bureau", dedupeKey: `badge:${badge.key}:${userId}` },
+  );
+}
+
+/** Partager un badge obtenu dans le bureau commun (choix de la personne, idempotent). */
+export async function shareBadge(userId: string, id: string): Promise<ServiceResult<null>> {
+  const db = getDb();
+  const owned = await db.userBadge.findFirst({ where: { id, userId } });
+  const badge = owned ? badgeByKey(owned.badgeKey) : null;
+  if (!owned || !badge) return { ok: false, error: "Badge introuvable." };
+  await announceBadge(userId, badge, owned.reason);
+  await db.userBadge.update({ where: { id }, data: { seenAt: owned.seenAt ?? new Date(), visible: true } });
+  return { ok: true, data: null };
+}
+
+/** Clés des badges déjà partagés dans le fil. */
+export async function sharedBadgeKeys(userId: string): Promise<Set<string>> {
+  const events = await getDb().brigadeEvent.findMany({
+    where: { userId, kind: "badge" },
+    select: { dedupeKey: true },
+  });
+  return new Set(events.map((e) => e.dedupeKey.split(":")[1]));
 }
 
 /** Vérifie et décerne les badges automatiques (idempotent : un badge par associé). */

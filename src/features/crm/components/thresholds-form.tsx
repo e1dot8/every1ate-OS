@@ -8,7 +8,7 @@ import { saveThresholdsAction } from "@/app/(app)/crm/reglages/actions";
 import type { Thresholds } from "@/features/crm/situations";
 import { initialFormState } from "@/lib/forms";
 
-/** Seuils des vues de La Cuisine. Chaque changement est journalisé. */
+/** Seuils des vues de La Salle. Chaque changement est journalisé. */
 export function ThresholdsForm({ thresholds }: { thresholds: Thresholds }) {
   const [state, action] = useActionState(saveThresholdsAction, initialFormState);
   const v = state.status === "error" ? (state.values ?? {}) : {};

@@ -98,8 +98,8 @@ async function Office() {
         <Card className="gap-3 md:col-span-2">
           <div className="flex items-baseline justify-between gap-2">
             <CardTitle>Les objectifs de la semaine</CardTitle>
-            <Link href="/menu-semaine" className="text-sm font-bold text-pen-strong hover:underline">
-              Le menu
+            <Link href="/service" className="text-sm font-bold text-pen-strong hover:underline">
+              Le service
             </Link>
           </div>
           {goals.length ? (
@@ -132,8 +132,8 @@ async function Office() {
             </ul>
           ) : (
             <EmptyState title="Pas encore d'objectifs cette semaine.">
-              <Link href="/menu-semaine" className="font-bold underline">
-                Ouvrir le menu de la semaine
+              <Link href="/service" className="font-bold underline">
+                Ouvrir le service de la semaine
               </Link>
             </EmptyState>
           )}
@@ -393,7 +393,7 @@ async function Office() {
             </ul>
           ) : (
             <EmptyState title="Le fil est encore vide.">
-              Un projet livré, un badge, un objectif atteint : tout s&apos;affichera ici.
+              Un service terminé, un badge, un objectif atteint : tout s&apos;affichera ici.
             </EmptyState>
           )}
         </Card>

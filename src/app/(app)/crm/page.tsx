@@ -76,7 +76,7 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
       <Tabs
         active={tab}
         items={[
-          { key: "cuisine", label: "La Cuisine", href: "/crm/cuisine" },
+          { key: "salle", label: "La Salle", href: "/crm/salle" },
           { key: "pipeline", label: "Pipeline", href: href({ onglet: undefined }) },
           { key: "previsions", label: "Prévisions", href: href({ onglet: "previsions" }) },
         ]}

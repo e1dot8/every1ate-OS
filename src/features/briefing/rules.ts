@@ -1,7 +1,7 @@
 /** Règles pures des briefings (testées). Rien d'obligatoire, rien de punitif. */
 import type { DayMood, WeeklyItemKind } from "@/generated/prisma/enums";
 
-/** Limites du menu de la semaine : au-delà, ce n'est plus une priorité. */
+/** Limites du service de la semaine : au-delà, ce n'est plus une priorité. */
 export const WEEKLY_LIMITS: Partial<Record<WeeklyItemKind, number>> = { OBJECTIF: 3, BLOCAGE: 3 };
 
 export function itemLimitError(kind: WeeklyItemKind, existing: number): string | null {

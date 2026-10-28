@@ -21,7 +21,7 @@ import {
   validateWeekAction,
 } from "./actions";
 
-export const metadata: Metadata = { title: "Le menu de la semaine" };
+export const metadata: Metadata = { title: "Le service de la semaine" };
 
 type Item = {
   id: string;
@@ -148,7 +148,7 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
   const people = associates.map((a) => ({ value: a.id, label: a.name }));
   const items = (kind: WeeklyItemKind) => week?.items.filter((i) => i.kind === kind) ?? [];
   const isPast = weekStart < current;
-  const nav = (d: Date) => `/menu-semaine?semaine=${toDateInput(d)}`;
+  const nav = (d: Date) => `/service?semaine=${toDateInput(d)}`;
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -169,7 +169,7 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
         >
           <ChevronRight aria-hidden="true" className="size-4" />
         </Link>
-        {weekStart.getTime() !== current.getTime() ? <Chip href="/menu-semaine">Cette semaine</Chip> : null}
+        {weekStart.getTime() !== current.getTime() ? <Chip href="/service">Cette semaine</Chip> : null}
         {week?.validatedAt ? (
           <span className="rounded-full bg-success-soft px-3 py-1 text-sm font-bold text-success">
             Validé le {formatDateTime(week.validatedAt)}
@@ -179,14 +179,14 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
 
       {!week ? (
         <Card className="items-start gap-2 border-2 border-ink">
-          <CardTitle>Le menu n&apos;est pas encore ouvert</CardTitle>
+          <CardTitle>Le service n&apos;est pas encore ouvert</CardTitle>
           <p className="text-sm text-muted-foreground">
             La synthèse ci-dessous est prête. Ouvrez le menu pour noter objectifs, blocages et décisions (20 à
             30 minutes à trois).
           </p>
           <form action={openWeekAction}>
             <input type="hidden" name="weekStart" value={toDateInput(weekStart)} />
-            <SubmitButton>Ouvrir le menu de la semaine</SubmitButton>
+            <SubmitButton>Ouvrir le service de la semaine</SubmitButton>
           </form>
         </Card>
       ) : null}
@@ -386,7 +386,7 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
           {!week.validatedAt && !isPast ? (
             <form action={validateWeekAction}>
               <input type="hidden" name="briefingId" value={week.id} />
-              <SubmitButton>Valider le menu de la semaine</SubmitButton>
+              <SubmitButton variant="highlight">Valider le service de la semaine</SubmitButton>
             </form>
           ) : null}
         </>
@@ -425,12 +425,12 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
   );
 }
 
-export default function WeeklyMenuPage({ searchParams }: PageProps<"/menu-semaine">) {
+export default function WeeklyMenuPage({ searchParams }: PageProps<"/service">) {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
         crumb="20 à 30 minutes, à trois"
-        title="Le menu de la semaine"
+        title="Le service de la semaine"
         description="L'OS prépare la synthèse ; la brigade décide."
       />
       <Suspense fallback={<PageLoading />}>

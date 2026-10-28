@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import type { FormState } from "@/lib/forms";
 import { reverseXp } from "@/features/progression/service";
-import { updateBadge } from "@/features/badges/service";
+import { shareBadge, updateBadge } from "@/features/badges/service";
 
 const schema = z.object({
   id: z.string().min(1),
@@ -33,6 +33,7 @@ export async function updateBadgeAction(formData: FormData) {
   if (field === "visible") await updateBadge(user.id, id, { visible: value });
   if (field === "favorite") await updateBadge(user.id, id, { favorite: value });
   if (field === "seen") await updateBadge(user.id, id, { seen: true });
+  if (field === "share") await shareBadge(user.id, id);
   revalidatePath("/progression");
   revalidatePath("/");
 }

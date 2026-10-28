@@ -21,7 +21,7 @@ export async function saveThresholdsAction(_prev: FormState, formData: FormData)
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationError(parsed.error, formData);
   await saveThresholds(parsed.data, user);
-  revalidatePath("/crm/cuisine");
+  revalidatePath("/crm/salle");
   revalidatePath("/crm/reglages");
   return { status: "success", message: "Seuils enregistrés." };
 }

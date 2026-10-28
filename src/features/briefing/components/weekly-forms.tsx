@@ -4,7 +4,7 @@ import { useActionState, useRef } from "react";
 import { FormMessages } from "@/components/forms/form-messages";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Input } from "@/components/ui/input";
-import { addWeeklyItemAction, saveWeekNotesAction } from "@/app/(app)/menu-semaine/actions";
+import { addWeeklyItemAction, saveWeekNotesAction } from "@/app/(app)/service/actions";
 import { initialFormState } from "@/lib/forms";
 
 type Opt = { value: string; label: string };

@@ -33,7 +33,8 @@ test.describe("compétences, badges et bureau commun", () => {
 
     await me.goto("/");
     await expect(me.getByRole("heading", { name: "Nouveau badge !" })).toBeVisible();
-    await me.getByRole("button", { name: "Merci, au travail" }).click();
+    // Le partage est un choix : sans lui, rien ne part dans le fil.
+    await me.getByRole("button", { name: "Partager au bureau commun" }).click();
     await expect(me.getByRole("heading", { name: "Nouveau badge !" })).toHaveCount(0);
 
     // Collection : visible, masquable.
@@ -119,9 +120,9 @@ test("aucun défilement horizontal sur les écrans du cockpit, des rituels et de
   for (const path of [
     "/",
     "/mise-en-place",
-    "/menu-semaine",
+    "/service",
     "/bureau",
-    "/crm/cuisine",
+    "/crm/salle",
     "/progression",
     "/competences",
     "/competences/etude-de-cas",
@@ -131,7 +132,7 @@ test("aucun défilement horizontal sur les écrans du cockpit, des rituels et de
     "/maison",
     "/appartement",
     "/appartement/amenager",
-    "/atelier",
+    "/cuisine",
     "/recettes",
     "/recettes/nouvelle",
   ]) {

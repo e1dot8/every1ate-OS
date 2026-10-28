@@ -1,4 +1,4 @@
-import { Award, Eye, EyeOff, Star } from "lucide-react";
+import { Award, Eye, EyeOff, Share2, Star } from "lucide-react";
 import { badgeByKey, familyLabels } from "@/features/badges/catalog";
 import { updateBadgeAction } from "@/app/(app)/progression/actions";
 import { formatDay } from "@/lib/dates";
@@ -45,7 +45,16 @@ function Toggle({
 }
 
 /** Collection de badges : favoris en tête ; chacun peut être masqué à la brigade. */
-export function BadgeCollection({ badges, editable }: { badges: Owned[]; editable: boolean }) {
+export function BadgeCollection({
+  badges,
+  editable,
+  shared,
+}: {
+  badges: Owned[];
+  editable: boolean;
+  /** Badges déjà partagés dans le bureau commun (clés). */
+  shared?: Set<string>;
+}) {
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {badges.map((b) => {
@@ -97,6 +106,11 @@ export function BadgeCollection({ badges, editable }: { badges: Owned[]; editabl
                     <EyeOff aria-hidden="true" className="size-4" />
                   )}
                 </Toggle>
+                {shared && !shared.has(b.badgeKey) ? (
+                  <Toggle id={b.id} field="share" value label={`Partager « ${def.name} » au bureau commun`}>
+                    <Share2 aria-hidden="true" className="size-4" />
+                  </Toggle>
+                ) : null}
               </span>
             ) : null}
           </li>

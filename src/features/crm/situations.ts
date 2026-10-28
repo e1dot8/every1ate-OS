@@ -1,5 +1,5 @@
 /**
- * La Cuisine — situations commerciales (pures, testées). Une entrée dit toujours POURQUOI elle
+ * La Salle de restaurant — situations commerciales (pures, testées). Une entrée dit toujours POURQUOI elle
  * apparaît, qui s'en charge, la prochaine action et l'échéance. Un même client peut apparaître
  * dans plusieurs vues. Les seuils viennent des réglages de l'agence (ADR-0017).
  */

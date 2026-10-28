@@ -10,48 +10,62 @@ test.describe("la maison", () => {
     page,
   }, info) => {
     test.setTimeout(90_000);
-    await activateAssociate(page, `Ines${letters()}`);
+    const name = `Ines${letters()}`;
+    await activateAssociate(page, name);
     await page.getByRole("link", { name: /Le bâtiment/ }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "La maison" })).toBeVisible();
-    const atelier = page.getByRole("button", { name: /^L'atelier — / });
-    const preview = page.locator("aside[aria-live]");
+    await expect(page.getByRole("heading", { level: 1, name: `${name}.` })).toBeVisible();
+    await expect(page.getByText("Bienvenue à la maison,")).toBeVisible();
 
     if (info.project.name === "mobile") {
-      // Toucher : 1er tap = aperçu, 2e tap = entrée.
-      await atelier.tap();
-      await expect(preview.getByRole("heading", { name: "L'atelier" })).toBeVisible();
+      // Toucher : 1er tap = aperçu (la pièce se colore), 2e tap = entrée.
+      // Le haut du volume est masqué par l'étage supérieur : on touche le bas de la façade.
+      const box = (await page.locator('[data-room="cuisine"]').boundingBox())!;
+      const tapKitchen = () => page.touchscreen.tap(box.x + box.width * 0.45, box.y + box.height * 0.85);
+      await tapKitchen();
+      await expect(page.getByText("5. La Cuisine")).toBeVisible();
       await expect(page).toHaveURL(/\/maison$/);
-      await atelier.tap();
+      await tapKitchen();
     } else {
-      // Souris : survol = aperçu, clic = entrée.
-      await atelier.hover();
-      await expect(preview.getByRole("heading", { name: "L'atelier" })).toBeVisible();
-      await expect(preview.getByText(/à l'intérieur/)).toBeVisible();
-      await atelier.click();
+      // Souris : survol = aperçu dans l'étiquette, clic = entrée.
+      const label = page.getByRole("button", { name: /^La Cuisine — / });
+      await label.hover();
+      await expect(label).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByRole("link", { name: "Entrer", exact: true })).toBeVisible();
+      await expect(page.getByText(/tâche.* pour moi/).first()).toBeVisible();
+      await label.click();
     }
-    await expect(page).toHaveURL(/\/atelier$/);
-    await expect(page.getByRole("heading", { level: 1, name: "L'atelier" })).toBeVisible();
+    await expect(page).toHaveURL(/\/cuisine$/);
+    await expect(page.getByRole("heading", { level: 1, name: "La Cuisine" })).toBeVisible();
 
-    // Clavier : focus = aperçu, Entrée = entrée.
+    if (info.project.name !== "mobile") {
+      // Clavier : focus = aperçu, Entrée = entrée.
+      await page.goto("/maison");
+      await page.getByRole("button", { name: /^Le carnet de recettes — / }).focus();
+      await expect(page.getByRole("button", { name: /^Le carnet de recettes — / })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/recettes$/);
+
+      // Pièce à venir : aperçu explicite, jamais ouvrable.
+      await page.goto("/maison");
+      await page.getByRole("button", { name: /^Les espaces clients — / }).focus();
+      await expect(page.getByText("Lot à venir (portail client)").first()).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/maison$/);
+    }
+
+    // Même accès sans la carte ; les anciennes adresses redirigent.
     await page.goto("/maison");
-    await page.getByRole("button", { name: /^Le carnet de recettes — / }).focus();
-    await expect(preview.getByRole("heading", { name: "Le carnet de recettes" })).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/recettes$/);
-
-    // Pièce à venir : aperçu explicite, jamais ouvrable.
-    await page.goto("/maison");
-    await page.getByRole("button", { name: /^L'espace client — / }).focus();
-    await expect(preview.getByText("Lot à venir (portail client)")).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/maison$/);
-
-    // Même accès sans la carte.
     await page
-      .getByRole("list", { name: "Pièces de la maison" })
-      .getByRole("link", { name: /La Cuisine/ })
+      .getByRole("navigation", { name: "Pièces de la maison" })
+      .getByRole("link", { name: /La Salle de restaurant/ })
       .click();
-    await expect(page).toHaveURL(/\/crm\/cuisine$/);
+    await expect(page).toHaveURL(/\/crm\/salle$/);
+    await expect(page.getByRole("heading", { level: 1, name: "La Salle de restaurant" })).toBeVisible();
+    await page.goto("/atelier");
+    await expect(page).toHaveURL(/\/cuisine$/);
   });
 
   test("appartement : avatar, option verrouillée, objet installé, disponibilité visible au bureau", async ({
@@ -142,7 +156,8 @@ test.describe("la maison", () => {
       .selectOption({ label: "Développement commercial · Proposition & devis" });
     await asker.getByLabel("Ce qui coince").fill(message);
     await asker.getByRole("button", { name: "Envoyer la demande" }).click();
-    await expect(asker.getByText("Demande envoyée : la brigade est prévenue.")).toBeVisible();
+    // L'état persisté fait foi (le message de succès peut disparaître à la revalidation).
+    await expect(asker.locator("li", { hasText: message })).toBeVisible();
 
     await helper.goto("/bureau");
     const card = helper.locator("li", { hasText: message });

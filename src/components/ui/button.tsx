@@ -10,6 +10,8 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/85",
         accent: "bg-pen text-paper hover:bg-pen-strong",
+        /** Une seule par écran : l'action prioritaire (jaune signature). */
+        highlight: "border border-ink bg-highlight text-ink hover:bg-highlight/80",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border border-input bg-background hover:bg-muted",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/70",

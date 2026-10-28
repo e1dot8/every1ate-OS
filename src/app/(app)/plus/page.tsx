@@ -78,9 +78,9 @@ async function Menu() {
         detail="Briefing du jour, 3 à 5 minutes"
       />
       <Row
-        href="/menu-semaine"
+        href="/service"
         icon={UtensilsCrossed}
-        title="Le menu de la semaine"
+        title="Le service de la semaine"
         detail="Bilan, charge, objectifs et décisions, historisés"
       />
       <Row href="/maison" icon={Building} title="La maison" detail="Le bâtiment et ses pièces" />
@@ -91,9 +91,9 @@ async function Menu() {
         detail="Avatar, profil, collection et décoration"
       />
       <Row
-        href="/atelier"
+        href="/cuisine"
         icon={Hammer}
-        title="L'atelier"
+        title="La Cuisine"
         detail="Projets, livrables et temps en un coup d'œil"
       />
       <Row

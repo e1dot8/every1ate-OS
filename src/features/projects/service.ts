@@ -441,11 +441,11 @@ export async function changeProjectStatus(
     reason: reason ?? undefined,
   });
   if (to === "TERMINE" && !project.internal) {
-    // Réussite de brigade : projet livré (fil commun), puis badges du responsable.
+    // Réussite de brigade : service terminé (fil commun), puis badges du responsable.
     await postBrigadeEvent({
       userId: project.ownerId,
       kind: "projet",
-      title: `Projet livré : ${project.name}`,
+      title: `Service terminé : ${project.name}`,
       href: `/projets/${id}`,
       dedupeKey: `projet:${id}`,
     });

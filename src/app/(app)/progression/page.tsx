@@ -11,7 +11,7 @@ import { requireUser } from "@/lib/auth/session";
 import Link from "next/link";
 import { BADGES } from "@/features/badges/catalog";
 import { BadgeCollection } from "@/features/badges/components/collection";
-import { listUserBadges, userStreak } from "@/features/badges/service";
+import { listUserBadges, sharedBadgeKeys, userStreak } from "@/features/badges/service";
 import { weekOf } from "@/features/briefing/service";
 import { skillProfile, targetSkill } from "@/features/skills/service";
 import { toggleStreakPauseAction } from "@/app/(app)/plus/preferences/actions";
@@ -31,13 +31,14 @@ async function ProgressionView() {
     targetSkill(user.id),
     skillProfile(user.id),
   ]);
+  const shared = await sharedBadgeKeys(user.id);
   const week = weekOf(todayDate());
   const advanced = profile.filter((p) => p.level >= 3).length;
   return (
     <>
       <section
         aria-labelledby="rang"
-        className="flex flex-col gap-4 rounded-2xl bg-ink p-6 text-paper md:flex-row md:items-end md:justify-between"
+        className="flex flex-col gap-4 rounded-lg bg-ink p-6 text-paper md:flex-row md:items-end md:justify-between"
       >
         <div className="flex flex-col gap-1">
           <p className="font-annotation text-sm text-highlight">niveau {progress.level}</p>
@@ -135,7 +136,7 @@ async function ProgressionView() {
       <Card className="gap-3">
         <CardTitle>Ma collection</CardTitle>
         {badges.length ? (
-          <BadgeCollection badges={badges} editable />
+          <BadgeCollection badges={badges} editable shared={shared} />
         ) : (
           <EmptyState title="Pas encore de badge.">
             Terminez une première tâche : « La première commande » vous attend.

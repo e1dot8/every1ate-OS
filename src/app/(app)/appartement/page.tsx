@@ -43,7 +43,7 @@ async function Apartment({ searchParams }: { searchParams: Promise<{ associe?: s
         ))}
       </nav>
 
-      <header className="flex flex-col gap-4 rounded-2xl bg-ink p-5 text-paper sm:flex-row sm:items-center">
+      <header className="flex flex-col gap-4 rounded-lg bg-ink p-5 text-paper sm:flex-row sm:items-center">
         <BrigadeAvatar look={a.look} size={112} label={`Avatar de ${a.user.name}`} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="font-annotation text-sm text-highlight">

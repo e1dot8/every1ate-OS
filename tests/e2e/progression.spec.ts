@@ -36,7 +36,8 @@ test.describe("cockpit et progression", () => {
   test("priorités du jour, XP à la clôture une seule fois, correction journalisée", async ({ page }) => {
     const me = await userId((await activateAssociate(page, "Johan")).email);
     await expect(page.getByRole("heading", { name: "Mes priorités" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Ma progression : Apprenti, niveau 1, 0 XP/ })).toBeVisible();
+    // Pas de panneau de progression permanent sur le cockpit : la gamification vient au bon moment.
+    await expect(page.getByText(/^Niveau 1 · 0 XP/)).toHaveCount(0);
 
     const projectId = await createProjectFromTemplate(page, unique("Cockpit"), "Projet vierge");
     const big = unique("Deck stratégie");
@@ -53,10 +54,11 @@ test.describe("cockpit et progression", () => {
 
     // Terminer depuis le cockpit : la tâche passe barrée et affiche ses XP.
     await page.getByRole("button", { name: `Terminer « ${big} »` }).click();
-    await expect(page.locator("ol").getByText("+50 XP", { exact: true })).toBeVisible();
+    await expect(page.locator("ol").getByText("+50 XP", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("1 sur 2 encore à faire.")).toBeVisible();
+    // Une notification brève annonce les XP, puis s'efface.
     await expect(
-      page.getByRole("link", { name: /Ma progression : Apprenti, niveau 1, 50 XP/ }),
+      page.getByRole("status").filter({ hasText: "Tâche terminée." }).getByText("+50 XP"),
     ).toBeVisible();
 
     // Rouvrir puis refermer : aucune nouvelle attribution.

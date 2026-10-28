@@ -23,8 +23,15 @@ describe("pièces de la maison", () => {
     expect(ROOMS.length).toBeLessThanOrEqual(6);
     for (const r of ROOMS) expect(Boolean(r.href) !== Boolean(r.comingSoon)).toBe(true);
   });
-  it("une seule pièce par position de la vue éclatée", () => {
-    expect(new Set(ROOMS.map((r) => `${r.floor}:${r.column}`)).size).toBe(ROOMS.length);
+  it("une seule pièce par emplacement du bâtiment, numéros uniques", () => {
+    const cells = ROOMS.map((r) => ("annex" in r.cell ? "annexe" : `${r.cell.floor}:${r.cell.column}`));
+    expect(new Set(cells).size).toBe(ROOMS.length);
+    expect(ROOMS.map((r) => r.number)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("le parcours de la maison : la Salle (CRM) dehors, la Cuisine (production) dedans", () => {
+    expect(ROOMS.find((r) => r.key === "salle")?.href).toBe("/crm/salle");
+    expect(ROOMS.find((r) => r.key === "cuisine")?.href).toBe("/cuisine");
   });
 });
 
