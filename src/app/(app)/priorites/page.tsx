@@ -49,7 +49,7 @@ export default function PrioritiesPage() {
     <div className="flex flex-col gap-6">
       <BackLink href="/">Cockpit</BackLink>
       <PageHeader
-        crumb="la mise en place"
+        crumb="Briefing du jour"
         title="Mes priorités du jour"
         description="Trois au plus. Le reste attend demain, et ce n'est pas grave."
       />

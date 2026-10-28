@@ -215,7 +215,7 @@ async function Cockpit() {
           <div className="flex items-center gap-2">
             <Link
               href="/appartement"
-              aria-label="Mon appartement"
+              aria-label="Mon profil"
               className="rounded-full ring-2 ring-paper/70 hover:ring-highlight"
             >
               <BrigadeAvatar look={look} size={48} />
@@ -265,7 +265,7 @@ async function Cockpit() {
                 type="submit"
                 className="inline-flex min-h-tap items-center rounded-md bg-ink px-4 text-sm font-bold text-paper"
               >
-                Partager au bureau commun
+                Partager avec l&apos;équipe
               </button>
             </form>
             <form
@@ -298,7 +298,7 @@ async function Cockpit() {
         >
           <Coffee aria-hidden="true" className="size-5 shrink-0" />
           <span className="flex min-w-0 flex-1 flex-col">
-            <b>La mise en place</b>
+            <b>Briefing du jour</b>
             <span className="text-sm text-muted-foreground">
               {rituals.dailyDone ? "Faite aujourd'hui · ajuster" : "3 minutes pour lancer la journée"}
             </span>
@@ -311,7 +311,7 @@ async function Cockpit() {
         >
           <UtensilsCrossed aria-hidden="true" className="size-5 shrink-0" />
           <span className="flex min-w-0 flex-1 flex-col">
-            <b>Le service de la semaine</b>
+            <b>Point hebdo</b>
             <span className="text-sm text-muted-foreground">
               {rituals.weekValidated
                 ? "Validé · consulter"
@@ -366,7 +366,7 @@ async function Cockpit() {
         >
           <Inbox aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-lg leading-tight font-bold">Le courrier</span>
+            <span className="text-lg leading-tight font-bold">Notifications</span>
             <span className="text-sm text-muted-foreground">Mentions, demandes et changements</span>
           </span>
           <span
@@ -457,9 +457,7 @@ async function Cockpit() {
           <span className="text-xl font-bold">Le bâtiment</span>
           <ArrowUpRight aria-hidden="true" className="size-5 text-highlight" />
         </span>
-        <span className="text-paper/80">
-          Mon appartement · Bureau commun · La Salle · La Cuisine · Le carnet de recettes
-        </span>
+        <span className="text-paper/80">Mon profil · Équipe · Clients · Production · Méthodes & modèles</span>
         <span className="font-bold text-highlight group-hover:underline">EXPLORER LES ESPACES →</span>
       </Link>
     </>

@@ -41,10 +41,13 @@ export function SpaceTabs({
 
 export function SpaceTitle({
   title,
+  universe,
   as: Tag = "h1",
   children,
 }: {
   title: React.ReactNode;
+  /** Nom d'univers, affiché en second sous le nom fonctionnel. */
+  universe?: string;
   as?: "h1" | "h2";
   children?: React.ReactNode;
 }) {
@@ -52,7 +55,10 @@ export function SpaceTitle({
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <Menu aria-hidden="true" strokeWidth={1.6} className="size-5 text-ink/60" />
-        <Tag className="text-[26px] leading-tight font-bold tracking-[-0.03em]">{title}</Tag>
+        <div className="flex flex-col">
+          <Tag className="text-[26px] leading-tight font-bold tracking-[-0.03em]">{title}</Tag>
+          {universe ? <p className="text-[12px] text-muted-foreground">{universe}</p> : null}
+        </div>
       </div>
       {children}
     </div>

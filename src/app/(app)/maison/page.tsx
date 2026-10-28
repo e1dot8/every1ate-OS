@@ -115,7 +115,7 @@ async function House() {
 
       <aside className="flex flex-col gap-6 rounded-2xl bg-paper p-5">
         <section className="flex flex-col gap-2">
-          <PanelTitle title="La brigade aujourd'hui" href="/bureau" />
+          <PanelTitle title="L'équipe aujourd'hui" href="/bureau" />
           <BrigadeToday rows={rows} />
         </section>
         <WeekGoals goals={goals} />

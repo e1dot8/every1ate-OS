@@ -18,7 +18,7 @@ describe("navigation principale", () => {
   });
 
   it("rail en trois niveaux : travail, maison, outils ; aucune adresse en double", () => {
-    expect(navGroups.map((g) => g.title)).toEqual(["Mon travail", "La maison", "Outils"]);
+    expect(navGroups.map((g) => g.title)).toEqual(["Mon travail", "Espaces", "Outils"]);
     const hrefs = [...navGroups.flatMap((g) => g.items.map((i) => i.href)), ...utilityNav.map((i) => i.href)];
     expect(new Set(hrefs).size).toBe(hrefs.length);
     expect(navGroups[0].items[0].href).toBe("/");

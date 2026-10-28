@@ -75,7 +75,7 @@ async function Editor() {
 export default function FurnishPage() {
   return (
     <div className="flex flex-col gap-5">
-      <BackLink href="/appartement">Mon appartement</BackLink>
+      <BackLink href="/appartement">Mon profil</BackLink>
       <PageHeader
         crumb="facultatif, jamais bloquant"
         title="Aménager"

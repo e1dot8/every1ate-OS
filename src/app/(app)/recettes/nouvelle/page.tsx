@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Nouvelle recette" };
 export default function NewRecipePage() {
   return (
     <div className="flex flex-col gap-5">
-      <BackLink href="/recettes">Le carnet de recettes</BackLink>
+      <BackLink href="/recettes">Méthodes & modèles</BackLink>
       <PageHeader
         title="Nouvelle recette"
         description="Assez précise pour qu'un associé la refasse sans vous."

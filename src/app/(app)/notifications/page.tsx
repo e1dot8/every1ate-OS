@@ -23,7 +23,7 @@ import { formatDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { archiveAction, markReadAction } from "./actions";
 
-export const metadata: Metadata = { title: "Le courrier" };
+export const metadata: Metadata = { title: "Notifications" };
 
 const ICONS: Record<string, LucideIcon> = {
   assignation: UserPlus,
@@ -60,7 +60,7 @@ async function List({ searchParams }: { searchParams: Promise<{ vue?: string }> 
   const read = items.some((n) => n.readAt);
   return (
     <>
-      <nav aria-label="Filtrer le courrier" className="flex flex-wrap gap-2">
+      <nav aria-label="Filtrer les notifications" className="flex flex-wrap gap-2">
         {VIEWS.map((v) => {
           const n = v.key in counts ? counts[v.key as keyof typeof counts] : 0;
           return (
@@ -146,7 +146,7 @@ async function List({ searchParams }: { searchParams: Promise<{ vue?: string }> 
           })}
           {!items.length ? (
             <li className="py-6 text-center text-sm text-muted-foreground">
-              {view.key === "ARCHIVE" ? "Rien d'archivé." : "Rien ici : le courrier est à jour."}
+              {view.key === "ARCHIVE" ? "Rien d'archivé." : "Rien ici : tout est à jour."}
             </li>
           ) : null}
         </ul>
@@ -159,8 +159,8 @@ export default function NotificationsPage({ searchParams }: PageProps<"/notifica
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        crumb="ce qui attend votre attention"
-        title="Le courrier"
+        crumb="Le courrier · ce qui attend votre attention"
+        title="Notifications"
         description="Prioritaire : assignations, mentions, blocages, demandes. À suivre : commentaires, échéances, relances. Information : badges et félicitations, jamais comptés."
       />
       <Suspense fallback={<PageLoading />}>

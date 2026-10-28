@@ -22,12 +22,12 @@ test.describe("la maison", () => {
       const box = (await page.locator('[data-room="cuisine"]').boundingBox())!;
       const tapKitchen = () => page.touchscreen.tap(box.x + box.width * 0.45, box.y + box.height * 0.85);
       await tapKitchen();
-      await expect(page.getByText("5. La Cuisine")).toBeVisible();
+      await expect(page.getByText("5. Production")).toBeVisible();
       await expect(page).toHaveURL(/\/maison$/);
       await tapKitchen();
     } else {
       // Souris : survol = aperçu dans l'étiquette, clic = entrée.
-      const label = page.getByRole("button", { name: /^La Cuisine — / });
+      const label = page.getByRole("button", { name: /^Production — / });
       await label.hover();
       await expect(label).toHaveAttribute("aria-pressed", "true");
       await expect(page.getByRole("link", { name: "Entrer", exact: true })).toBeVisible();
@@ -35,13 +35,13 @@ test.describe("la maison", () => {
       await label.click();
     }
     await expect(page).toHaveURL(/\/cuisine$/);
-    await expect(page.getByRole("heading", { level: 1, name: "La Cuisine" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Production" })).toBeVisible();
 
     if (info.project.name !== "mobile") {
       // Clavier : focus = aperçu, Entrée = entrée.
       await page.goto("/maison");
-      await page.getByRole("button", { name: /^Le carnet de recettes — / }).focus();
-      await expect(page.getByRole("button", { name: /^Le carnet de recettes — / })).toHaveAttribute(
+      await page.getByRole("button", { name: /^Méthodes & modèles — / }).focus();
+      await expect(page.getByRole("button", { name: /^Méthodes & modèles — / })).toHaveAttribute(
         "aria-pressed",
         "true",
       );
@@ -50,7 +50,7 @@ test.describe("la maison", () => {
 
       // Pièce à venir : aperçu explicite, jamais ouvrable.
       await page.goto("/maison");
-      await page.getByRole("button", { name: /^Les espaces clients — / }).focus();
+      await page.getByRole("button", { name: /^Portails clients — / }).focus();
       await expect(page.getByText("Lot à venir (portail client)").first()).toBeVisible();
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/maison$/);
@@ -60,10 +60,10 @@ test.describe("la maison", () => {
     await page.goto("/maison");
     await page
       .getByRole("navigation", { name: "Pièces de la maison" })
-      .getByRole("link", { name: /La Salle de restaurant/ })
+      .getByRole("link", { name: /^Clients/ })
       .click();
     await expect(page).toHaveURL(/\/crm\/salle$/);
-    await expect(page.getByRole("heading", { level: 1, name: "La Salle de restaurant" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Clients à suivre" })).toBeVisible();
     await page.goto("/atelier");
     await expect(page).toHaveURL(/\/cuisine$/);
   });
@@ -74,7 +74,7 @@ test.describe("la maison", () => {
     const name = `Rose${letters()}`;
     await activateAssociate(page, name);
     await page.goto("/appartement");
-    await expect(page.getByRole("heading", { level: 1, name: "Mon appartement" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Mon profil" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     await expect(page.getByRole("img", { name: `L'appartement de ${name}` })).toBeVisible();
 

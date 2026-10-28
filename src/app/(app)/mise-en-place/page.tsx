@@ -14,7 +14,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatWeekday } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "La mise en place" };
+export const metadata: Metadata = { title: "Briefing du jour" };
 
 async function MiseEnPlace({ searchParams }: { searchParams: Promise<{ fait?: string }> }) {
   const user = await requireUser();
@@ -30,7 +30,7 @@ async function MiseEnPlace({ searchParams }: { searchParams: Promise<{ fait?: st
   return (
     <>
       {sp.fait && b ? (
-        <FormAlert tone="success" title="Mise en place faite. Bon service !">
+        <FormAlert tone="success" title="Briefing validé. Bon service !">
           Vos priorités sont prêtes ci-dessous ; le cockpit est à jour.
         </FormAlert>
       ) : null}
@@ -64,7 +64,7 @@ async function MiseEnPlace({ searchParams }: { searchParams: Promise<{ fait?: st
           <p className="text-sm text-muted-foreground">
             {ctx.priorities.chosen
               ? "Choisies pour aujourd'hui."
-              : "Suggestion : elle sera confirmée en validant la mise en place."}{" "}
+              : "Suggestion : elle sera confirmée en validant le briefing."}{" "}
             <Link href="/priorites" className="font-bold text-pen-strong hover:underline">
               Changer
             </Link>
@@ -164,8 +164,8 @@ export default function MiseEnPlacePage({ searchParams }: PageProps<"/mise-en-pl
     <div className="flex flex-col gap-5">
       <BackLink href="/">Cockpit</BackLink>
       <PageHeader
-        crumb="3 à 5 minutes, pas plus"
-        title="La mise en place"
+        crumb="La mise en place · 3 à 5 minutes, pas plus"
+        title="Briefing du jour"
         description="L'OS a préparé la journée : confirmez, ajustez, et au travail."
       />
       <Suspense fallback={<PageLoading />}>

@@ -34,7 +34,7 @@ test.describe("compétences, badges et bureau commun", () => {
     await me.goto("/");
     await expect(me.getByRole("heading", { name: "Nouveau badge !" })).toBeVisible();
     // Le partage est un choix : sans lui, rien ne part dans le fil.
-    await me.getByRole("button", { name: "Partager au bureau commun" }).click();
+    await me.getByRole("button", { name: "Partager avec l'équipe" }).click();
     await expect(me.getByRole("heading", { name: "Nouveau badge !" })).toHaveCount(0);
 
     // Collection : visible, masquable.

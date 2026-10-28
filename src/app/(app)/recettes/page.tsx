@@ -12,7 +12,7 @@ import { RECIPE_CATEGORIES, categoryName, listRecipes } from "@/features/recipes
 import { requireUser } from "@/lib/auth/session";
 import { formatDay } from "@/lib/dates";
 
-export const metadata: Metadata = { title: "Le carnet de recettes" };
+export const metadata: Metadata = { title: "Méthodes & modèles" };
 
 const SHORT: Record<string, string> = {
   creation: "Création",
@@ -105,11 +105,11 @@ async function Book({ searchParams }: { searchParams: Promise<{ categorie?: stri
 export default function RecipesPage({ searchParams }: PageProps<"/recettes">) {
   return (
     <Panel className="gap-5">
-      <SpaceTitle title="Le carnet de recettes">
+      <SpaceTitle title="Méthodes & modèles" universe="Le carnet de recettes">
         <div className="flex items-center gap-2">
           <Link
             href="/recherche"
-            aria-label="Rechercher dans le carnet"
+            aria-label="Rechercher une méthode"
             className="inline-flex size-tap items-center justify-center rounded-full hover:bg-muted"
           >
             <Search aria-hidden="true" className="size-5" />

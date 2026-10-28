@@ -32,7 +32,7 @@ import { formatDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { setAvailabilityAction } from "./actions";
 
-export const metadata: Metadata = { title: "Appartement" };
+export const metadata: Metadata = { title: "Mon profil" };
 
 const AVAILABILITY: Availability[] = ["DISPONIBLE", "CONCENTRE", "ABSENT"];
 const SLOT_ICONS: Record<Slot, LucideIcon> = {
@@ -45,7 +45,7 @@ const SLOT_ICONS: Record<Slot, LucideIcon> = {
 };
 const TABS = [
   { href: "/appartement", label: "Vue d'ensemble" },
-  { href: "/progression", label: "Profil" },
+  { href: "/progression", label: "Progression" },
   { href: "/competences", label: "Compétences" },
   { href: "/appartement/amenager", label: "Objets" },
 ];
@@ -61,20 +61,23 @@ async function Apartment({ searchParams }: { searchParams: Promise<{ associe?: s
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_21rem]">
       <Panel className="gap-5">
-        <SpaceTitle title={a.own ? "Mon appartement" : `L'appartement de ${a.user.name}`}>
-          <nav aria-label="Appartements" className="flex flex-wrap gap-2">
+        <SpaceTitle
+          title={a.own ? "Mon profil" : `Profil de ${a.user.name}`}
+          universe={a.own ? "Mon appartement" : `L'appartement de ${a.user.name}`}
+        >
+          <nav aria-label="Profils" className="flex flex-wrap gap-2">
             {associates.map((x) => (
               <Chip
                 key={x.id}
                 href={x.id === user.id ? "/appartement" : `/appartement?associe=${x.id}`}
                 active={x.id === target}
               >
-                {x.id === user.id ? "Chez moi" : `Chez ${x.name}`}
+                {x.id === user.id ? "Moi" : x.name}
               </Chip>
             ))}
           </nav>
         </SpaceTitle>
-        {a.own ? <SpaceTabs label="Sections de l'appartement" tabs={TABS} current="/appartement" /> : null}
+        {a.own ? <SpaceTabs label="Sections du profil" tabs={TABS} current="/appartement" /> : null}
 
         <div className="relative overflow-hidden rounded-xl border bg-cream">
           <ApartmentRoom layout={a.layout} name={a.user.name} />

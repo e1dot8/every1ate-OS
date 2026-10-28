@@ -74,39 +74,39 @@ async function Menu() {
       <Row
         href="/mise-en-place"
         icon={Coffee}
-        title="La mise en place"
-        detail="Briefing du jour, 3 à 5 minutes"
+        title="Briefing du jour"
+        detail="La mise en place, 3 à 5 minutes"
       />
       <Row
         href="/service"
         icon={UtensilsCrossed}
-        title="Le service de la semaine"
-        detail="Bilan, charge, objectifs et décisions, historisés"
+        title="Point hebdo"
+        detail="Le service de la semaine : bilan, charge, objectifs, décisions"
       />
       <Row href="/maison" icon={Building} title="La maison" detail="Le bâtiment et ses pièces" />
       <Row
         href="/appartement"
         icon={DoorOpen}
-        title="Mon appartement"
-        detail="Avatar, profil, collection et décoration"
+        title="Mon profil"
+        detail="Mon appartement : avatar, collection, décoration"
       />
       <Row
         href="/cuisine"
         icon={Hammer}
-        title="La Cuisine"
-        detail="Projets, livrables et temps en un coup d'œil"
+        title="Production"
+        detail="La Cuisine : projets, livrables et temps"
       />
       <Row
         href="/recettes"
         icon={BookOpen}
-        title="Le carnet de recettes"
-        detail="Méthodes, modèles et procédures"
+        title="Méthodes & modèles"
+        detail="Le carnet de recettes : procédures qui ont marché"
       />
       <Row
         href="/bureau"
         icon={Users}
-        title="Le bureau commun"
-        detail="Objectifs, charge, coups de main et réussites"
+        title="Équipe"
+        detail="Le bureau commun : objectifs, charge, coups de main"
       />
       <Row
         href="/competences"

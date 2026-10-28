@@ -58,20 +58,20 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
-    title: "La maison",
+    title: "Espaces",
     items: [
       { label: "La maison", href: "/maison", icon: Building },
-      { label: "Mon appartement", href: "/appartement", icon: DoorOpen },
-      { label: "Le bureau commun", href: "/bureau", icon: Users },
-      { label: "La Salle", href: "/crm/salle", icon: ConciergeBell, match: ["/crm"] },
-      { label: "La Cuisine", href: "/cuisine", icon: ChefHat },
-      { label: "Le carnet de recettes", href: "/recettes", icon: BookOpen },
+      { label: "Mon profil", href: "/appartement", icon: DoorOpen },
+      { label: "Équipe", href: "/bureau", icon: Users },
+      { label: "Clients", href: "/crm/salle", icon: ConciergeBell, match: ["/crm"] },
+      { label: "Production", href: "/cuisine", icon: ChefHat },
+      { label: "Méthodes & modèles", href: "/recettes", icon: BookOpen },
     ],
   },
   {
     title: "Outils",
     items: [
-      { label: "Le service de la semaine", href: "/service", icon: UtensilsCrossed },
+      { label: "Point hebdo", href: "/service", icon: UtensilsCrossed },
       { label: "Compétences", href: "/competences", icon: GraduationCap },
       { label: "Finance", href: "/finance", icon: Wallet },
     ],
@@ -80,7 +80,7 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
 
 /** Pied du rail (ordinateur) : courrier, recherche et réglages, comme dans la maquette (lot G8). */
 export const utilityNav: NavItem[] = [
-  { label: "Le courrier", href: "/notifications", icon: Inbox },
+  { label: "Notifications", href: "/notifications", icon: Inbox },
   { label: "Recherche", href: "/recherche", icon: Search },
   { label: "Plus et réglages", href: "/plus", icon: Settings },
 ];

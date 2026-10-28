@@ -21,7 +21,7 @@ import {
   validateWeekAction,
 } from "./actions";
 
-export const metadata: Metadata = { title: "Le service de la semaine" };
+export const metadata: Metadata = { title: "Point hebdo" };
 
 type Item = {
   id: string;
@@ -186,7 +186,7 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
           </p>
           <form action={openWeekAction}>
             <input type="hidden" name="weekStart" value={toDateInput(weekStart)} />
-            <SubmitButton>Ouvrir le service de la semaine</SubmitButton>
+            <SubmitButton>Ouvrir le point hebdo</SubmitButton>
           </form>
         </Card>
       ) : null}
@@ -386,7 +386,7 @@ async function Menu({ searchParams }: { searchParams: Promise<{ semaine?: string
           {!week.validatedAt && !isPast ? (
             <form action={validateWeekAction}>
               <input type="hidden" name="briefingId" value={week.id} />
-              <SubmitButton variant="highlight">Valider le service de la semaine</SubmitButton>
+              <SubmitButton variant="highlight">Valider le point hebdo</SubmitButton>
             </form>
           ) : null}
         </>
@@ -429,8 +429,8 @@ export default function WeeklyMenuPage({ searchParams }: PageProps<"/service">) 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        crumb="20 à 30 minutes, à trois"
-        title="Le service de la semaine"
+        crumb="Le service de la semaine · 20 à 30 minutes, à trois"
+        title="Point hebdo"
         description="L'OS prépare la synthèse ; la brigade décide."
       />
       <Suspense fallback={<PageLoading />}>

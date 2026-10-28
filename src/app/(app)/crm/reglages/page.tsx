@@ -35,7 +35,7 @@ export default function CrmSettingsPage() {
         </Suspense>
       </Card>
       <PageHeader
-        title="Seuils de La Salle"
+        title="Seuils du suivi clients"
         description="Quand une situation entre dans « À risque » ou « À encaisser ». Chaque modification est journalisée."
       />
       <Card className="max-w-md">

@@ -11,7 +11,7 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDay, todayDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "La Salle de restaurant" };
+export const metadata: Metadata = { title: "Clients à suivre" };
 
 const VIEWS: { key: SituationView; param: string }[] = [
   { key: "A_RISQUE", param: "a-risque" },
@@ -147,8 +147,8 @@ export default function DiningRoomPage({ searchParams }: PageProps<"/crm/salle">
     <div className="flex flex-col gap-5">
       <BackLink href="/crm">CRM</BackLink>
       <PageHeader
-        crumb="ce qui demande une action"
-        title="La Salle de restaurant"
+        crumb="La Salle · ce qui demande une action"
+        title="Clients à suivre"
         description="Chaque entrée dit pourquoi elle est là, qui s'en charge, et la prochaine action."
       />
       <Suspense fallback={<PageLoading />}>

@@ -14,7 +14,7 @@ import { getDb } from "@/lib/db/client";
 import { addDays, formatDay, todayDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "La Cuisine" };
+export const metadata: Metadata = { title: "Production" };
 
 const OPEN = ["A_FAIRE", "EN_COURS", "EN_REVUE", "EN_ATTENTE", "BLOQUE"] as const;
 
@@ -162,8 +162,8 @@ export default function WorkshopPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        crumb="la fabrication"
-        title="La Cuisine"
+        crumb="La Cuisine · la fabrication"
+        title="Production"
         description="Projets, tâches, livrables et temps : la production en un coup d'œil."
       />
       <Suspense fallback={<PageLoading />}>

@@ -25,7 +25,7 @@ async function RecipeView({ params }: { params: Promise<{ id: string }> }) {
   const used = r.uses.some((u) => u.user.id === user.id);
   return (
     <>
-      <BackLink href="/recettes">Le carnet de recettes</BackLink>
+      <BackLink href="/recettes">Méthodes & modèles</BackLink>
       <PageHeader crumb={categoryName(r.category)} title={r.title} description={r.summary} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_18rem]">
         <Card className="gap-3">

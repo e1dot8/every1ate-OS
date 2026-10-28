@@ -42,8 +42,26 @@ batiment.*`, zones de pièces en pourcentage, surlignage jaune au survol) ; tant
    pas fournie, le dessin axonométrique reste affiché. Les zones seront ajustées sur l'image
    définitive.
 
+8. **Nomenclature explicite** (demande des associés) : le nom fonctionnel d'abord, le nom
+   d'univers en second (sous-titre, fil d'Ariane, petite ligne). Source unique :
+   `src/lib/spaces.ts`.
+
+   | Écran            | Nom affiché        | Nom d'univers            |
+   | ---------------- | ------------------ | ------------------------ |
+   | `/appartement`   | Mon profil         | Mon appartement          |
+   | `/bureau`        | Équipe             | Le bureau commun         |
+   | `/crm/salle`     | Clients à suivre   | La Salle                 |
+   | `/cuisine`       | Production         | La Cuisine               |
+   | `/recettes`      | Méthodes & modèles | Le carnet de recettes    |
+   | `/service`       | Point hebdo        | Le service de la semaine |
+   | `/mise-en-place` | Briefing du jour   | La mise en place         |
+   | `/notifications` | Notifications      | Le courrier              |
+
+   Le groupe « La maison » du rail devient « Espaces ». Cette règle prime sur le point 5 de
+   l'ADR-0019 (noms d'univers en titre).
+
 ## Conséquences
 
 - Aucun changement de schéma ni de règle métier ; tests unitaires ajoutés pour `formatRelative`,
   `portraitSlug` et `textureIndex`.
-- Le titre de l'appartement devient « Mon appartement » (h1), le nom de l'associé passe en h2.
+- Le titre du profil devient « Mon profil » (h1), le nom de l'associé passe en h2.

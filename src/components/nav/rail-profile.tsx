@@ -13,7 +13,7 @@ export async function RailProfile() {
     <Link
       href="/appartement"
       className="flex items-center gap-3 rounded-xl border bg-paper p-3 hover:border-ink/30"
-      aria-label={`Mon appartement : ${p.rank.title}, niveau ${p.level}, ${p.xp} XP`}
+      aria-label={`Mon profil : ${p.rank.title}, niveau ${p.level}, ${p.xp} XP`}
     >
       <BrigadeAvatar look={look} size={40} />
       <span className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">

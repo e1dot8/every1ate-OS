@@ -107,7 +107,7 @@ export function BadgeCollection({
                   )}
                 </Toggle>
                 {shared && !shared.has(b.badgeKey) ? (
-                  <Toggle id={b.id} field="share" value label={`Partager « ${def.name} » au bureau commun`}>
+                  <Toggle id={b.id} field="share" value label={`Partager « ${def.name} » avec l'équipe`}>
                     <Share2 aria-hidden="true" className="size-4" />
                   </Toggle>
                 ) : null}

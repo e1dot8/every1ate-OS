@@ -11,8 +11,8 @@ test.describe("briefings", () => {
     const p2 = await (await browser.newContext()).newPage();
     await activateAssociate(p2, "Pierre");
 
-    await p1.getByRole("link", { name: /La mise en place/ }).click();
-    await expect(p1.getByRole("heading", { level: 1, name: "La mise en place" })).toBeVisible();
+    await p1.getByRole("link", { name: /Briefing du jour/ }).click();
+    await expect(p1.getByRole("heading", { level: 1, name: "Briefing du jour" })).toBeVisible();
     await expect(p1.getByRole("heading", { name: "2. La charge prévue" })).toBeVisible();
     await p1.getByText("Charge élevée", { exact: true }).click();
     await p1
@@ -21,7 +21,7 @@ test.describe("briefings", () => {
     await p1.getByLabel(/Demander un coup de main/).check();
     await p1.getByLabel("Ce que je travaille pour moi aujourd'hui (facultatif)").fill("Étalonnage");
     await p1.getByRole("button", { name: "C'est parti" }).click();
-    await expect(p1.getByText("Mise en place faite. Bon service !")).toBeVisible();
+    await expect(p1.getByText("Briefing validé. Bon service !")).toBeVisible();
     await expect(p1.getByRole("button", { name: "Mettre à jour" })).toBeVisible();
 
     const saved = await withDb(
@@ -54,7 +54,7 @@ test.describe("briefings", () => {
     await expect(page.getByRole("heading", { name: "Le bilan" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "La charge" })).toBeVisible();
 
-    const opened = page.getByRole("button", { name: "Ouvrir le service de la semaine" });
+    const opened = page.getByRole("button", { name: "Ouvrir le point hebdo" });
     if (await opened.isVisible()) await opened.click();
     await expect(page.getByRole("heading", { name: "Les objectifs de la semaine" })).toBeVisible();
 
@@ -84,7 +84,7 @@ test.describe("briefings", () => {
     await page.getByRole("button", { name: "Ajouter l'action" }).click();
     await expect(page.getByText("Relancer le prestataire son")).toBeVisible();
 
-    const validate = page.getByRole("button", { name: "Valider le service de la semaine" });
+    const validate = page.getByRole("button", { name: "Valider le point hebdo" });
     if (await validate.isVisible()) {
       await validate.click();
       await expect(page.getByText(/^Validé le /)).toBeVisible();

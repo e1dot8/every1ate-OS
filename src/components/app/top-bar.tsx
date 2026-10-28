@@ -49,7 +49,7 @@ export async function TopBar() {
       ) : null}
       <Link
         href="/bureau"
-        aria-label={`La brigade (${associates.length}) — ouvrir le bureau commun`}
+        aria-label={`La brigade (${associates.length}) — voir l'équipe`}
         className="hidden items-center rounded-full py-1 pr-1 hover:bg-paper/70 lg:inline-flex"
       >
         <span className="flex -space-x-2">

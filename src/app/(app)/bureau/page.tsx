@@ -27,7 +27,7 @@ import { getDb } from "@/lib/db/client";
 import { formatDateTime, formatDay, todayDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Le bureau commun" };
+export const metadata: Metadata = { title: "Équipe" };
 
 const EVENT_ICONS = {
   badge: Award,
@@ -135,7 +135,7 @@ async function Office() {
           ) : (
             <EmptyState title="Pas encore d'objectifs cette semaine.">
               <Link href="/service" className="font-bold underline">
-                Ouvrir le service de la semaine
+                Ouvrir le point hebdo
               </Link>
             </EmptyState>
           )}
@@ -422,8 +422,8 @@ async function Office() {
 const TABS = [
   { href: "/bureau", label: "Vue d'ensemble" },
   { href: "/projets", label: "Projets" },
-  { href: "/service", label: "Objectifs" },
-  { href: "/recettes", label: "Ressources" },
+  { href: "/service", label: "Point hebdo" },
+  { href: "/recettes", label: "Méthodes" },
 ];
 
 export default function OfficePage() {
@@ -431,8 +431,8 @@ export default function OfficePage() {
   return (
     <div className="flex flex-col gap-3">
       <Panel>
-        <SpaceTitle title="Le bureau commun" />
-        <SpaceTabs label="Sections du bureau commun" tabs={TABS} current="/bureau" />
+        <SpaceTitle title="Équipe" universe="Le bureau commun" />
+        <SpaceTabs label="Sections de l'équipe" tabs={TABS} current="/bureau" />
         <div className="relative flex min-h-48 items-end overflow-hidden rounded-xl bg-ink p-6 text-paper md:min-h-60">
           {texture ? (
             // eslint-disable-next-line @next/next/no-img-element -- texture d'ambiance locale

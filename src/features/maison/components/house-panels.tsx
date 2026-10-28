@@ -117,7 +117,7 @@ export function WeekGoals({ goals, href = "/service" }: { goals: Goal[]; href?: 
           ))}
         </ul>
       ) : (
-        <p className="text-sm">Le service de la semaine n&apos;a pas encore d&apos;objectifs.</p>
+        <p className="text-sm">Le point hebdo n&apos;a pas encore d&apos;objectifs.</p>
       )}
     </section>
   );
