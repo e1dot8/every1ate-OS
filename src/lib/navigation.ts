@@ -8,10 +8,8 @@ import {
   DoorOpen,
   FolderKanban,
   GraduationCap,
-  Inbox,
   LayoutDashboard,
   MoreHorizontal,
-  Search,
   Settings,
   Timer,
   Users,
@@ -78,9 +76,8 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-/** Pied du rail (ordinateur) : courrier, recherche et réglages, comme dans la maquette (lot G8). */
-export const utilityNav: NavItem[] = [
-  { label: "Notifications", href: "/notifications", icon: Inbox },
-  { label: "Recherche", href: "/recherche", icon: Search },
-  { label: "Plus et réglages", href: "/plus", icon: Settings },
-];
+/**
+ * Pied du rail (ordinateur) : les réglages. Notifications et recherche sont dans la barre du
+ * haut, une seule fois par écran (lot G8).
+ */
+export const utilityNav: NavItem[] = [{ label: "Plus et réglages", href: "/plus", icon: Settings }];

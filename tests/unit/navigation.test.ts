@@ -24,7 +24,7 @@ describe("navigation principale", () => {
     expect(navGroups[0].items[0].href).toBe("/");
   });
 
-  it("pied du rail : courrier, recherche, réglages", () => {
-    expect(utilityNav.map((i) => i.href)).toEqual(["/notifications", "/recherche", "/plus"]);
+  it("pied du rail : les réglages (notifications et recherche sont dans la barre du haut)", () => {
+    expect(utilityNav.map((i) => i.href)).toEqual(["/plus"]);
   });
 });

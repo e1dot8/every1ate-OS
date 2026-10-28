@@ -13,13 +13,11 @@ function NavEntry({
   active,
   layout,
   count,
-  dot,
 }: {
   item: NavItem;
   active: boolean;
   layout: "bar" | "rail";
   count?: number;
-  dot?: boolean;
 }) {
   const Icon = item.icon;
   const base = cn(
@@ -73,9 +71,6 @@ function NavEntry({
           {count > 99 ? "99+" : count}
           <span className="sr-only"> en cours</span>
         </span>
-      ) : null}
-      {layout === "rail" && dot ? (
-        <span className="size-2 rounded-full bg-pen" aria-label="non lu" role="img" />
       ) : null}
     </Link>
   );
@@ -141,31 +136,11 @@ export function AppNavShell({
             </div>
           ))}
         </div>
-        <ul className="flex items-center gap-1 border-t px-3 py-2">
-          {utilityNav.map((item) => {
-            const Icon = item.icon;
-            const unread = badges[item.href];
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  title={item.label}
-                  aria-label={unread ? `${item.label}, ${unread} non lu${unread > 1 ? "s" : ""}` : item.label}
-                  aria-current={isActive(item) ? "page" : undefined}
-                  className={cn(
-                    "relative inline-flex size-10 items-center justify-center rounded-xl hover:bg-muted",
-                    isActive(item) && "bg-highlight-soft",
-                  )}
-                >
-                  <Icon aria-hidden="true" strokeWidth={1.6} className="size-5" />
-                  {unread ? (
-                    <span aria-hidden="true" className="absolute top-2 right-2 size-2 rounded-full bg-pen" />
-                  ) : null}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex flex-col border-t px-3 py-2">
+          {utilityNav.map((item) => (
+            <NavEntry key={item.href} item={item} active={isActive(item)} layout="rail" />
+          ))}
+        </div>
         {footer ? <div className="p-3 pt-0">{footer}</div> : null}
       </nav>
     </>

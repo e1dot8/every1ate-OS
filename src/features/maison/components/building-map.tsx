@@ -164,6 +164,11 @@ export function BuildingMap({
     onPointerEnter: (e: React.PointerEvent) => {
       if (e.pointerType === "mouse") setSelected(r.key);
     },
+    // À la souris, l'aperçu ne vit que pendant le survol : une carte dépliée ne masque jamais
+    // ses voisines.
+    onPointerLeave: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse") setSelected((k) => (k === r.key ? null : k));
+    },
     onClick: () => {
       if (pointer.current === "mouse" || selected === r.key) open(r);
       else setSelected(r.key);
@@ -322,7 +327,8 @@ export function BuildingMap({
                   // Bornée pour que l'étiquette reste dans le cadre du plan (largeur w-56 = 14rem).
                   left: s === "left" ? `max(${anchorPct}%, 14rem)` : `min(${anchorPct}%, calc(100% - 14rem))`,
                   top: `${topPct}%`,
-                  transform: s === "left" ? "translate(-100%, -50%)" : "translate(0, -50%)",
+                  // Ancrée sur l'en-tête (≈ 1,9 rem) : l'aperçu se déplie vers le bas.
+                  transform: s === "left" ? "translate(-100%, -1.9rem)" : "translate(0, -1.9rem)",
                 }}
               >
                 <button
