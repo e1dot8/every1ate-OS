@@ -45,7 +45,7 @@ async function House() {
         </header>
         <p
           aria-hidden="true"
-          className="absolute top-24 right-8 hidden -rotate-[8deg] font-hand text-2xl leading-tight text-ink lg:block"
+          className="pointer-events-none absolute top-24 right-8 hidden -rotate-[8deg] font-hand text-2xl leading-tight text-ink lg:block"
         >
           SAME RECIPE
           <br />
@@ -62,7 +62,7 @@ async function House() {
         </p>
         <p
           aria-hidden="true"
-          className="absolute bottom-36 left-8 z-10 hidden -rotate-[10deg] font-hand text-xl leading-[1.15] text-ink lg:block"
+          className="pointer-events-none absolute bottom-36 left-8 z-10 hidden -rotate-[10deg] font-hand text-xl leading-[1.15] text-ink lg:block"
         >
           CREATE
           <br />

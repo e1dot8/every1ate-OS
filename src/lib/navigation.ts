@@ -82,5 +82,5 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
 export const utilityNav: NavItem[] = [
   { label: "Le courrier", href: "/notifications", icon: Inbox },
   { label: "Recherche", href: "/recherche", icon: Search },
-  { label: "Réglages", href: "/plus", icon: Settings },
+  { label: "Plus et réglages", href: "/plus", icon: Settings },
 ];
