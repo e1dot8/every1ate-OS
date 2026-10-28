@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { briefingStatus } from "@/features/briefing/service";
+import { WokBanner } from "@/components/brand/wok-banner";
 import { BrigadeAvatar } from "@/features/maison/components/avatar";
 import { getAvatar } from "@/features/maison/service";
 import { badgeByKey } from "@/features/badges/catalog";
@@ -198,32 +199,36 @@ async function Cockpit() {
     .reduce((sum, t) => sum + (t.estimatedMinutes ?? 0), 0);
   return (
     <>
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b pb-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-bold tracking-wide text-muted-foreground uppercase">
-            {weekdayInParis()} · cockpit personnel
-          </p>
-          <h1 className="text-3xl leading-tight font-bold tracking-tight md:text-4xl">Bonjour {user.name}</h1>
-          <p className="font-annotation text-sm text-pen-strong">
-            on s&apos;y met : trois priorités, pas plus.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/appartement"
-            aria-label="Mon appartement"
-            className="rounded-full hover:ring-2 hover:ring-ink"
-          >
-            <BrigadeAvatar look={look} size={48} />
-          </Link>
-          <Link
-            href="/cockpit"
-            className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
-          >
-            <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
-          </Link>
-        </div>
-      </header>
+      <WokBanner className="min-h-44 md:min-h-52">
+        <header className="flex min-h-44 flex-wrap items-end justify-between gap-3 bg-gradient-to-r from-ink/90 via-ink/55 to-ink/10 p-5 text-paper md:min-h-52 md:p-7">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-bold tracking-[0.2em] uppercase opacity-80">
+              {weekdayInParis()} · cockpit personnel
+            </p>
+            <h1 className="text-4xl leading-none font-bold tracking-[-0.04em] md:text-6xl">
+              Bonjour {user.name}
+            </h1>
+            <p className="mt-1 -rotate-1 font-hand text-lg text-highlight">
+              on s&apos;y met : trois priorités, pas plus.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/appartement"
+              aria-label="Mon appartement"
+              className="rounded-full ring-2 ring-paper/70 hover:ring-highlight"
+            >
+              <BrigadeAvatar look={look} size={48} />
+            </Link>
+            <Link
+              href="/cockpit"
+              className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full bg-paper px-4 text-sm font-bold text-ink hover:bg-highlight"
+            >
+              <Gauge aria-hidden="true" className="size-4" /> Cockpit agence
+            </Link>
+          </div>
+        </header>
+      </WokBanner>
 
       {celebrate.length ? (
         <section

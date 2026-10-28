@@ -16,8 +16,10 @@ import {
   resolveLayout,
   validLook,
   type AvatarLook,
+  type AvatarView,
   type Progress,
 } from "./cosmetics";
+import { portraitFor } from "./portraits";
 
 type Actor = { id: string };
 
@@ -35,22 +37,38 @@ export async function progressContext(userId: string): Promise<Progress> {
   };
 }
 
-export async function getAvatar(userId: string): Promise<AvatarLook> {
+/** Le dessin personnalisé seul (atelier d'avatar). */
+export async function getAvatarLook(userId: string): Promise<AvatarLook> {
   const a = await getDb().userAvatar.findUnique({ where: { userId } });
   return a
     ? { skin: a.skin, hat: a.hat, apron: a.apron, accessory: a.accessory, backdrop: a.backdrop }
     : DEFAULT_AVATAR;
 }
 
-export async function avatarsOf(userIds: string[]): Promise<Map<string, AvatarLook>> {
-  const rows = await getDb().userAvatar.findMany({ where: { userId: { in: userIds } } });
-  const map = new Map(
+/** L'avatar affiché partout ailleurs : portrait de l'associé s'il existe, sinon le dessin. */
+export async function getAvatar(userId: string): Promise<AvatarView> {
+  const [look, user] = await Promise.all([
+    getAvatarLook(userId),
+    getDb().user.findUnique({ where: { id: userId }, select: { name: true } }),
+  ]);
+  return { ...look, portrait: user ? portraitFor(user.name) : null };
+}
+
+export async function avatarsOf(userIds: string[]): Promise<Map<string, AvatarView>> {
+  const [rows, users] = await Promise.all([
+    getDb().userAvatar.findMany({ where: { userId: { in: userIds } } }),
+    getDb().user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }),
+  ]);
+  const map = new Map<string, AvatarView>(
     rows.map((a) => [
       a.userId,
       { skin: a.skin, hat: a.hat, apron: a.apron, accessory: a.accessory, backdrop: a.backdrop },
     ]),
   );
-  for (const id of userIds) if (!map.has(id)) map.set(id, DEFAULT_AVATAR);
+  for (const id of userIds) {
+    const name = users.find((u) => u.id === id)?.name;
+    map.set(id, { ...(map.get(id) ?? DEFAULT_AVATAR), portrait: name ? portraitFor(name) : null });
+  }
   return map;
 }
 

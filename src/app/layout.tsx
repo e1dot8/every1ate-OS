@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Arimo, Courier_Prime } from "next/font/google";
+import { Arimo, Courier_Prime, Permanent_Marker } from "next/font/google";
 import "./globals.css";
 import { PwaManager } from "@/components/pwa/pwa-manager";
 
 const arimo = Arimo({ variable: "--font-arimo", subsets: ["latin"], display: "swap" });
+const marker = Permanent_Marker({
+  variable: "--font-marker",
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+});
 const courierPrime = Courier_Prime({
   variable: "--font-courier-prime",
   subsets: ["latin"],
@@ -22,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#ecebe6",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -30,7 +36,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${arimo.variable} ${courierPrime.variable}`}>
+    <html lang="fr" className={`${arimo.variable} ${courierPrime.variable} ${marker.variable}`}>
       <body className="min-h-dvh">
         <a
           href="#contenu"

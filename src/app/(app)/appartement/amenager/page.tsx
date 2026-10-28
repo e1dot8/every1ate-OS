@@ -36,7 +36,16 @@ async function Editor() {
     <>
       <Card>
         <CardTitle>Mon avatar</CardTitle>
-        <AvatarEditor look={a.look} options={options} />
+        <AvatarEditor
+          look={{
+            skin: a.look.skin,
+            hat: a.look.hat,
+            apron: a.look.apron,
+            accessory: a.look.accessory,
+            backdrop: a.look.backdrop,
+          }}
+          options={options}
+        />
       </Card>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_24rem]">
         <Card className="gap-2 self-start p-3">

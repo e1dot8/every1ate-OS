@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { AvatarLook } from "@/features/maison/cosmetics";
+import type { AvatarView } from "@/features/maison/cosmetics";
 import { cn } from "@/lib/utils";
 
 /**
@@ -137,13 +137,29 @@ export function BrigadeAvatar({
   className,
   label,
 }: {
-  look: AvatarLook;
+  look: AvatarView;
   size?: number;
   className?: string;
   /** Texte alternatif ; sans libellé, l'avatar est décoratif. */
   label?: string;
 }) {
   const clip = `avatar-${useId().replace(/:/g, "")}`;
+  if (look.portrait)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- portrait local, petit format
+      <img
+        src={look.portrait}
+        width={size}
+        height={size}
+        alt={label ?? ""}
+        aria-hidden={label ? undefined : true}
+        className={cn(
+          "shrink-0 rounded-full border border-ink/10 bg-paper object-cover object-top",
+          className,
+        )}
+        style={{ width: size, height: size }}
+      />
+    );
   const skin = SKIN[look.skin] ?? SKIN.s3;
   const dark = look.backdrop === "noir";
   return (

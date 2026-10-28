@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Award, BookOpen, HeartHandshake, House, PartyPopper, Target, TrendingUp } from "lucide-react";
 import { Avatar, EmptyState } from "@/components/app/bits";
-import { PageHeader, PageLoading } from "@/components/layout/page-header";
+import { PageLoading } from "@/components/layout/page-header";
+import { Panel, SpaceTabs, SpaceTitle } from "@/components/app/space-panel";
+import { ambiance } from "@/features/maison/assets";
 import { Card, CardTitle } from "@/components/ui/card";
 import { PEER_BADGES } from "@/features/badges/catalog";
 import { moodLabels } from "@/features/briefing/rules";
@@ -417,14 +419,46 @@ async function Office() {
   );
 }
 
+const TABS = [
+  { href: "/bureau", label: "Vue d'ensemble" },
+  { href: "/projets", label: "Projets" },
+  { href: "/service", label: "Objectifs" },
+  { href: "/recettes", label: "Ressources" },
+];
+
 export default function OfficePage() {
+  const texture = ambiance("bureau");
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        crumb="la brigade, ensemble"
-        title="Le bureau commun"
-        description="L'état de la maison, ce qui coince, et ce qu'on célèbre."
-      />
+    <div className="flex flex-col gap-3">
+      <Panel>
+        <SpaceTitle title="Le bureau commun" />
+        <SpaceTabs label="Sections du bureau commun" tabs={TABS} current="/bureau" />
+        <div className="relative flex min-h-48 items-end overflow-hidden rounded-xl bg-ink p-6 text-paper md:min-h-60">
+          {texture ? (
+            // eslint-disable-next-line @next/next/no-img-element -- texture d'ambiance locale
+            <img
+              src={texture}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 size-full object-cover opacity-70"
+            />
+          ) : null}
+          <p className="relative text-4xl leading-[1.02] font-bold tracking-[-0.03em] md:text-5xl">
+            Good work.
+            <br />
+            Better together.
+          </p>
+          <p
+            aria-hidden="true"
+            className="absolute right-6 bottom-5 text-4xl font-bold tracking-[-0.06em] text-highlight"
+          >
+            e1.
+          </p>
+        </div>
+        <p className="text-[15px] text-ink/65">
+          L&apos;état de la maison, ce qui coince, et ce qu&apos;on célèbre.
+        </p>
+      </Panel>
       <Suspense fallback={<PageLoading />}>
         <Office />
       </Suspense>

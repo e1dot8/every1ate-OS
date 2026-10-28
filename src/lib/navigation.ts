@@ -11,6 +11,8 @@ import {
   Inbox,
   LayoutDashboard,
   MoreHorizontal,
+  Search,
+  Settings,
   Timer,
   Users,
   UtensilsCrossed,
@@ -52,7 +54,6 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
       { label: "Mes tâches", href: "/taches", icon: CheckSquare },
       { label: "Projets", href: "/projets", icon: FolderKanban },
       { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
-      { label: "Le courrier", href: "/notifications", icon: Inbox },
       { label: "Temps", href: "/temps", icon: Timer },
     ],
   },
@@ -73,7 +74,13 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
       { label: "Le service de la semaine", href: "/service", icon: UtensilsCrossed },
       { label: "Compétences", href: "/competences", icon: GraduationCap },
       { label: "Finance", href: "/finance", icon: Wallet },
-      { label: "Plus", href: "/plus", icon: MoreHorizontal },
     ],
   },
+];
+
+/** Pied du rail (ordinateur) : courrier, recherche et réglages, comme dans la maquette (lot G8). */
+export const utilityNav: NavItem[] = [
+  { label: "Le courrier", href: "/notifications", icon: Inbox },
+  { label: "Recherche", href: "/recherche", icon: Search },
+  { label: "Réglages", href: "/plus", icon: Settings },
 ];

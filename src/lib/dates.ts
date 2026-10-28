@@ -59,6 +59,18 @@ export function formatDateTime(date: Date | null | undefined): string {
   }).format(date);
 }
 
+/** « à l'instant », « il y a 12 min », « il y a 3 h », « il y a 2 j », puis la date. */
+export function formatRelative(date: Date, now = new Date()): string {
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `il y a ${days} j`;
+  return formatDay(date, now);
+}
+
 /** Lundi de la semaine d'une date calendrier. */
 export function startOfWeek(date: Date): Date {
   const day = (date.getUTCDay() + 6) % 7;

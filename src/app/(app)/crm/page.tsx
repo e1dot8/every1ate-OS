@@ -21,6 +21,13 @@ export const metadata: Metadata = { title: "CRM" };
 
 type SP = { onglet?: string; moi?: string; q?: string };
 
+/** Teinte des colonnes : jaune quand ça se discute, vert quand c'est signé (lot G8, maquette). */
+const STAGE_TINT: Partial<Record<(typeof STAGES)[number], string>> = {
+  PROPOSITION_ENVOYEE: "bg-highlight-soft",
+  NEGOCIATION: "bg-highlight-soft",
+  GAGNE: "bg-success-soft",
+};
+
 /** Opportunités détectées (renouvellements, suites, dormants), chargées à part du pipeline. */
 async function Signals() {
   await requireUser();
@@ -116,9 +123,12 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
                   <section
                     key={stage}
                     aria-label={stageLabels[stage]}
-                    className="flex shrink-0 flex-col gap-2 md:w-64"
+                    className={cn(
+                      "flex shrink-0 flex-col gap-2 rounded-xl p-2 md:w-64",
+                      STAGE_TINT[stage] ?? "bg-muted/70",
+                    )}
                   >
-                    <h2 className="flex items-baseline justify-between text-sm font-bold">
+                    <h2 className="flex items-baseline justify-between px-1.5 pt-1 text-[13px] font-bold">
                       <span>
                         {stageLabels[stage]} <span className="text-muted-foreground">({list.length})</span>
                       </span>
@@ -133,7 +143,13 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
                       const amount = toCents(o.amount);
                       const p = effectiveProbability(o.stage, o.probability, data.settings);
                       return (
-                        <Card key={o.id} className={cn("gap-1.5 py-3", late.has(o.id) && "border-danger")}>
+                        <Card
+                          key={o.id}
+                          className={cn(
+                            "gap-1.5 rounded-lg border-transparent p-3",
+                            late.has(o.id) && "border-danger",
+                          )}
+                        >
                           <Link
                             href={`/crm/opportunites/${o.id}`}
                             className="font-bold leading-snug hover:underline"

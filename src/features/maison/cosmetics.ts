@@ -85,6 +85,8 @@ export const AVATAR_OPTIONS: Record<AvatarPart, AvatarOption[]> = {
 };
 
 export type AvatarLook = Record<AvatarPart, string>;
+/** Avatar affiché : le dessin personnalisé, ou le portrait de l'associé s'il existe (lot G8). */
+export type AvatarView = AvatarLook & { portrait?: string | null };
 export const DEFAULT_AVATAR: AvatarLook = {
   skin: "s3",
   hat: "toque",

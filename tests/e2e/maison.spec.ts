@@ -74,7 +74,8 @@ test.describe("la maison", () => {
     const name = `Rose${letters()}`;
     await activateAssociate(page, name);
     await page.goto("/appartement");
-    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Mon appartement" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     await expect(page.getByRole("img", { name: `L'appartement de ${name}` })).toBeVisible();
 
     await page.getByRole("link", { name: "Aménager" }).click();
