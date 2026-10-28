@@ -16,11 +16,15 @@ export const portraitSlug = (name: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "");
 
+// Les fichiers changent au déploiement, pas pendant l'exécution : une recherche par prénom suffit.
+const cache = new Map<string, string | null>();
+
 export function portraitFor(name: string): string | null {
   const slug = portraitSlug(name);
   if (!slug) return null;
-  for (const ext of ["png", "webp", "jpg"]) {
-    if (existsSync(path.join(DIR, `${slug}.${ext}`))) return `/brigade/${slug}.${ext}`;
+  if (!cache.has(slug)) {
+    const ext = ["png", "webp", "jpg"].find((e) => existsSync(path.join(DIR, `${slug}.${e}`)));
+    cache.set(slug, ext ? `/brigade/${slug}.${ext}` : null);
   }
-  return null;
+  return cache.get(slug)!;
 }

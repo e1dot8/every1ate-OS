@@ -24,7 +24,9 @@ export async function TopBar() {
     listAssociates(),
     userStreak(user.id),
   ]);
-  const looks = await avatarsOf(associates.map((a) => a.id));
+  // Quelques visages suffisent : la brigade complète est au bureau commun.
+  const shown = associates.slice(0, 4);
+  const looks = await avatarsOf(shown.map((a) => a.id));
   return (
     <div className="mb-4 flex items-center justify-end gap-2.5">
       {active ? (
@@ -47,16 +49,22 @@ export async function TopBar() {
       ) : null}
       <Link
         href="/bureau"
-        aria-label={`La brigade : ${associates.map((a) => a.name).join(", ")} — ouvrir le bureau commun`}
+        aria-label={`La brigade (${associates.length}) — ouvrir le bureau commun`}
         className="hidden items-center rounded-full py-1 pr-1 hover:bg-paper/70 lg:inline-flex"
       >
         <span className="flex -space-x-2">
-          {associates.map((a) => (
+          {shown.map((a) => (
             <BrigadeAvatar key={a.id} look={looks.get(a.id)!} size={34} className="ring-2 ring-background" />
           ))}
         </span>
         <span className="ml-1 inline-flex size-8 items-center justify-center rounded-full border border-ink/15 bg-paper">
-          <Plus aria-hidden="true" className="size-4" />
+          {associates.length > shown.length ? (
+            <span aria-hidden="true" className="text-[11px] font-bold">
+              +{associates.length - shown.length}
+            </span>
+          ) : (
+            <Plus aria-hidden="true" className="size-4" />
+          )}
         </span>
       </Link>
       {streak?.weeks ? (
