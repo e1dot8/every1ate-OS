@@ -13,6 +13,7 @@ import type {
   TaskComplexity,
   TaskStatus,
 } from "@/generated/prisma/enums";
+import { questNudge } from "@/features/quests/service";
 import { requireUser } from "@/lib/auth/session";
 import { parseDateInput } from "@/lib/dates";
 import { keptValues, validationError, type FormState } from "@/lib/forms";
@@ -354,12 +355,15 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
   const next = result.data.nextOccurrence;
   revalidatePath("/");
   revalidatePath("/progression");
+  revalidatePath("/quetes");
+  const quest = parsed.data.status === "TERMINE" ? await questNudge(user.id, "tasksDone") : null;
   return {
     status: "success",
     message: [
       "Statut mis à jour.",
       next ? occurrenceCreatedMessage(next.dueDate) : null,
       result.data.xp ? xpMessage(result.data.xp) : null,
+      quest,
       result.data.badges.length
         ? `Nouveau badge : ${result.data.badges.map((b) => `« ${b} »`).join(", ")} !`
         : null,

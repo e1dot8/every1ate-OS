@@ -29,6 +29,7 @@ Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8
 | G6  | La maison ([ADR-0018](docs/adr/0018-la-maison-univers.md)) : bâtiment interactif, avatar, appartement et objets, carnet de recettes, réactions, demandes d'aide, disponibilité                                          | `/maison`, `/appartement`, `/cuisine`, `/recettes`     |
 | G7  | Direction éditoriale ([ADR-0019](docs/adr/0019-direction-editoriale-et-niveaux.md)) : jetons, rail en 3 niveaux, bâtiment monochrome, La Cuisine / La Salle / Le service de la semaine, XP discrets, partage des badges | `/`, `/maison`, `/cuisine`, `/crm/salle`, `/service`   |
 | G8  | Maquette « La maison » ([ADR-0020](docs/adr/0020-panneaux-et-style-photocopie.md)) : panneaux, rail en carte, textures WOK, bannière vidéo, portraits                                                                   | `/`, `/maison`, `/appartement`, `/bureau`, `/recettes` |
+| G9  | Quêtes de la semaine ([ADR-0021](docs/adr/0021-quetes-hebdomadaires.md)) : 7 quêtes mesurées sur le vrai travail, 3 par semaine, XP une seule fois                                                                      | `/quetes`, `/`                                         |
 
 Barème d'XP, paliers et rangs : `src/features/progression/config.ts`. Badges : `src/features/badges/catalog.ts`.
 Arbre de compétences : `src/features/skills/tree.ts`. Seuils de La Cuisine : Réglages CRM.

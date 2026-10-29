@@ -6,6 +6,7 @@ import {
   ChefHat,
   ConciergeBell,
   DoorOpen,
+  Flag,
   FolderKanban,
   GraduationCap,
   LayoutDashboard,
@@ -50,6 +51,7 @@ export const navGroups: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Cockpit", href: "/", icon: LayoutDashboard },
       { label: "Mes tâches", href: "/taches", icon: CheckSquare },
+      { label: "Quêtes", href: "/quetes", icon: Flag },
       { label: "Projets", href: "/projets", icon: FolderKanban },
       { label: "Calendrier", href: "/calendrier", icon: CalendarDays },
       { label: "Temps", href: "/temps", icon: Timer },

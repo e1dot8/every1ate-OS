@@ -132,6 +132,7 @@ test("aucun défilement horizontal sur les écrans du cockpit, des rituels et de
     "/maison",
     "/appartement",
     "/appartement/amenager",
+    "/quetes",
     "/cuisine",
     "/recettes",
     "/recettes/nouvelle",

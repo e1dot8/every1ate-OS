@@ -4,7 +4,15 @@
  * Une seule source pour le menu, les titres de page et la maison.
  */
 export type SpaceKey =
-  "profil" | "equipe" | "clients" | "production" | "methodes" | "hebdo" | "briefing" | "notifications";
+  | "profil"
+  | "equipe"
+  | "clients"
+  | "production"
+  | "methodes"
+  | "hebdo"
+  | "briefing"
+  | "notifications"
+  | "quetes";
 
 export const SPACES: Record<SpaceKey, { label: string; universe: string; href: string }> = {
   profil: { label: "Mon profil", universe: "Mon appartement", href: "/appartement" },
@@ -15,4 +23,5 @@ export const SPACES: Record<SpaceKey, { label: string; universe: string; href: s
   hebdo: { label: "Point hebdo", universe: "Le service de la semaine", href: "/service" },
   briefing: { label: "Briefing du jour", universe: "La mise en place", href: "/mise-en-place" },
   notifications: { label: "Notifications", universe: "Le courrier", href: "/notifications" },
+  quetes: { label: "Quêtes de la semaine", universe: "Les commandes de la semaine", href: "/quetes" },
 };

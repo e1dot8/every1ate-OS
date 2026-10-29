@@ -79,6 +79,7 @@ model User {
   badgesGiven        UserBadge[]           @relation("BadgeGiver")
   preference         UserPreference?
   streakPauses       StreakPause[]
+  quests             QuestEnrollment[]
   brigadeEvents      BrigadeEvent[]
   cheers             BrigadeCheer[]
   avatar             UserAvatar?
@@ -1561,4 +1562,21 @@ model BrigadeReaction {
 
   @@unique([eventId, userId, emoji])
   @@map("brigade_reaction")
+}
+
+/// Quête hebdomadaire acceptée par un associé (lot G9). La progression n'est jamais stockée :
+/// elle se calcule à partir des données réelles de la semaine. La validation inscrit les XP
+/// au registre une seule fois (clé quest:<clé>:<semaine>:<associé>).
+model QuestEnrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questKey    String
+  weekStart   DateTime  @db.Date
+  acceptedAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, questKey, weekStart])
+  @@index([userId, weekStart])
+  @@map("quest_enrollment")
 }

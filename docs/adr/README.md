@@ -19,3 +19,4 @@ Une décision n'est jamais réécrite : on en crée une nouvelle qui remplace l'
 | [0018](0018-la-maison-univers.md)               | La maison : bâtiment, avatars, appartement (G6)        | Acceptée        |
 | [0019](0019-direction-editoriale-et-niveaux.md) | Direction éditoriale, 3 niveaux, noms des espaces (G7) | Acceptée        |
 | [0020](0020-panneaux-et-style-photocopie.md)    | Panneaux de la maquette, style photocopie (G8)         | Acceptée        |
+| [0021](0021-quetes-hebdomadaires.md)            | Quêtes de la semaine (G9)                              | Acceptée        |

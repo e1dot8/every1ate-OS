@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { briefingStatus } from "@/features/briefing/service";
 import { WokBanner } from "@/components/brand/wok-banner";
+import { weekQuests } from "@/features/quests/service";
 import { BrigadeAvatar } from "@/features/maison/components/avatar";
 import { getAvatar } from "@/features/maison/service";
 import { badgeByKey } from "@/features/badges/catalog";
@@ -178,6 +179,49 @@ async function Priorities({ userId }: { userId: string }) {
   );
 }
 
+/** Les quêtes acceptées, en bref : la progression se lit d'un coup d'œil, le détail est à part. */
+async function CockpitQuests({ userId }: { userId: string }) {
+  const w = await weekQuests(userId);
+  return (
+    <Card className="gap-2">
+      <div className="flex items-baseline justify-between">
+        <CardTitle>Mes quêtes</CardTitle>
+        <Link href="/quetes" className="text-sm font-bold text-pen-strong hover:underline">
+          {w.active.length ? "Voir" : "Choisir"}
+        </Link>
+      </div>
+      {w.active.length ? (
+        <ul className="flex flex-col gap-2.5 text-sm">
+          {w.active.map((q) => (
+            <li key={q.key} className="flex flex-col gap-1">
+              <span className="flex items-baseline justify-between gap-2">
+                <b className="truncate">{q.title}</b>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {q.completedAt
+                    ? "accomplie"
+                    : q.progress.reached
+                      ? "à valider"
+                      : `${q.progress.value} / ${q.target}`}
+                </span>
+              </span>
+              <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                <span
+                  className={cn("block h-full rounded-full", q.progress.reached ? "bg-highlight" : "bg-ink")}
+                  style={{ width: `${q.progress.percent}%` }}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Aucune quête cette semaine. Trois au plus, mesurées sur votre vrai travail.
+        </p>
+      )}
+    </Card>
+  );
+}
+
 async function Cockpit() {
   const user = await requireUser();
   const [celebrate, look, prefs, rituals, brief, unread, active, totals, projects, events, day] =
@@ -333,28 +377,33 @@ async function Cockpit() {
         >
           <Priorities userId={user.id} />
         </Suspense>
-        <Card className="gap-2">
-          <div className="flex items-baseline justify-between">
-            <CardTitle>Rendez-vous</CardTitle>
-            <Link href="/calendrier" className="text-sm font-bold text-pen-strong hover:underline">
-              Calendrier
-            </Link>
-          </div>
-          {events.length ? (
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {events.slice(0, 4).map((e) => (
-                <li key={e.id} className="flex flex-col">
-                  <span className="text-muted-foreground">{formatDateTime(e.startsAt)}</span>
-                  <Link href={`/calendrier/${e.id}`} className="truncate font-bold hover:underline">
-                    {e.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aucun rendez-vous dans les 14 jours.</p>
-          )}
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="gap-2">
+            <div className="flex items-baseline justify-between">
+              <CardTitle>Rendez-vous</CardTitle>
+              <Link href="/calendrier" className="text-sm font-bold text-pen-strong hover:underline">
+                Calendrier
+              </Link>
+            </div>
+            {events.length ? (
+              <ul className="flex flex-col gap-1.5 text-sm">
+                {events.slice(0, 4).map((e) => (
+                  <li key={e.id} className="flex flex-col">
+                    <span className="text-muted-foreground">{formatDateTime(e.startsAt)}</span>
+                    <Link href={`/calendrier/${e.id}`} className="truncate font-bold hover:underline">
+                      {e.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucun rendez-vous dans les 14 jours.</p>
+            )}
+          </Card>
+          <Suspense fallback={null}>
+            <CockpitQuests userId={user.id} />
+          </Suspense>
+        </div>
       </div>
 
       <BriefCard brief={brief} />

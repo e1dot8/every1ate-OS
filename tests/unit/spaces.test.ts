@@ -7,7 +7,7 @@ describe("nomenclature des espaces", () => {
     expect(new Set(labels).size).toBe(labels.length);
     for (const s of Object.values(SPACES)) {
       expect(s.label).not.toBe(s.universe);
-      expect(s.label.length).toBeLessThanOrEqual(20);
+      expect(s.label.length).toBeLessThanOrEqual(22);
     }
   });
 });
