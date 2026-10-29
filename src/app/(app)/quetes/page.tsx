@@ -72,7 +72,7 @@ async function Quests() {
         <SpaceTitle title={SPACES.quetes.label} universe={SPACES.quetes.universe} />
         <p className="text-[15px] text-ink/65">
           Jusqu&apos;à {MAX_ACTIVE_QUESTS} quêtes par semaine, mesurées sur votre vrai travail. Semaine du{" "}
-          {formatDay(w.weekStart)} au {formatDay(addDays(w.weekStart, 6))}.
+          {formatDay(w.weekStart)} au {formatDay(addDays(w.weekStart, 6))}
         </p>
         <section aria-labelledby="en-cours" className="flex flex-col gap-3">
           <h2 id="en-cours" className="text-[17px] font-bold">
@@ -116,7 +116,8 @@ async function Quests() {
                   <QuestButton
                     questKey={q.key}
                     intent="accepter"
-                    label={`Accepter « ${q.title} »`}
+                    label="Accepter"
+                    ariaLabel={`Accepter « ${q.title} »`}
                     disabled={w.slotsLeft === 0}
                   />
                 </div>

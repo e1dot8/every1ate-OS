@@ -9,11 +9,22 @@ import { cn } from "@/lib/utils";
 
 type Intent = "accepter" | "abandonner" | "valider";
 
-function Submit({ label, intent, disabled }: { label: string; intent: Intent; disabled?: boolean }) {
+function Submit({
+  label,
+  ariaLabel,
+  intent,
+  disabled,
+}: {
+  label: string;
+  ariaLabel?: string;
+  intent: Intent;
+  disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
+      aria-label={ariaLabel}
       disabled={pending || disabled}
       className={cn(
         "inline-flex min-h-tap items-center justify-center rounded-full px-4 text-sm font-bold disabled:opacity-50",
@@ -55,12 +66,15 @@ export function QuestButton({
   questKey,
   intent,
   label,
+  ariaLabel,
   disabled,
   done = false,
 }: {
   questKey: string;
   intent: Intent;
   label: string;
+  /** Nom complet pour les lecteurs d'écran quand le libellé visible est court. */
+  ariaLabel?: string;
   disabled?: boolean;
   /** Quête validée : le formulaire reste monté pour afficher la célébration. */
   done?: boolean;
@@ -75,7 +89,7 @@ export function QuestButton({
           <Check aria-hidden="true" className="size-4 text-highlight" /> Accomplie
         </span>
       ) : (
-        <Submit label={label} intent={intent} disabled={disabled} />
+        <Submit label={label} ariaLabel={ariaLabel} intent={intent} disabled={disabled} />
       )}
       {state.status === "error" ? (
         <p role="alert" className="text-xs font-bold text-danger">
