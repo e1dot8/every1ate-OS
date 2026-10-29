@@ -59,7 +59,8 @@ function ItemRow({ item, editable }: { item: Item; editable: boolean }) {
   const closed = item.status !== "OUVERT";
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-2.5 first:border-t-0">
-      <span className="flex min-w-0 flex-1 flex-col">
+      {/* Largeur minimale : sur téléphone, ce sont les boutons qui passent à la ligne. */}
+      <span className="flex min-w-48 flex-1 flex-col">
         <span className={cn("font-bold", closed && "text-muted-foreground")}>{item.title}</span>
         <span className="text-[13px] text-muted-foreground">
           {[item.detail, item.owner?.name, item.dueDate ? `pour le ${formatDay(item.dueDate)}` : null]

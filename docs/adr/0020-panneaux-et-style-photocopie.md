@@ -60,6 +60,11 @@ batiment.*`, zones de pièces en pourcentage, surlignage jaune au survol) ; tant
    Le groupe « La maison » du rail devient « Espaces ». Cette règle prime sur le point 5 de
    l'ADR-0019 (noms d'univers en titre).
 
+9. **Responsive** (passe mobile du 29/10/2026) : le rail latéral n'apparaît qu'à partir de
+   1024 px (tablette paysage, ordinateur). En dessous (téléphone, tablette portrait), barre basse
+   à cinq entrées, logo en tête et bouton « + » flottant : le rail laissait à peine 500 px au
+   contenu sur une tablette en portrait.
+
 ## Conséquences
 
 - Aucun changement de schéma ni de règle métier ; tests unitaires ajoutés pour `formatRelative`,

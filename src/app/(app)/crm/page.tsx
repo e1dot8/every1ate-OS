@@ -330,10 +330,11 @@ export default function CrmPage({ searchParams }: PageProps<"/crm">) {
         </div>
       </div>
       <Suspense fallback={<PageLoading />}>
-        <Signals />
-      </Suspense>
-      <Suspense fallback={<PageLoading />}>
         <Crm searchParams={searchParams as Promise<SP>} />
+      </Suspense>
+      {/* Les opportunités détectées viennent après le pipeline : d'abord les onglets et le travail. */}
+      <Suspense fallback={<PageLoading />}>
+        <Signals />
       </Suspense>
     </div>
   );

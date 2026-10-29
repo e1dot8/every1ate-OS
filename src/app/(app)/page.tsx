@@ -247,7 +247,8 @@ async function Cockpit() {
         <header className="flex min-h-44 flex-wrap items-end justify-between gap-3 bg-gradient-to-r from-ink/90 via-ink/55 to-ink/10 p-5 text-paper md:min-h-52 md:p-7">
           <div className="flex flex-col gap-1">
             <p className="text-xs font-bold tracking-[0.2em] uppercase opacity-80">
-              {weekdayInParis()} · cockpit personnel
+              {weekdayInParis()}
+              <span className="max-sm:hidden"> · cockpit personnel</span>
             </p>
             <h1 className="text-4xl leading-none font-bold tracking-[-0.04em] md:text-6xl">
               Bonjour {user.name}
@@ -278,7 +279,7 @@ async function Cockpit() {
         <section
           aria-labelledby="celebration"
           className={cn(
-            "flex flex-col gap-3 rounded-lg border-2 border-ink bg-highlight p-4 sm:flex-row sm:items-center sm:gap-4",
+            "flex flex-col gap-3 rounded-lg border-2 border-ink bg-highlight p-4 xl:flex-row xl:items-center xl:gap-4",
             prefs.celebrations && "animate-in fade-in zoom-in-95 duration-500",
           )}
         >

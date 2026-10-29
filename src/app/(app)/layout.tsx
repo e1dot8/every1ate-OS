@@ -10,7 +10,7 @@ import { RailProfile } from "@/components/nav/rail-profile";
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="md:flex md:gap-3 md:p-3">
+    <div className="lg:flex lg:gap-3 lg:p-3">
       <Suspense fallback={<AppNavShell pathname="" />}>
         <NavWithData
           footer={
@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </Suspense>
       <main
         id="contenu"
-        className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-5 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] md:px-6 md:pt-4 md:pb-8"
+        className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-5 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] md:px-6 lg:pt-4 lg:pb-8"
       >
         <Suspense fallback={<div className="mb-4 h-tap" />}>
           <TopBar />

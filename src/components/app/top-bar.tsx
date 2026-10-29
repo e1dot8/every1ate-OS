@@ -29,6 +29,12 @@ export async function TopBar() {
   const looks = await avatarsOf(shown.map((a) => a.id));
   return (
     <div className="mb-4 flex items-center justify-end gap-2.5">
+      {/* Sur téléphone et tablette, le logo ; il laisse sa place au chronomètre en cours. */}
+      {!active && !paused ? (
+        <Link href="/" className="mr-auto text-xl font-bold tracking-[-0.05em] lg:hidden">
+          every1.ate
+        </Link>
+      ) : null}
       {active ? (
         <Link
           href={`/taches/${active.taskId}`}

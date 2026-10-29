@@ -39,7 +39,7 @@ function XpToast({ message }: { message: string }) {
   return (
     <div
       role="status"
-      className="fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-50 flex max-w-sm animate-in items-center gap-3 rounded-md bg-ink px-4 py-3 text-sm text-paper fade-in slide-in-from-bottom-2 md:bottom-6"
+      className="fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-50 flex max-w-sm animate-in items-center gap-3 rounded-md bg-ink px-4 py-3 text-sm text-paper fade-in slide-in-from-bottom-2 lg:bottom-6"
     >
       <Check aria-hidden="true" className="size-4 shrink-0 text-highlight" />
       <span>

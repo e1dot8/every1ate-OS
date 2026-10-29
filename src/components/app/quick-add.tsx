@@ -43,7 +43,7 @@ export function QuickAdd() {
   return (
     <div
       ref={root}
-      className="fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-40 md:static md:z-auto"
+      className="fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-40 lg:static lg:z-auto"
     >
       <button
         type="button"
@@ -51,20 +51,20 @@ export function QuickAdd() {
         aria-controls={menuId}
         aria-label={open ? "Fermer le menu de création" : "Créer"}
         onClick={() => setOpen((v) => !v)}
-        className="flex size-14 items-center justify-center rounded-full bg-ink text-paper shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-tap md:w-auto md:gap-2 md:px-4 md:shadow-none"
+        className="flex size-14 items-center justify-center rounded-full bg-ink text-paper shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:h-tap lg:w-auto lg:gap-2 lg:px-4 lg:shadow-none"
       >
         {open ? (
-          <X aria-hidden="true" className="size-6 md:size-5" />
+          <X aria-hidden="true" className="size-6 lg:size-5" />
         ) : (
-          <Plus aria-hidden="true" className="size-6 md:size-5" />
+          <Plus aria-hidden="true" className="size-6 lg:size-5" />
         )}
-        <span className="hidden font-bold md:inline">Créer</span>
+        <span className="hidden font-bold lg:inline">Créer</span>
       </button>
       <ul
         id={menuId}
         hidden={!open}
         className={cn(
-          "absolute right-0 bottom-16 w-56 rounded-xl border bg-card p-1 shadow-xl md:top-12 md:bottom-auto",
+          "absolute right-0 bottom-16 w-56 rounded-xl border bg-card p-1 shadow-xl lg:top-12 lg:bottom-auto",
         )}
       >
         {ACTIONS.map((a) => (

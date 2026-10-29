@@ -103,7 +103,7 @@ export function AppNavShell({
     <>
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       >
         <div className="mx-auto flex h-bottom-nav max-w-lg items-stretch px-2">
           {primaryNav.map((item) => (
@@ -113,7 +113,7 @@ export function AppNavShell({
       </nav>
       <nav
         aria-label="Navigation principale"
-        className="sticky top-3 hidden h-[calc(100dvh-1.5rem)] w-60 shrink-0 flex-col rounded-2xl bg-paper md:flex"
+        className="sticky top-3 hidden h-[calc(100dvh-1.5rem)] w-60 shrink-0 flex-col rounded-2xl bg-paper lg:flex"
       >
         <Link href="/" className="px-6 pt-6 pb-5 text-2xl font-bold tracking-[-0.05em]">
           every1.ate

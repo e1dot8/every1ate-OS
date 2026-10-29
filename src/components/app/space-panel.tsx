@@ -68,6 +68,8 @@ export function SpaceTitle({
 /** Panneau blanc arrondi posé sur le fond de l'application. */
 export function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <section className={cn("flex flex-col gap-4 rounded-2xl bg-paper p-5", className)}>{children}</section>
+    <section className={cn("flex flex-col gap-4 rounded-2xl bg-paper p-4 md:p-5", className)}>
+      {children}
+    </section>
   );
 }

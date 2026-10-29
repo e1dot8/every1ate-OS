@@ -450,7 +450,7 @@ export default function OfficePage() {
           </p>
           <p
             aria-hidden="true"
-            className="absolute right-6 bottom-5 text-4xl font-bold tracking-[-0.06em] text-highlight"
+            className="absolute top-5 right-6 text-4xl font-bold tracking-[-0.06em] text-highlight"
           >
             e1.
           </p>

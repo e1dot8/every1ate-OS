@@ -4,7 +4,7 @@
  * dans plusieurs vues. Les seuils viennent des réglages de l'agence (ADR-0017).
  */
 import type { OpportunityStage } from "@/generated/prisma/enums";
-import { addDays, daysBetween } from "@/lib/dates";
+import { addDays, daysBetween, formatDay } from "@/lib/dates";
 
 export type SituationView = "EN_ATTENTE" | "A_RISQUE" | "A_ENCAISSER" | "A_DEVELOPPER";
 
@@ -130,7 +130,7 @@ export function detectSituations(
         view: "A_RISQUE",
         title: o.title,
         rule: "Relance en retard",
-        reason: `Prochaine action prévue le ${o.nextActionDate.toISOString().slice(0, 10)}, non faite depuis ${daysBetween(o.nextActionDate, today)} j.`,
+        reason: `Prochaine action prévue le ${formatDay(o.nextActionDate, today)}, non faite depuis ${daysBetween(o.nextActionDate, today)} j.`,
         nextAction: o.nextAction ?? "Relancer le client",
         dueDate: o.nextActionDate,
         priority: 3,
