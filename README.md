@@ -102,6 +102,9 @@ Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI Gi
 
 ## Déployer sur Netlify (première fois)
 
+Guide pas à pas pour les associés (comptes, variables, premiers pas) :
+[`docs/MISE_EN_SERVICE.md`](docs/MISE_EN_SERVICE.md).
+
 > **Crédits** : une mise en production coûte 15 crédits Netlify. Elle n'est lancée que si le
 > message du dernier commit contient `[deploy]` (voir [ADR-0007](docs/adr/0007-deploiement-econome.md)).
 > Les deploy previews et branch deploys sont gratuits et ne sont jamais bloqués.
