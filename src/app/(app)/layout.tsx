@@ -3,6 +3,7 @@ import { AppNavShell } from "@/components/nav/app-nav";
 import { NavWithData } from "@/components/nav/nav-with-data";
 import { TopBar } from "@/components/app/top-bar";
 import { RailProfile } from "@/components/nav/rail-profile";
+import { SessionGate } from "@/components/auth/session-gate";
 
 /**
  * Zone protégée : chaque page vérifie la session côté serveur (requireUser).
@@ -11,6 +12,9 @@ import { RailProfile } from "@/components/nav/rail-profile";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="lg:flex lg:gap-3 lg:p-3">
+      <Suspense>
+        <SessionGate />
+      </Suspense>
       <Suspense fallback={<AppNavShell pathname="" />}>
         <NavWithData
           footer={
