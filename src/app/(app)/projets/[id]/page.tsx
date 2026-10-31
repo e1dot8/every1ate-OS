@@ -2,16 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import {
-  AlertOctagon,
-  CalendarDays,
-  Check,
-  GanttChart,
-  Layers,
-  ListChecks,
-  Pencil,
-  Plus,
-} from "lucide-react";
+import { AlertOctagon, CalendarDays, GanttChart, Layers, ListChecks, Pencil, Plus } from "lucide-react";
 import {
   Avatar,
   BackLink,
@@ -24,32 +15,31 @@ import {
   TaskStatusBadge,
 } from "@/components/app/bits";
 import { FormAlert } from "@/components/forms/form-alert";
-import { SubmitButton } from "@/components/forms/submit-button";
 import { PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/select";
+import { Card, CardTitle } from "@/components/ui/card";
 import { OwnerForm, ProjectStatusForm } from "@/features/projects/components/forms";
 import { journalDetail, journalLabel } from "@/features/projects/journal-labels";
 import { getProject, listAssociates, projectJournal } from "@/features/projects/service";
 import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay } from "@/lib/dates";
-import { saveReviewAction, toggleClosureAction } from "../actions";
 import { ProjectFinance } from "@/features/finance/components/project-finance";
 import { DocumentsPanel } from "@/features/documents/components/documents-panel";
+import { NotesSection } from "@/features/notes/components/notes-section";
+import { ClosurePanel } from "@/features/projects/components/closure-panel";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Projet" };
 
+// Cinq onglets courts (lisibles sur iPhone). Anciens liens conservés : lots → vue, documents → docs.
 const TABS = [
-  { key: "vue", label: "Vue d'ensemble" },
-  { key: "lots", label: "Lots" },
+  { key: "vue", label: "Vue" },
   { key: "taches", label: "Tâches" },
   { key: "finance", label: "Finance" },
-  { key: "documents", label: "Documents" },
+  { key: "docs", label: "Docs" },
   { key: "cloture", label: "Clôture" },
-  { key: "journal", label: "Journal" },
 ];
+const ALIASES: Record<string, string> = { lots: "vue", documents: "docs" };
 
 function lotStatus(tasks: { status: TaskStatus }[]): TaskStatus {
   const live = tasks.filter((t) => t.status !== "ANNULE");
@@ -71,37 +61,39 @@ async function ProjectView({
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
-  const tab = TABS.some((t) => t.key === sp.onglet) ? sp.onglet! : "vue";
+  const wanted = ALIASES[sp.onglet ?? ""] ?? sp.onglet;
+  const tab = TABS.some((t) => t.key === wanted) || wanted === "journal" ? wanted! : "vue";
   const tasks = project.tasks;
   const blocked = tasks.filter((t) => t.status === "BLOQUE");
   const done = tasks.filter((t) => t.status === "TERMINE").length;
   const live = tasks.filter((t) => t.status !== "ANNULE").length;
-  const closureLeft = project.closureItems.filter((c) => !c.checked).length;
 
   return (
     <div className="flex flex-col gap-5">
       <BackLink href="/projets">Projets</BackLink>
-      <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl leading-tight font-bold tracking-tight md:text-4xl">{project.name}</h1>
+      <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="text-2xl leading-tight font-bold tracking-tight text-balance md:text-4xl">
+            {project.name}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {project.client?.name ?? "Sans client"}
             {project.archivedAt ? " · archivé" : ""}
           </p>
         </div>
         {!project.archivedAt ? (
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
               <Link href={`/projets/${id}/roadmap`}>
                 <GanttChart aria-hidden="true" /> Roadmap
               </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href={`/projets/${id}/modifier`}>
-                <Pencil aria-hidden="true" /> Modifier
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/projets/${id}/modifier`} aria-label="Modifier le projet">
+                <Pencil aria-hidden="true" /> <span className="hidden sm:inline">Modifier</span>
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm">
               <Link href={`/projets/${id}/taches/nouvelle`}>
                 <Plus aria-hidden="true" /> Tâche
               </Link>
@@ -166,8 +158,26 @@ async function ProjectView({
                   .join(" · ")}
               </FormAlert>
             ) : null}
-            {project.description ? <p className="max-w-prose">{project.description}</p> : null}
+            {project.description ? (
+              <p className="max-w-prose whitespace-pre-line">{project.description}</p>
+            ) : null}
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-bold">Lots</h2>
+              {!project.archivedAt ? (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/projets/${id}/lots/nouveau`}>
+                    <Plus aria-hidden="true" /> Lot
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
             <LotGrid projectId={id} lots={project.workPackages} />
+            <Link
+              href={`/projets/${id}?onglet=journal`}
+              className="text-sm font-bold text-pen-strong hover:underline"
+            >
+              Voir le journal du projet
+            </Link>
           </div>
           {!project.archivedAt ? (
             <aside className="flex w-full flex-col gap-4 md:w-80">
@@ -185,19 +195,6 @@ async function ProjectView({
               </Card>
             </aside>
           ) : null}
-        </div>
-      ) : null}
-
-      {tab === "lots" ? (
-        <div className="flex flex-col gap-4">
-          <div>
-            <Button asChild variant="outline">
-              <Link href={`/projets/${id}/lots/nouveau`}>
-                <Plus aria-hidden="true" /> Nouveau lot
-              </Link>
-            </Button>
-          </div>
-          <LotGrid projectId={id} lots={project.workPackages} />
         </div>
       ) : null}
 
@@ -219,84 +216,29 @@ async function ProjectView({
         )
       ) : null}
 
-      {tab === "cloture" ? (
-        <div className="flex flex-col gap-4">
-          {project.status === "TERMINE" || project.status === "ARCHIVE" ? (
-            <FormAlert tone="success" title={`Projet clôturé le ${formatDay(project.closedAt)}.`} />
-          ) : (
-            <FormAlert
-              tone={closureLeft ? "warning" : "success"}
-              title={
-                closureLeft
-                  ? `${closureLeft} point${closureLeft > 1 ? "s" : ""} à traiter avant de clôturer.`
-                  : "Checklist complète : le responsable global peut clôturer."
-              }
-            >
-              Le statut « Terminé » n&apos;est possible qu&apos;avec la checklist complète. Le responsable
-              global confirme la clôture (Vue d&apos;ensemble › Statut).
-            </FormAlert>
-          )}
-          <Card className="gap-0 py-1">
-            <ul aria-label="Checklist de clôture">
-              {project.closureItems.map((c) => (
-                <li key={c.id} className="flex items-center gap-3 border-b py-3 last:border-b-0">
-                  <form action={toggleClosureAction}>
-                    <input type="hidden" name="projectId" value={id} />
-                    <input type="hidden" name="itemId" value={c.id} />
-                    <input type="hidden" name="checked" value={String(!c.checked)} />
-                    <button
-                      type="submit"
-                      aria-label={`${c.checked ? "Décocher" : "Cocher"} : ${c.label}`}
-                      aria-pressed={c.checked}
-                      className={`flex size-tap items-center justify-center rounded-lg border ${c.checked ? "border-ink bg-ink text-paper" : "border-input"}`}
-                    >
-                      {c.checked ? <Check aria-hidden="true" className="size-4" /> : null}
-                    </button>
-                  </form>
-                  <div className="flex flex-col">
-                    <span className="font-bold">{c.label}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {c.checked
-                        ? `${c.checkedBy?.name ?? "—"} · ${formatDateTime(c.checkedAt)}`
-                        : c.key === "couts" || c.key === "facturation"
-                          ? "À vérifier dans l'onglet Finance du projet"
-                          : "À faire"}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <Card className="gap-3">
-            <CardHeader>
-              <CardTitle>Bilan du projet</CardTitle>
-              <CardDescription>Enseignements, points forts, points à améliorer.</CardDescription>
-            </CardHeader>
-            <form action={saveReviewAction} className="flex flex-col gap-3">
-              <input type="hidden" name="projectId" value={id} />
-              <Textarea
-                name="review"
-                rows={5}
-                aria-label="Bilan du projet"
-                defaultValue={project.closingReview ?? ""}
-              />
-              <div>
-                <SubmitButton variant="outline">Enregistrer le bilan</SubmitButton>
-              </div>
-            </form>
-          </Card>
-        </div>
-      ) : null}
+      {tab === "cloture" ? <ClosurePanel project={project} items={project.closureItems} /> : null}
 
       {tab === "finance" ? <ProjectFinance projectId={id} archived={!!project.archivedAt} /> : null}
-      {tab === "documents" ? (
-        <DocumentsPanel
-          target={{ projectId: id }}
-          back={`/projets/${id}?onglet=documents`}
-          readOnly={!!project.archivedAt}
-        />
+      {tab === "docs" ? (
+        <div className="flex flex-col gap-5">
+          <DocumentsPanel
+            target={{ projectId: id }}
+            back={`/projets/${id}?onglet=docs`}
+            readOnly={!!project.archivedAt}
+          />
+          <NotesSection
+            filter={{ projectId: id }}
+            newHref={`/notes/nouvelle?projet=${id}`}
+            readOnly={!!project.archivedAt}
+          />
+        </div>
       ) : null}
-      {tab === "journal" ? <Journal projectId={id} /> : null}
+      {tab === "journal" ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="font-bold">Journal du projet</h2>
+          <Journal projectId={id} />
+        </div>
+      ) : null}
     </div>
   );
 }

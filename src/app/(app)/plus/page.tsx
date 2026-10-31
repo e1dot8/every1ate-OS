@@ -9,9 +9,20 @@ import {
   ChevronRight,
   FileText,
   LogOut,
+  NotebookPen,
   Palette,
   ShieldCheck,
+  SlidersHorizontal,
   Smartphone,
+  Sparkles,
+  Users,
+  Building,
+  DoorOpen,
+  Hammer,
+  BookOpen,
+  GraduationCap,
+  Coffee,
+  UtensilsCrossed,
   Timer,
   UserPlus,
   Wallet,
@@ -60,19 +71,86 @@ async function Menu() {
         title="Calendrier"
         detail="Réunions, échéances, abonnement Google/Apple"
       />
-      <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
-      <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, coûts, échéancier, imports, MRR" />
-      <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
-      <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
+      <Row
+        href="/mise-en-place"
+        icon={Coffee}
+        title="Briefing du jour"
+        detail="La mise en place, 3 à 5 minutes"
+      />
+      <Row
+        href="/service"
+        icon={UtensilsCrossed}
+        title="Point hebdo"
+        detail="Le service de la semaine : bilan, charge, objectifs, décisions"
+      />
+      <Row href="/maison" icon={Building} title="La maison" detail="Le bâtiment et ses pièces" />
+      <Row
+        href="/appartement"
+        icon={DoorOpen}
+        title="Mon profil"
+        detail="Mon appartement : avatar, collection, décoration"
+      />
+      <Row
+        href="/cuisine"
+        icon={Hammer}
+        title="Production"
+        detail="La Cuisine : projets, livrables et temps"
+      />
+      <Row
+        href="/recettes"
+        icon={BookOpen}
+        title="Méthodes & modèles"
+        detail="Le carnet de recettes : procédures qui ont marché"
+      />
+      <Row
+        href="/bureau"
+        icon={Users}
+        title="Équipe"
+        detail="Le bureau commun : objectifs, charge, coups de main"
+      />
+      <Row
+        href="/competences"
+        icon={GraduationCap}
+        title="Compétences"
+        detail="Six branches, niveaux, preuves et reconnaissances"
+      />
+      <Row
+        href="/plus/preferences"
+        icon={SlidersHorizontal}
+        title="Préférences"
+        detail="Célébrations, badges, série de régularité"
+      />
+      <Row
+        href="/progression"
+        icon={Sparkles}
+        title="Ma progression"
+        detail="Niveau, rang, journal des XP et règles du jeu"
+      />
       <Row href="/temps" icon={Timer} title="Temps" detail="Chronomètre, saisies et corrections" />
+      <Row
+        href="/notes"
+        icon={NotebookPen}
+        title="Comptes rendus"
+        detail="Notes de réunion transformées en tâches"
+      />
+      <Row href="/finance" icon={Wallet} title="Finance" detail="Budgets, trésorerie, analyses, imports" />
+      <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
+      <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
       <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
+      <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
+      <Row
+        href="/plus/reglages"
+        icon={SlidersHorizontal}
+        title="Réglages"
+        detail="Mon brief, coût du temps, capacité"
+      />
+      <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
       <Row
         href="/plus/securite"
         icon={ShieldCheck}
         title="Sécurité"
         detail="Mot de passe, appareils connectés"
       />
-      <Row href="/plus/associes" icon={UserPlus} title="Associés" detail="Comptes et invitations" />
       <Row href="/plus/archives" icon={Archive} title="Archives" detail="Projets, lots et tâches archivés" />
       <Row
         href="/plus/installer"

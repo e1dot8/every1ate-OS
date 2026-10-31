@@ -6,6 +6,7 @@ import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { TaskForm } from "@/features/projects/components/forms";
 import { getTask, listAssociates } from "@/features/projects/service";
+import { estimateHints } from "@/features/time/estimate-service";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { toDateInput } from "@/lib/dates";
@@ -17,8 +18,9 @@ async function EditTask({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const task = await getTask(id);
   if (!task || task.archivedAt) notFound();
-  const [associates, lots] = await Promise.all([
+  const [associates, hints, lots] = await Promise.all([
     listAssociates(),
+    estimateHints(),
     getDb().workPackage.findMany({
       where: { projectId: task.projectId, archivedAt: null },
       orderBy: { position: "asc" },
@@ -35,6 +37,7 @@ async function EditTask({ params }: { params: Promise<{ id: string }> }) {
       <Card className="max-w-2xl">
         <TaskForm
           projectId={task.projectId}
+          hints={hints}
           lots={lots.map((l) => ({ value: l.id, label: l.name }))}
           associates={associates.map((a) => ({ value: a.id, label: a.name }))}
           task={{
@@ -47,11 +50,15 @@ async function EditTask({ params }: { params: Promise<{ id: string }> }) {
             priority: task.priority,
             priorityLocked: task.priorityLocked,
             impact: task.impact,
+            complexity: task.complexity ?? "SIMPLE",
+            category: task.category,
             startDate: toDateInput(task.startDate),
             dueDate: toDateInput(task.dueDate),
             estimatedHours: task.estimatedMinutes
               ? String(Math.round((task.estimatedMinutes / 60) * 10) / 10)
               : "",
+            recurrence: task.recurrence,
+            recurrenceUntil: toDateInput(task.recurrenceUntil),
           }}
         />
       </Card>

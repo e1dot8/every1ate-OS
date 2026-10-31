@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { Building2, CalendarClock, Plus, Search, Settings2 } from "lucide-react";
 import { Avatar, Chip, EmptyState, Tabs } from "@/components/app/bits";
@@ -7,8 +8,10 @@ import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SignalsCard } from "@/features/crm/components/signals-card";
 import { OPEN_STAGES, STAGES, effectiveProbability, stageLabels } from "@/features/crm/rules";
 import { crmForecast } from "@/features/crm/service";
+import { loadCommercialSignals } from "@/features/crm/signals-service";
 import { requireUser } from "@/lib/auth/session";
 import { formatDay, todayDate } from "@/lib/dates";
 import { formatMoney, percentOf, toCents } from "@/lib/money";
@@ -17,6 +20,45 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = { title: "CRM" };
 
 type SP = { onglet?: string; moi?: string; q?: string };
+
+/** Teinte des colonnes : jaune quand ça se discute, vert quand c'est signé (lot G8, maquette). */
+const STAGE_TINT: Partial<Record<(typeof STAGES)[number], string>> = {
+  PROPOSITION_ENVOYEE: "bg-highlight-soft",
+  NEGOCIATION: "bg-highlight-soft",
+  GAGNE: "bg-success-soft",
+};
+
+/** Opportunités détectées (renouvellements, suites, dormants), chargées à part du pipeline. */
+async function Signals() {
+  await requireUser();
+  let signals: Awaited<ReturnType<typeof loadCommercialSignals>>;
+  try {
+    signals = await loadCommercialSignals();
+  } catch (error) {
+    unstable_rethrow(error);
+    // Section secondaire : son échec ne doit pas empêcher l'accès au pipeline.
+    console.error("Opportunités détectées indisponibles", error);
+    return (
+      <p role="alert" className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        Les opportunités détectées sont indisponibles pour le moment. Rechargez la page.
+      </p>
+    );
+  }
+  return (
+    <SignalsCard
+      signals={signals.map((s) => ({
+        key: s.key,
+        kind: s.kind,
+        title: s.title,
+        detail: s.detail,
+        clientName: s.clientName,
+        clientHref: s.clientHref,
+        contractHref: s.contractHref,
+        createHref: s.createHref,
+      }))}
+    />
+  );
+}
 
 async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser();
@@ -41,6 +83,7 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
       <Tabs
         active={tab}
         items={[
+          { key: "salle", label: "À suivre", href: "/crm/salle" },
           { key: "pipeline", label: "Pipeline", href: href({ onglet: undefined }) },
           { key: "previsions", label: "Prévisions", href: href({ onglet: "previsions" }) },
         ]}
@@ -72,7 +115,7 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
             {sp.moi ? <input type="hidden" name="moi" value="1" /> : null}
           </form>
           {opps.length ? (
-            <div className="-mx-4 flex flex-col gap-4 px-4 md:flex-row md:overflow-x-auto md:pb-2">
+            <div className="relative -mx-4 flex flex-col gap-4 px-4 md:flex-row md:overflow-x-auto md:pb-2">
               {STAGES.map((stage) => {
                 const list = opps.filter((o) => o.stage === stage);
                 const closed = !OPEN_STAGES.includes(stage);
@@ -80,9 +123,12 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
                   <section
                     key={stage}
                     aria-label={stageLabels[stage]}
-                    className="flex shrink-0 flex-col gap-2 md:w-64"
+                    className={cn(
+                      "flex shrink-0 flex-col gap-2 rounded-xl p-2 md:w-64",
+                      STAGE_TINT[stage] ?? "bg-muted/70",
+                    )}
                   >
-                    <h2 className="flex items-baseline justify-between text-sm font-bold">
+                    <h2 className="flex items-baseline justify-between px-1.5 pt-1 text-[13px] font-bold">
                       <span>
                         {stageLabels[stage]} <span className="text-muted-foreground">({list.length})</span>
                       </span>
@@ -97,7 +143,13 @@ async function Crm({ searchParams }: { searchParams: Promise<SP> }) {
                       const amount = toCents(o.amount);
                       const p = effectiveProbability(o.stage, o.probability, data.settings);
                       return (
-                        <Card key={o.id} className={cn("gap-1.5 py-3", late.has(o.id) && "border-danger")}>
+                        <Card
+                          key={o.id}
+                          className={cn(
+                            "gap-1.5 rounded-lg border-transparent p-3",
+                            late.has(o.id) && "border-danger",
+                          )}
+                        >
                           <Link
                             href={`/crm/opportunites/${o.id}`}
                             className="font-bold leading-snug hover:underline"
@@ -279,6 +331,10 @@ export default function CrmPage({ searchParams }: PageProps<"/crm">) {
       </div>
       <Suspense fallback={<PageLoading />}>
         <Crm searchParams={searchParams as Promise<SP>} />
+      </Suspense>
+      {/* Les opportunités détectées viennent après le pipeline : d'abord les onglets et le travail. */}
+      <Suspense fallback={<PageLoading />}>
+        <Signals />
       </Suspense>
     </div>
   );

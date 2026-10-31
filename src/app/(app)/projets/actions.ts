@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import type { Impact, Priority, ProjectPhase, ProjectStatus, TaskStatus } from "@/generated/prisma/enums";
+import type {
+  Impact,
+  Priority,
+  ProjectPhase,
+  ProjectStatus,
+  Recurrence,
+  TaskCategory,
+  TaskComplexity,
+  TaskStatus,
+} from "@/generated/prisma/enums";
+import { questNudge } from "@/features/quests/service";
 import { requireUser } from "@/lib/auth/session";
 import { parseDateInput } from "@/lib/dates";
 import { keptValues, validationError, type FormState } from "@/lib/forms";
@@ -12,9 +22,11 @@ import {
   changeProjectOwner,
   changeProjectStatus,
   changeTaskStatus,
+  checkVerifiedClosureItems,
   createProject,
   removeDependency,
   saveClosingReview,
+  saveSatisfaction,
   saveTask,
   saveWorkPackage,
   setArchived,
@@ -22,6 +34,8 @@ import {
   updateProject,
 } from "@/features/projects/service";
 import { addComment, deleteComment } from "@/features/planning/service";
+import { xpMessage } from "@/features/progression/labels";
+import { RECURRENCES, occurrenceCreatedMessage, recurrenceIssue } from "@/features/projects/recurrence";
 
 const PHASES = ["RECETTE", "PREPARATION", "CUISSON", "DRESSAGE", "SERVICE"] as const;
 const PROJECT_STATUSES = ["A_PREPARER", "ACTIF", "EN_ATTENTE", "BLOQUE", "TERMINE", "ARCHIVE"] as const;
@@ -36,6 +50,16 @@ const TASK_STATUSES = [
 ] as const;
 const PRIORITIES = ["AUTO", "BASSE", "NORMALE", "HAUTE", "URGENTE"] as const;
 const IMPACTS = ["FAIBLE", "MOYEN", "FORT"] as const;
+const COMPLEXITIES = ["SIMPLE", "MOYENNE", "COMPLEXE"] as const;
+const CATEGORIES = [
+  "CLIENT",
+  "AGENCE",
+  "GESTION",
+  "BRANDING",
+  "APPRENTISSAGE",
+  "ENTRAIDE",
+  "RITUEL",
+] as const;
 
 const optionalText = z
   .string()
@@ -243,34 +267,44 @@ export async function saveLotAction(_prev: FormState, formData: FormData): Promi
 
 // ─── Tâches ─────────────────────────────────────────────────────────────────
 
-const taskSchema = z.object({
-  projectId: z.string().min(1),
-  taskId: z.string().optional(),
-  title: z.string().trim().min(1, "Titre requis.").max(300),
-  description: optionalText,
-  workPackageId: z
-    .string()
-    .optional()
-    .transform((v) => v || null),
-  ownerId: z
-    .string()
-    .optional()
-    .transform((v) => v || null),
-  priority: z.enum(PRIORITIES),
-  impact: z.enum(IMPACTS).default("MOYEN"),
-  startDate: dateInput,
-  dueDate: dateInput,
-  estimatedHours: z
-    .string()
-    .optional()
-    .transform((v, ctx) => {
-      if (!v) return null;
-      const n = Number(v.replace(",", "."));
-      if (!Number.isFinite(n) || n < 0 || n > 1000)
-        ctx.addIssue({ code: "custom", message: "Durée invalide." });
-      return Math.round(n * 60);
-    }),
-});
+const taskSchema = z
+  .object({
+    projectId: z.string().min(1),
+    taskId: z.string().optional(),
+    title: z.string().trim().min(1, "Titre requis.").max(300),
+    description: optionalText,
+    workPackageId: z
+      .string()
+      .optional()
+      .transform((v) => v || null),
+    ownerId: z
+      .string()
+      .optional()
+      .transform((v) => v || null),
+    priority: z.enum(PRIORITIES),
+    impact: z.enum(IMPACTS).default("MOYEN"),
+    complexity: z.enum(COMPLEXITIES).default("SIMPLE"),
+    category: z.enum(CATEGORIES).optional(),
+    startDate: dateInput,
+    dueDate: dateInput,
+    estimatedHours: z
+      .string()
+      .optional()
+      .transform((v, ctx) => {
+        if (!v) return null;
+        const n = Number(v.replace(",", "."));
+        if (!Number.isFinite(n) || n < 0 || n > 1000)
+          ctx.addIssue({ code: "custom", message: "Durée invalide." });
+        return Math.round(n * 60);
+      }),
+    recurrence: z.enum(RECURRENCES).default("AUCUNE"),
+    recurrenceUntil: dateInput,
+  })
+  .superRefine((data, ctx) => {
+    // Une tâche répétée a une échéance, et sa fin de répétition ne la précède pas.
+    const issue = recurrenceIssue(data);
+    if (issue) ctx.addIssue({ code: "custom", path: [issue.field], message: issue.message });
+  });
 
 export async function saveTaskAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
@@ -284,6 +318,9 @@ export async function saveTaskAction(_prev: FormState, formData: FormData): Prom
       ...data,
       priority: data.priority as Priority | "AUTO",
       impact: data.impact as Impact,
+      complexity: data.complexity as TaskComplexity,
+      category: data.category as TaskCategory | undefined,
+      recurrence: data.recurrence as Recurrence,
       estimatedMinutes: estimatedHours,
       contributorIds: formData.getAll("contributorIds").map(String),
     },
@@ -314,7 +351,26 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
   );
   if (!result.ok) return failure(result.error, formData);
   revalidatePath(`/taches/${parsed.data.taskId}`);
-  return { status: "success", message: "Statut mis à jour." };
+  revalidatePath(`/projets/${result.data.projectId}`);
+  const next = result.data.nextOccurrence;
+  revalidatePath("/");
+  revalidatePath("/progression");
+  revalidatePath("/quetes");
+  const quest = parsed.data.status === "TERMINE" ? await questNudge(user.id, "tasksDone") : null;
+  return {
+    status: "success",
+    message: [
+      "Statut mis à jour.",
+      next ? occurrenceCreatedMessage(next.dueDate) : null,
+      result.data.xp ? xpMessage(result.data.xp) : null,
+      quest,
+      result.data.badges.length
+        ? `Nouveau badge : ${result.data.badges.map((b) => `« ${b} »`).join(", ")} !`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
 }
 
 const depSchema = z.object({
@@ -380,4 +436,34 @@ export async function deleteCommentAction(formData: FormData) {
   const user = await requireUser();
   const result = await deleteComment(String(formData.get("commentId")), user);
   if (result.ok) revalidatePath(`/taches/${result.data.taskId}`);
+}
+
+export async function checkVerifiedClosureAction(formData: FormData) {
+  const user = await requireUser();
+  const projectId = String(formData.get("projectId"));
+  const keys = formData
+    .getAll("key")
+    .map(String)
+    .filter((k) => ["taches", "couts", "facturation", "bilan"].includes(k));
+  await checkVerifiedClosureItems(projectId, keys, user);
+  revalidatePath(`/projets/${projectId}`);
+}
+
+const satisfactionSchema = z.object({
+  projectId: z.string().min(1),
+  score: z
+    .string()
+    .optional()
+    .transform((v) => (v ? Number(v) : null)),
+  note: optionalText,
+});
+
+export async function saveSatisfactionAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = satisfactionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return validationError(parsed.error, formData);
+  const result = await saveSatisfaction(parsed.data.projectId, parsed.data.score, parsed.data.note, user);
+  if (!result.ok) return failure(result.error, formData);
+  revalidatePath(`/projets/${parsed.data.projectId}`);
+  return { status: "success", message: "Satisfaction enregistrée." };
 }

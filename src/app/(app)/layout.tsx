@@ -1,17 +1,28 @@
 import { Suspense } from "react";
-import { AppNav, AppNavShell } from "@/components/nav/app-nav";
+import { AppNavShell } from "@/components/nav/app-nav";
+import { NavWithData } from "@/components/nav/nav-with-data";
 import { TopBar } from "@/components/app/top-bar";
+import { RailProfile } from "@/components/nav/rail-profile";
 
-/** Zone protégée : chaque page vérifie la session côté serveur (requireUser). */
+/**
+ * Zone protégée : chaque page vérifie la session côté serveur (requireUser).
+ * Sur ordinateur, le rail et le contenu sont des panneaux posés sur un fond gris chaud (lot G8).
+ */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="md:flex">
+    <div className="lg:flex lg:gap-3 lg:p-3">
       <Suspense fallback={<AppNavShell pathname="" />}>
-        <AppNav />
+        <NavWithData
+          footer={
+            <Suspense>
+              <RailProfile />
+            </Suspense>
+          }
+        />
       </Suspense>
       <main
         id="contenu"
-        className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] md:px-8 md:pb-10"
+        className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-5 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.5rem)] md:px-6 lg:pt-4 lg:pb-8"
       >
         <Suspense fallback={<div className="mb-4 h-tap" />}>
           <TopBar />

@@ -124,7 +124,7 @@ async function ImportView({
         {header}
         <Card className="gap-2">
           <CardTitle>Aperçu du fichier</CardTitle>
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="text-xs">
               <thead>
                 <tr>

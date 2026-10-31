@@ -17,6 +17,8 @@ export type AuditAction =
   | `calendar.${string}`
   | `file.${string}`
   | `settings.${string}`
+  | `progression.${string}`
+  | `briefing.${string}`
   | "auth.sign_in.success"
   | "auth.sign_in.failure"
   | "auth.sign_in.blocked"

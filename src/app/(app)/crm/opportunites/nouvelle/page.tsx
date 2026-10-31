@@ -35,7 +35,8 @@ async function NewOpportunity({ searchParams }: { searchParams: Promise<{ client
         clients={clients}
         associates={associates.map((a) => ({ value: a.id, label: a.name }))}
         currentUserId={user.id}
-        defaultClientId={sp.client}
+        // ?client=<id> (depuis une fiche ou une opportunité détectée) : ignoré si l'entreprise n'est plus listée.
+        defaultClientId={clients.some((c) => c.value === sp.client) ? sp.client : undefined}
         settings={settings}
       />
     </Card>

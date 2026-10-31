@@ -7,6 +7,8 @@ import { getServerEnv } from "@/lib/env";
 import { formatDay, todayDate } from "@/lib/dates";
 import { isDueSoon, overdueLevel, suggestPriority } from "@/features/planning/rules";
 import { dueFollowUps } from "@/features/crm/service";
+import { sendDigests } from "@/features/brief/digest";
+import { ACTIONABLE_KINDS_EXCLUDED, kindsOf, tierOf, type Tier } from "@/features/notifications/tiers";
 
 export type NotificationInput = {
   userId: string;
@@ -19,7 +21,13 @@ export type NotificationInput = {
     | "planning"
     | "action"
     | "import"
-    | "relance";
+    | "relance"
+    | "aide"
+    | "menu"
+    | "mention"
+    | "commentaire"
+    | "badge"
+    | "felicitations";
   title: string;
   body?: string;
   href?: string;
@@ -61,12 +69,59 @@ export async function notify(input: NotificationInput): Promise<boolean> {
   return true;
 }
 
-export async function listNotifications(userId: string) {
-  return getDb().notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 });
+/**
+ * Même notification (sans e-mail) pour plusieurs associés, en une seule écriture.
+ * La clé de dédoublonnage reste unique par associé : rejouer ne crée rien de plus.
+ */
+export async function notifyMany(userIds: string[], input: Omit<NotificationInput, "userId" | "email">) {
+  if (!userIds.length) return;
+  await getDb().notification.createMany({
+    data: userIds.map((userId) => ({ ...input, userId })),
+    skipDuplicates: true,
+  });
 }
 
+export type CourrierView = Tier | "TOUT" | "ARCHIVE";
+
+/** Le courrier : par niveau, ou tout ce qui n'est pas classé, ou les archives. */
+export async function listNotifications(userId: string, view: CourrierView = "TOUT") {
+  const where =
+    view === "ARCHIVE"
+      ? { userId, archivedAt: { not: null } }
+      : view === "TOUT"
+        ? { userId, archivedAt: null }
+        : { userId, archivedAt: null, kind: { in: kindsOf(view) } };
+  return getDb().notification.findMany({ where, orderBy: { createdAt: "desc" }, take: 100 });
+}
+
+/** Non lus qui demandent une action ou une attention (les informations ne comptent pas). */
 export async function unreadCount(userId: string) {
-  return getDb().notification.count({ where: { userId, readAt: null } });
+  return getDb().notification.count({
+    where: { userId, readAt: null, archivedAt: null, kind: { notIn: ACTIONABLE_KINDS_EXCLUDED } },
+  });
+}
+
+/** Non lus par niveau, pour les onglets du courrier. */
+export async function unreadByTier(userId: string) {
+  const rows = await getDb().notification.groupBy({
+    by: ["kind"],
+    where: { userId, readAt: null, archivedAt: null },
+    _count: { _all: true },
+  });
+  const out: Record<Tier, number> = { PRIORITAIRE: 0, A_SUIVRE: 0, INFO: 0 };
+  for (const r of rows) out[tierOf(r.kind)] += r._count._all;
+  return out;
+}
+
+/** Classer : une notification (lue d'office) ou toutes celles déjà lues. */
+export async function archiveNotifications(userId: string, id: string | "lues") {
+  const now = new Date();
+  await getDb().notification.updateMany({
+    where: id === "lues" ? { userId, archivedAt: null, readAt: { not: null } } : { userId, id },
+    data: { archivedAt: now },
+  });
+  if (id !== "lues")
+    await getDb().notification.updateMany({ where: { userId, id, readAt: null }, data: { readAt: now } });
 }
 
 export async function markRead(userId: string, id: string | "all") {
@@ -96,7 +151,7 @@ export async function runScheduledScan(now = new Date()) {
       requiredBy: { select: { task: { select: { status: true } } } },
     },
   });
-  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0, relances: 0 };
+  const counts = { echeance: 0, retard: 0, escalade: 0, priorites: 0, relances: 0, recaps: 0 };
   for (const o of await dueFollowUps(today)) {
     if (
       await notify({
@@ -187,5 +242,6 @@ export async function runScheduledScan(now = new Date()) {
       }
     }
   }
+  counts.recaps = await sendDigests(now);
   return counts;
 }

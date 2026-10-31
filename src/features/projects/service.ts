@@ -6,15 +6,24 @@ import type {
   ProjectStatus,
   TaskStatus,
   Priority,
+  Recurrence,
+  TaskCategory,
+  TaskComplexity,
 } from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
+import { toCents } from "@/lib/money";
 import { notify } from "@/features/notifications/service";
+import { awardTaskCompletion, type XpAward } from "@/features/progression/service";
+import { checkAutoBadges } from "@/features/badges/service";
+import { postBrigadeEvent } from "@/features/brigade/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
+import { closureHints } from "@/features/projects/closure-auto";
 import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
+import { buildNextOccurrence, normalizeRecurrence, recurrenceIssue } from "@/features/projects/recurrence";
 import {
   TASK_DONE_STATES,
   checkProjectTransition,
@@ -59,6 +68,8 @@ export async function listProjects(filter: ProjectFilter) {
       : filter.scope === "termines"
         ? { archivedAt: null, status: "TERMINE" }
         : { archivedAt: null, status: { notIn: ["TERMINE", "ARCHIVE"] } };
+  // Le projet interne (« La maison ») a sa propre entrée : il n'est pas un projet client.
+  where.internal = false;
   if (filter.mine) where.ownerId = filter.mine;
   if (filter.phase) where.phase = filter.phase;
   if (filter.q) {
@@ -429,6 +440,17 @@ export async function changeProjectStatus(
     after: { status: to },
     reason: reason ?? undefined,
   });
+  if (to === "TERMINE" && !project.internal) {
+    // Réussite de brigade : service terminé (fil commun), puis badges du responsable.
+    await postBrigadeEvent({
+      userId: project.ownerId,
+      kind: "projet",
+      title: `Service terminé : ${project.name}`,
+      href: `/projets/${id}`,
+      dedupeKey: `projet:${id}`,
+    });
+    await checkAutoBadges(project.ownerId);
+  }
   return done(null);
 }
 
@@ -475,7 +497,8 @@ export async function toggleClosureItem(
       checked,
       checkedAt: checked ? new Date() : null,
       checkedById: checked ? actor.id : null,
-      note: note?.trim() || item.note,
+      // Décocher efface la note : une ancienne « vérification automatique » ne survit pas.
+      note: checked ? note?.trim() || item.note : null,
     },
   });
   await recordAudit({
@@ -629,6 +652,16 @@ export type TaskInput = {
   startDate: Date | null;
   dueDate: Date | null;
   estimatedMinutes: number | null;
+  /** Complexité (barème d'XP). Omise : inchangée en modification. */
+  complexity?: TaskComplexity | null;
+  /** Catégorie (client, agence, gestion…). Omise : inchangée, ou « client » en création. */
+  category?: TaskCategory;
+  /**
+   * Répétition : à la clôture, l'occurrence suivante est créée (voir changeTaskStatus).
+   * Omise : inchangée en modification, « Aucune » en création.
+   */
+  recurrence?: Recurrence;
+  recurrenceUntil?: Date | null;
 };
 
 export async function saveTask(
@@ -640,12 +673,21 @@ export async function saveTask(
   const db = getDb();
   if (input.startDate && input.dueDate && input.dueDate < input.startDate)
     return failed("L'échéance précède la date de début.");
+  const before = taskId ? await db.task.findFirst({ where: { id: taskId, projectId } }) : null;
+  if (taskId && !before) return failed("Tâche introuvable.");
+  const { contributorIds, priority: wanted, recurrence, recurrenceUntil, ...rest } = input;
+  const repeat = normalizeRecurrence(
+    recurrence === undefined
+      ? { recurrence: before?.recurrence ?? "AUCUNE", recurrenceUntil: before?.recurrenceUntil ?? null }
+      : { recurrence, recurrenceUntil: recurrenceUntil ?? null },
+  );
+  const recurrenceError = recurrenceIssue({ ...repeat, dueDate: rest.dueDate });
+  if (recurrenceError) return failed(recurrenceError.message);
   if (
     input.workPackageId &&
     !(await db.workPackage.findFirst({ where: { id: input.workPackageId, projectId } }))
   )
     return failed("Lot invalide.");
-  const { contributorIds, priority: wanted, ...rest } = input;
   const blockingCount = taskId
     ? await db.taskDependency.count({
         where: { dependsOnId: taskId, task: { status: { notIn: ["TERMINE", "ANNULE"] } } },
@@ -653,6 +695,7 @@ export async function saveTask(
     : 0;
   const fields = {
     ...rest,
+    ...repeat,
     priorityLocked: wanted !== "AUTO",
     priority:
       wanted === "AUTO"
@@ -665,9 +708,7 @@ export async function saveTask(
           }).priority
         : wanted,
   };
-  if (taskId) {
-    const before = await db.task.findFirst({ where: { id: taskId, projectId } });
-    if (!before) return failed("Tâche introuvable.");
+  if (taskId && before) {
     const changes = diff(before, fields);
     await db.task.update({
       where: { id: taskId },
@@ -710,7 +751,14 @@ export async function saveTask(
     projectId,
     targetType: "task",
     targetId: task.id,
-    after: { title: task.title, ownerId: task.ownerId },
+    after: {
+      title: task.title,
+      ownerId: task.ownerId,
+      // Répétition choisie dès la création : tracée comme les autres champs saisis.
+      ...(task.recurrence !== "AUCUNE"
+        ? { recurrence: task.recurrence, recurrenceUntil: task.recurrenceUntil?.toISOString() ?? null }
+        : {}),
+    },
   });
   if (task.ownerId) await notifyAssignment(task.id, task.ownerId, task.title, projectId, actor);
   return done({ id: task.id });
@@ -736,19 +784,43 @@ async function notifyAssignment(
   });
 }
 
+export type TaskStatusChange = {
+  projectId: string;
+  /** Occurrence créée par ce passage à « Terminé » (tâche répétée), sinon null. */
+  nextOccurrence: { id: string; dueDate: Date } | null;
+  /** XP gagnés par ce passage à « Terminé » (première clôture uniquement), sinon null. */
+  xp: XpAward | null;
+  /** Badges obtenus grâce à cette clôture. */
+  badges: string[];
+};
+
+/** Conflit d'écriture concurrente (contrainte unique ou transaction en conflit) : jamais une erreur 500. */
+const isWriteConflict = (e: unknown) =>
+  typeof e === "object" && e !== null && "code" in e && (e.code === "P2002" || e.code === "P2034");
+
 export async function changeTaskStatus(
   taskId: string,
   to: TaskStatus,
   details: { reason: string | null; nextAction: string | null; reviewDate: Date | null },
   actor: Actor,
-): Promise<ServiceResult<null>> {
+): Promise<ServiceResult<TaskStatusChange>> {
   const db = getDb();
   const task = await db.task.findUnique({
     where: { id: taskId },
-    include: { dependsOn: { include: { dependsOn: true } } },
+    include: {
+      dependsOn: { include: { dependsOn: true } },
+      contributors: { select: { userId: true } },
+      project: { select: { status: true, archivedAt: true } },
+    },
   });
   if (!task || task.archivedAt) return failed("Tâche introuvable.");
-  if (task.status === to && to !== "BLOQUE") return done(null);
+  const unchanged = done<TaskStatusChange>({
+    projectId: task.projectId,
+    nextOccurrence: null,
+    xp: null,
+    badges: [],
+  });
+  if (task.status === to && to !== "BLOQUE") return unchanged;
   const unfinished = task.dependsOn
     .filter((d) => !TASK_DONE_STATES.includes(d.dependsOn.status))
     .map((d) => `« ${d.dependsOn.title} »`);
@@ -756,17 +828,78 @@ export async function changeTaskStatus(
     checkTaskTransition(task.status, to, { reason: details.reason, unfinishedPredecessors: unfinished }),
   );
   if (error) return failed(error);
-  await db.task.update({
-    where: { id: taskId },
-    data: {
-      status: to,
-      blockedReason: to === "BLOQUE" ? details.reason : null,
-      blockedNextAction: to === "BLOQUE" ? details.nextAction : null,
-      blockedReviewDate: to === "BLOQUE" ? details.reviewDate : null,
-      cancelReason: to === "ANNULE" ? details.reason : null,
-      completedAt: to === "TERMINE" ? new Date() : null,
-    },
-  });
+
+  type Outcome =
+    | { kind: "stale" }
+    | { kind: "unchanged" }
+    | { kind: "moved"; next: { id: string; title: string; ownerId: string | null; dueDate: Date } | null };
+  let outcome: Outcome;
+  try {
+    outcome = await db.$transaction(async (tx): Promise<Outcome> => {
+      // Mise à jour conditionnelle (verrouille la ligne) : un double envoi ou un changement
+      // concurrent ne s'applique qu'une fois.
+      const moved = await tx.task.updateMany({
+        where: { id: taskId, status: task.status, archivedAt: null },
+        data: {
+          status: to,
+          blockedReason: to === "BLOQUE" ? details.reason : null,
+          blockedNextAction: to === "BLOQUE" ? details.nextAction : null,
+          blockedReviewDate: to === "BLOQUE" ? details.reviewDate : null,
+          cancelReason: to === "ANNULE" ? details.reason : null,
+          completedAt: to === "TERMINE" ? new Date() : null,
+        },
+      });
+      if (moved.count === 0) {
+        const fresh = await tx.task.findUnique({
+          where: { id: taskId },
+          select: { status: true, archivedAt: true },
+        });
+        return fresh && !fresh.archivedAt && fresh.status === to ? { kind: "unchanged" } : { kind: "stale" };
+      }
+      if (to !== "TERMINE") return { kind: "moved", next: null };
+
+      // Tâche répétée : l'occurrence suivante naît dans la même transaction, une seule fois.
+      const current = await tx.task.findUniqueOrThrow({ where: { id: taskId } });
+      const data = buildNextOccurrence(
+        { ...current, contributorIds: task.contributors.map((c) => c.userId) },
+        {
+          today: todayDate(),
+          projectOpen: !task.project.archivedAt && !["TERMINE", "ARCHIVE"].includes(task.project.status),
+        },
+      );
+      if (!data) return { kind: "moved", next: null };
+      const { contributorIds, ...fields } = data;
+      const created = await tx.task.create({
+        data: {
+          ...fields,
+          position: await tx.task.count({ where: { projectId: fields.projectId } }),
+          createdById: actor.id,
+          contributors: { create: contributorIds.map((userId) => ({ userId })) },
+        },
+      });
+      const claimed = await tx.task.updateMany({
+        where: { id: taskId, nextOccurrenceId: null },
+        data: { nextOccurrenceId: created.id },
+      });
+      if (claimed.count === 0) {
+        // Occurrence déjà rattachée par un envoi concurrent : on retire la copie.
+        await tx.task.delete({ where: { id: created.id } });
+        return { kind: "moved", next: null };
+      }
+      return {
+        kind: "moved",
+        next: { id: created.id, title: created.title, ownerId: created.ownerId, dueDate: data.dueDate },
+      };
+    });
+  } catch (e) {
+    if (isWriteConflict(e)) return failed("La tâche vient d'être modifiée par ailleurs. Rechargez la page.");
+    throw e;
+  }
+  if (outcome.kind === "stale")
+    return failed("Le statut de la tâche a changé entre-temps. Rechargez la page.");
+  if (outcome.kind === "unchanged") return unchanged;
+  const next = outcome.next;
+
   await recordAudit({
     action: "task.status_changed",
     actorId: actor.id,
@@ -774,9 +907,24 @@ export async function changeTaskStatus(
     targetType: "task",
     targetId: taskId,
     before: { status: task.status },
-    after: { status: to },
+    after: next
+      ? { status: to, nextOccurrenceId: next.id, nextDueDate: next.dueDate.toISOString() }
+      : { status: to },
     reason: details.reason ?? undefined,
   });
+  if (next) {
+    // Comme une création de tâche : journal et notification d'assignation.
+    await recordAudit({
+      action: "task.created",
+      actorId: actor.id,
+      projectId: task.projectId,
+      targetType: "task",
+      targetId: next.id,
+      after: { title: next.title, ownerId: next.ownerId, previousOccurrenceId: taskId },
+      reason: "Occurrence suivante d'une tâche répétée",
+    });
+    if (next.ownerId) await notifyAssignment(next.id, next.ownerId, next.title, task.projectId, actor);
+  }
   if (to === "BLOQUE") {
     // Tâche bloquée : responsable de la tâche et responsable global, aussi par e-mail.
     const project = await db.project.findUnique({
@@ -798,7 +946,27 @@ export async function changeTaskStatus(
         email: true,
       });
   }
-  return done(null);
+  // Progression : une seule attribution par tâche (clé d'idempotence), même rouverte puis refermée.
+  const xp = to === "TERMINE" ? await awardTaskCompletion(task, actor) : null;
+  const holder = task.ownerId ?? actor.id;
+  if (xp?.levelUp?.rankTitle) {
+    const who = await db.user.findUnique({ where: { id: holder }, select: { name: true } });
+    await postBrigadeEvent({
+      userId: holder,
+      kind: "rang",
+      title: `${who?.name ?? "Un associé"} devient ${xp.levelUp.rankTitle}`,
+      detail: `Niveau ${xp.levelUp.level} atteint.`,
+      href: "/bureau",
+      dedupeKey: `rang:${holder}:${xp.levelUp.rankTitle}`,
+    });
+  }
+  const badges = to === "TERMINE" ? await checkAutoBadges(holder) : [];
+  return done({
+    projectId: task.projectId,
+    nextOccurrence: next ? { id: next.id, dueDate: next.dueDate } : null,
+    xp,
+    badges: holder === actor.id ? badges : [],
+  });
 }
 
 export async function addDependency(
@@ -859,5 +1027,88 @@ export async function removeDependency(
     targetId: taskId,
     before: { dependsOn: dep.dependsOn.title },
   });
+  return done(null);
+}
+
+// ─── Clôture semi-automatique et satisfaction ─────────────────────────────
+
+/** Faits vérifiables pour la checklist de clôture (comptages, sans rien modifier). */
+export async function closureFacts(projectId: string) {
+  const db = getDb();
+  const [openTasks, costsNotPaid, billing, documents] = await Promise.all([
+    db.task.count({ where: { projectId, archivedAt: null, status: { notIn: ["TERMINE", "ANNULE"] } } }),
+    db.costItem.count({
+      where: { projectId, archivedAt: null, status: { in: ["PREVU", "ENGAGE", "FACTURE"] } },
+    }),
+    db.billingMilestone.findMany({
+      where: { projectId, archivedAt: null, status: { not: "ANNULE" } },
+      select: { amount: true, payments: { where: { deletedAt: null }, select: { amount: true } } },
+    }),
+    db.fileReference.count({ where: { projectId, archivedAt: null } }),
+  ]);
+  const billingNotCollected = billing.filter(
+    (b) => b.payments.reduce((n, p) => n + toCents(p.amount), 0) < toCents(b.amount),
+  ).length;
+  return { openTasks, costsNotPaid, billingNotCollected, documents };
+}
+
+/**
+ * Coche en une fois les points que les données confirment ; trace « vérifié automatiquement ».
+ * Les données sont relues ici : un point proposé à l'affichage mais qui ne se vérifie plus
+ * (coût ajouté, encaissement supprimé entre-temps) n'est pas coché et est renvoyé dans `refused`.
+ */
+export async function checkVerifiedClosureItems(
+  projectId: string,
+  keys: string[],
+  actor: Actor,
+): Promise<ServiceResult<{ checked: number; refused: string[] }>> {
+  const db = getDb();
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { closingReview: true, status: true, archivedAt: true },
+  });
+  if (!project || project.archivedAt || project.status === "TERMINE" || project.status === "ARCHIVE")
+    return failed("Projet introuvable ou déjà clôturé.");
+  const hints = closureHints({
+    ...(await closureFacts(projectId)),
+    hasReview: !!project.closingReview?.trim(),
+  });
+  const allowed = keys.filter((k) => hints[k]?.verifiable && hints[k]?.ok);
+  const refused = keys.filter((k) => !allowed.includes(k));
+  const items = allowed.length
+    ? await db.closureItem.findMany({ where: { projectId, key: { in: allowed }, checked: false } })
+    : [];
+  const note = `Vérifié automatiquement le ${todayDate().toISOString().slice(0, 10)}`;
+  for (const item of items) await toggleClosureItem(projectId, item.id, true, note, actor);
+  return done({ checked: items.length, refused });
+}
+
+export async function saveSatisfaction(
+  projectId: string,
+  score: number | null,
+  note: string | null,
+  actor: Actor,
+): Promise<ServiceResult<null>> {
+  if (score != null && (!Number.isInteger(score) || score < 1 || score > 5))
+    return failed("Note entre 1 et 5.");
+  const db = getDb();
+  const before = await db.project.findUnique({
+    where: { id: projectId },
+    select: { clientSatisfaction: true, satisfactionNote: true, ownerId: true },
+  });
+  if (!before) return failed("Projet introuvable.");
+  const data = { clientSatisfaction: score, satisfactionNote: note };
+  const changes = diff(before, data);
+  if (!changes.changed) return done(null);
+  await db.project.update({ where: { id: projectId }, data });
+  await recordAudit({
+    action: "project.satisfaction",
+    actorId: actor.id,
+    projectId,
+    targetType: "project",
+    targetId: projectId,
+    ...changes,
+  });
+  await checkAutoBadges(before.ownerId);
   return done(null);
 }

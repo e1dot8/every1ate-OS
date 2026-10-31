@@ -169,22 +169,25 @@ export function Tabs({
   active: string;
 }) {
   return (
-    <nav aria-label="Sections" className="flex gap-5 overflow-x-auto border-b">
-      {items.map((t) => (
-        <Link
-          key={t.key}
-          href={t.href}
-          aria-current={t.key === active ? "page" : undefined}
-          className={cn(
-            "min-h-tap shrink-0 pt-2 pb-2.5 text-sm font-bold whitespace-nowrap",
-            t.key === active
-              ? "text-foreground shadow-[inset_0_-2px_0_var(--pen)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t.label}
-        </Link>
-      ))}
+    <nav aria-label="Sections" className="-mx-1 overflow-x-auto px-1">
+      {/* Onglets en pastilles, identiques dans tous les espaces (lot G8). */}
+      <div className="inline-flex gap-1 rounded-full bg-muted p-1">
+        {items.map((t) => (
+          <Link
+            key={t.key}
+            href={t.href}
+            aria-current={t.key === active ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-9 shrink-0 items-center rounded-full px-4 text-[13px] whitespace-nowrap",
+              t.key === active
+                ? "border border-ink/10 bg-paper font-bold shadow-sm"
+                : "text-ink/70 hover:text-ink",
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }

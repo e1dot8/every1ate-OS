@@ -1,17 +1,40 @@
 import Link from "next/link";
-import { Bell, Timer } from "lucide-react";
+import { Bell, Flame, Plus, Search, Timer } from "lucide-react";
+import { QuickAdd } from "@/components/app/quick-add";
+import { userStreak } from "@/features/badges/service";
+import { BrigadeAvatar } from "@/features/maison/components/avatar";
+import { avatarsOf } from "@/features/maison/service";
+import { listAssociates } from "@/features/projects/service";
 import { Elapsed } from "@/features/time/components/timer";
 import { unreadCount } from "@/features/notifications/service";
-import { getActiveTimer } from "@/features/time/service";
+import { getActiveTimer, getPausedTimer } from "@/features/time/service";
 import { getCurrentUser } from "@/lib/auth/session";
 
-/** Barre d'état : chronomètre en cours et cloche des notifications. */
+/**
+ * Barre d'état : chronomètre en cours, la brigade (vers le bureau commun), la série de
+ * régularité, la recherche, « Créer » et le courrier (lot G8, maquette).
+ */
 export async function TopBar() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const [active, unread] = await Promise.all([getActiveTimer(user.id), unreadCount(user.id)]);
+  const [active, paused, unread, associates, streak] = await Promise.all([
+    getActiveTimer(user.id),
+    getPausedTimer(user.id),
+    unreadCount(user.id),
+    listAssociates(),
+    userStreak(user.id),
+  ]);
+  // Quelques visages suffisent : la brigade complète est au bureau commun.
+  const shown = associates.slice(0, 4);
+  const looks = await avatarsOf(shown.map((a) => a.id));
   return (
-    <div className="mb-4 flex items-center justify-end gap-2">
+    <div className="mb-4 flex items-center justify-end gap-2.5">
+      {/* Sur téléphone et tablette, le logo ; il laisse sa place au chronomètre en cours. */}
+      {!active && !paused ? (
+        <Link href="/" className="mr-auto text-xl font-bold tracking-[-0.05em] lg:hidden">
+          every1.ate
+        </Link>
+      ) : null}
       {active ? (
         <Link
           href={`/taches/${active.taskId}`}
@@ -21,7 +44,55 @@ export async function TopBar() {
           <span className="truncate">{active.task.title}</span>
           <Elapsed startedAt={active.startedAt!.toISOString()} />
         </Link>
+      ) : paused ? (
+        <Link
+          href={`/taches/${paused.taskId}`}
+          className="mr-auto inline-flex min-h-tap max-w-[70%] items-center gap-2 rounded-full border-2 border-dashed border-ink px-3 text-sm font-bold"
+        >
+          <Timer aria-hidden="true" className="size-4 shrink-0" />
+          <span className="truncate">En pause · {paused.task.title}</span>
+        </Link>
       ) : null}
+      <Link
+        href="/bureau"
+        aria-label={`La brigade (${associates.length}) — voir l'équipe`}
+        className="hidden items-center rounded-full py-1 pr-1 hover:bg-paper/70 lg:inline-flex"
+      >
+        <span className="flex -space-x-2">
+          {shown.map((a) => (
+            <BrigadeAvatar key={a.id} look={looks.get(a.id)!} size={34} className="ring-2 ring-background" />
+          ))}
+        </span>
+        <span className="ml-1 inline-flex size-8 items-center justify-center rounded-full border border-ink/15 bg-paper">
+          {associates.length > shown.length ? (
+            <span aria-hidden="true" className="text-[11px] font-bold">
+              +{associates.length - shown.length}
+            </span>
+          ) : (
+            <Plus aria-hidden="true" className="size-4" />
+          )}
+        </span>
+      </Link>
+      {streak?.weeks ? (
+        <Link
+          href="/progression"
+          className="hidden h-10 items-center gap-1.5 rounded-full border border-ink/10 bg-paper px-4 text-[13px] sm:inline-flex"
+        >
+          Série
+          <Flame aria-hidden="true" className="size-4 text-pen" />
+          <b>
+            {streak.weeks} semaine{streak.weeks > 1 ? "s" : ""}
+          </b>
+        </Link>
+      ) : null}
+      <Link
+        href="/recherche"
+        aria-label="Rechercher"
+        className="inline-flex size-tap items-center justify-center rounded-full border border-ink/10 bg-paper hover:bg-muted"
+      >
+        <Search aria-hidden="true" className="size-5" />
+      </Link>
+      <QuickAdd />
       <Link
         href="/notifications"
         aria-label={unread ? `Notifications, ${unread} non lue${unread > 1 ? "s" : ""}` : "Notifications"}

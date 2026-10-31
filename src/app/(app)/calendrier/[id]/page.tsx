@@ -12,6 +12,7 @@ import { EventForm } from "@/features/calendar/components/event-form";
 import { eventOptions } from "@/features/calendar/options";
 import { utcToLocalInput } from "@/features/calendar/rules";
 import { getEvent } from "@/features/calendar/service";
+import { NotesSection } from "@/features/notes/components/notes-section";
 import { requireUser } from "@/lib/auth/session";
 import { formatDateTime } from "@/lib/dates";
 import { cancelEventAction } from "../actions";
@@ -72,6 +73,13 @@ async function EventView({ params }: { params: Promise<{ id: string }> }) {
         ) : null}
       </header>
       {e.description ? <p className="whitespace-pre-line">{e.description}</p> : null}
+      <div className="max-w-3xl">
+        <NotesSection
+          filter={{ eventId: id }}
+          newHref={`/notes/nouvelle?evenement=${id}`}
+          newLabel="Rédiger le compte rendu"
+        />
+      </div>
       {involved && !e.cancelledAt ? (
         <Card className="max-w-3xl gap-3">
           <CardTitle>Modifier</CardTitle>

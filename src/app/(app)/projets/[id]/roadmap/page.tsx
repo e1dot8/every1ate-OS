@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Diamond, X } from "lucide-react";
@@ -7,6 +8,7 @@ import { PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Gantt } from "@/features/planning/components/gantt";
+import { RoadmapList } from "@/features/planning/components/roadmap-list";
 import { MilestoneForm } from "@/features/planning/components/milestone-form";
 import { getRoadmap } from "@/features/planning/service";
 import { requireUser } from "@/lib/auth/session";
@@ -15,9 +17,16 @@ import { archiveMilestoneAction } from "./actions";
 
 export const metadata: Metadata = { title: "Roadmap" };
 
-async function RoadmapView({ params }: { params: Promise<{ id: string }> }) {
+async function RoadmapView({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ vue?: string }>;
+}) {
   await requireUser();
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const forceGantt = sp.vue === "gantt";
   const data = await getRoadmap(id);
   if (!data) notFound();
   const { project, lots, tasks, milestones, edges } = data;
@@ -37,26 +46,42 @@ async function RoadmapView({ params }: { params: Promise<{ id: string }> }) {
         <PhaseSteps phase={project.phase} />
       </header>
       {tasks.length || milestones.length ? (
-        <Gantt
-          today={toDateInput(todayDate())}
-          lots={lots.map((l) => ({ id: l.id, name: l.name }))}
-          tasks={tasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            status: t.status,
-            start: t.startDate ? toDateInput(t.startDate) : null,
-            due: t.dueDate ? toDateInput(t.dueDate) : null,
-            lotId: t.workPackageId,
-            owner: t.owner?.name ?? null,
-          }))}
-          milestones={milestones.map((m) => ({
-            id: m.id,
-            name: m.name,
-            date: toDateInput(m.date),
-            reached: !!m.reachedAt,
-          }))}
-          edges={edges}
-        />
+        <>
+          {/* Téléphone : planning en liste (le glisser-déposer au doigt est peu fiable). */}
+          {!forceGantt ? (
+            <div className="flex flex-col gap-3 md:hidden">
+              <Link
+                href={`/projets/${id}/roadmap?vue=gantt`}
+                className="text-sm font-bold text-pen-strong underline"
+              >
+                Afficher le Gantt
+              </Link>
+              <RoadmapList tasks={tasks} milestones={milestones} today={todayDate()} />
+            </div>
+          ) : null}
+          <div className={forceGantt ? "" : "hidden md:block"}>
+            <Gantt
+              today={toDateInput(todayDate())}
+              lots={lots.map((l) => ({ id: l.id, name: l.name }))}
+              tasks={tasks.map((t) => ({
+                id: t.id,
+                title: t.title,
+                status: t.status,
+                start: t.startDate ? toDateInput(t.startDate) : null,
+                due: t.dueDate ? toDateInput(t.dueDate) : null,
+                lotId: t.workPackageId,
+                owner: t.owner?.name ?? null,
+              }))}
+              milestones={milestones.map((m) => ({
+                id: m.id,
+                name: m.name,
+                date: toDateInput(m.date),
+                reached: !!m.reachedAt,
+              }))}
+              edges={edges}
+            />
+          </div>
+        </>
       ) : (
         <Card>
           <CardTitle>Rien à planifier</CardTitle>
@@ -98,11 +123,11 @@ async function RoadmapView({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-export default function RoadmapPage({ params }: PageProps<"/projets/[id]/roadmap">) {
+export default function RoadmapPage({ params, searchParams }: PageProps<"/projets/[id]/roadmap">) {
   return (
     <div className="flex flex-col gap-5">
       <Suspense fallback={<PageLoading />}>
-        <RoadmapView params={params} />
+        <RoadmapView params={params} searchParams={searchParams as Promise<{ vue?: string }>} />
       </Suspense>
     </div>
   );

@@ -25,6 +25,14 @@ const protectedRoutes = [
   "/calendrier",
   "/calendrier/abonnement",
   "/documents",
+  "/notes",
+  "/notes/nouvelle",
+  "/recherche",
+  "/finance/tresorerie",
+  "/finance/tresorerie/charges/nouvelle",
+  "/finance/analyses",
+  "/plus/reglages",
+  "/taches/nouvelle",
 ];
 
 test.describe("contrôle d'accès côté serveur", () => {
@@ -40,6 +48,10 @@ test.describe("contrôle d'accès côté serveur", () => {
     await page.goto("/plus/associes");
     await expect(page).toHaveURL(/\/connexion/);
     await expect(page.getByText("@example.test")).toHaveCount(0);
+  });
+
+  test("l'export comptable refuse un appel sans session", async ({ request }) => {
+    expect((await request.get("/api/export/finance?annee=2026")).status()).toBe(401);
   });
 
   test("la passe planifiée refuse un appel sans secret", async ({ request }) => {

@@ -24,17 +24,25 @@ model SystemInfo {
 // Champs imposés par Better Auth : ne pas renommer sans adapter src/lib/auth/auth.ts.
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
+  id                  String          @id
+  name                String
+  email               String          @unique
+  emailVerified       Boolean         @default(false)
+  image               String?
   /// V1 : « associe » uniquement. V2 : collaborateur, prestataire, client.
-  role          String    @default("associe")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  role                String          @default("associe")
+  /// Coût horaire interne (centimes) : valorise le temps passé dans les marges.
+  hourlyCostCents     Int?
+  /// Capacité de travail hebdomadaire (heures) pour la charge à venir.
+  weeklyCapacityHours Int?
+  /// Récapitulatif par e-mail : désactivé par défaut (choix de chaque associé).
+  digestFrequency     DigestFrequency @default(AUCUN)
+  /// Jour du dernier récapitulatif envoyé (évite les doublons).
+  lastDigestOn        DateTime?       @db.Date
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  sessions            Session[]
+  accounts            Account[]
 
   invitationsSent Invitation[] @relation("InvitedBy")
 
@@ -59,6 +67,29 @@ model User {
   eventAttendances   EventAttendee[]
   calendarFeed       CalendarFeed?
   filesAdded         FileReference[]
+  meetingNotes       MeetingNote[]
+  xpTransactions     XpTransaction[]       @relation("XpRecipient")
+  dailyPriorities    DailyPriority[]
+  dailyBriefings     DailyBriefing[]
+  skills             UserSkill[]
+  skillEvidence      SkillEvidence[]
+  endorsementsGiven  SkillEndorsement[]    @relation("EndorsementBy")
+  endorsementsGot    SkillEndorsement[]    @relation("EndorsementFor")
+  badges             UserBadge[]           @relation("BadgeHolder")
+  badgesGiven        UserBadge[]           @relation("BadgeGiver")
+  preference         UserPreference?
+  streakPauses       StreakPause[]
+  quests             QuestEnrollment[]
+  brigadeEvents      BrigadeEvent[]
+  cheers             BrigadeCheer[]
+  avatar             UserAvatar?
+  apartmentItems     ApartmentItem[]
+  recipes            Recipe[]
+  recipeUses         RecipeUse[]
+  helpRequests       HelpRequest[]         @relation("HelpAuthor")
+  helpTaken          HelpRequest[]         @relation("HelpTaker")
+  reactions          BrigadeReaction[]
+  weeklyItemsOwned   WeeklyItem[]          @relation("WeeklyItemOwner")
 
   @@map("user")
 }
@@ -235,50 +266,57 @@ model Client {
   contracts     RecurringContract[]
   events        CalendarEvent[]
   files         FileReference[]
+  meetingNotes  MeetingNote[]
 
   @@index([name])
   @@map("client")
 }
 
 model Project {
-  id              String              @id @default(cuid())
-  name            String
-  description     String?
-  clientId        String?
-  client          Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  templateKey     String?
-  ownerId         String
-  owner           User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  phase           ProjectPhase        @default(RECETTE)
-  status          ProjectStatus       @default(A_PREPARER)
-  statusReason    String?
-  startDate       DateTime?           @db.Date
-  plannedEndDate  DateTime?           @db.Date
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  clientId           String?
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  templateKey        String?
+  /// Projet interne unique « La maison » : tâches sans client (agence, gestion, visibilité…).
+  internal           Boolean             @default(false)
+  ownerId            String
+  owner              User                @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  phase              ProjectPhase        @default(RECETTE)
+  status             ProjectStatus       @default(A_PREPARER)
+  statusReason       String?
+  startDate          DateTime?           @db.Date
+  plannedEndDate     DateTime?           @db.Date
   /// Fin prévue de référence (planning initial) pour la règle de retard majeur (§14.1).
-  baselineEndDate DateTime?           @db.Date
-  actualStartDate DateTime?           @db.Date
-  actualEndDate   DateTime?           @db.Date
-  closedAt        DateTime?
-  closedById      String?
-  closingReview   String?
-  archivedAt      DateTime?
-  createdById     String
-  createdBy       User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  workPackages    WorkPackage[]
-  tasks           Task[]
-  closureItems    ClosureItem[]
-  milestones      Milestone[]
-  opportunity     Opportunity?
-  budgetRevisions BudgetRevision[]
-  costItems       CostItem[]
-  billing         BillingMilestone[]
-  payments        PaymentRecord[]
-  contracts       RecurringContract[]
-  decisions       DecisionRequest[]
-  events          CalendarEvent[]
-  files           FileReference[]
+  baselineEndDate    DateTime?           @db.Date
+  actualStartDate    DateTime?           @db.Date
+  actualEndDate      DateTime?           @db.Date
+  closedAt           DateTime?
+  closedById         String?
+  closingReview      String?
+  /// Satisfaction exprimée par le client à la clôture (1 à 5).
+  clientSatisfaction Int?
+  satisfactionNote   String?
+  archivedAt         DateTime?
+  createdById        String
+  createdBy          User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  workPackages       WorkPackage[]
+  tasks              Task[]
+  closureItems       ClosureItem[]
+  milestones         Milestone[]
+  opportunity        Opportunity?
+  budgetRevisions    BudgetRevision[]
+  costItems          CostItem[]
+  billing            BillingMilestone[]
+  payments           PaymentRecord[]
+  contracts          RecurringContract[]
+  decisions          DecisionRequest[]
+  events             CalendarEvent[]
+  files              FileReference[]
+  meetingNotes       MeetingNote[]
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -341,9 +379,23 @@ model Task {
   /// Priorité fixée à la main : aucun calcul ne la remplace (§7.4).
   priorityLocked    Boolean           @default(false)
   impact            Impact            @default(MOYEN)
+  recurrence        Recurrence        @default(AUCUNE)
+  recurrenceUntil   DateTime?         @db.Date
+  /// Occurrence suivante déjà créée (garantit une seule création).
+  nextOccurrenceId  String?           @unique
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
+  /// Temps restant estimé, mis à jour par le responsable (à défaut : estimation − temps suivi).
+  remainingMinutes  Int?
+  category          TaskCategory      @default(CLIENT)
+  /// Mini-bilan facultatif quand le réel dépasse nettement l'estimation (jamais une sanction).
+  overrunReason     OverrunReason?
+  overrunNote       String?
+  /// Bilan fait ou passé : la question n'est plus posée.
+  overrunReviewedAt DateTime?
+  /// Complexité choisie à la création : fixe les XP gagnés à la clôture (jamais déduite du temps).
+  complexity        TaskComplexity?
   blockedReason     String?
   blockedNextAction String?
   blockedReviewDate DateTime?         @db.Date
@@ -361,6 +413,7 @@ model Task {
   timeEntries       TimeEntry[]
   comments          TaskComment[]
   files             FileReference[]
+  dailyPriorities   DailyPriority[]
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -455,6 +508,8 @@ model TimeEntry {
   endedAt         DateTime?
   durationMinutes Int?
   source          TimeSource
+  /// Segment de chronomètre terminé par une pause : « Reprendre » relance la même tâche.
+  resumable       Boolean    @default(false)
   comment         String?
   deletedAt       DateTime?
   createdAt       DateTime   @default(now())
@@ -484,19 +539,21 @@ model TaskComment {
 /// Centre de notifications. La clé de dédoublonnage évite les alertes répétitives
 /// et la table conserve l'historique des alertes émises (§13.3).
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind      String
-  title     String
-  body      String?
-  href      String?
-  projectId String?
-  taskId    String?
-  dedupeKey String
-  emailedAt DateTime?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String
+  title      String
+  body       String?
+  href       String?
+  projectId  String?
+  taskId     String?
+  dedupeKey  String
+  emailedAt  DateTime?
+  readAt     DateTime?
+  /// Classée : disparaît du courrier, reste consultable dans « Archivé ».
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt])
@@ -583,6 +640,7 @@ model Opportunity {
   updatedAt         DateTime              @updatedAt
   activities        OpportunityActivity[]
   events            CalendarEvent[]
+  meetingNotes      MeetingNote[]
 
   @@index([stage, archivedAt])
   @@index([ownerId])
@@ -962,6 +1020,7 @@ model CalendarEvent {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   attendees     EventAttendee[]
+  meetingNotes  MeetingNote[]
 
   @@index([startsAt, endsAt])
   @@index([ownerId])
@@ -1027,4 +1086,497 @@ model FileReference {
   @@index([clientId])
   @@index([externalId])
   @@map("file_reference")
+}
+
+// ─── Évolutions V1.1 : pilotage gratuit, sans IA ────────────────────────────
+
+enum DigestFrequency {
+  AUCUN
+  QUOTIDIEN
+  HEBDOMADAIRE
+}
+
+enum Recurrence {
+  AUCUNE
+  HEBDOMADAIRE
+  MENSUELLE
+}
+
+enum ChargeFrequency {
+  MENSUELLE
+  TRIMESTRIELLE
+  ANNUELLE
+}
+
+/// Réglages de l'agence (une seule ligne).
+model AgencySetting {
+  id                     String    @id @default("default")
+  /// Coût horaire interne par défaut (centimes), si l'associé n'a pas le sien.
+  defaultHourlyCostCents Int?
+  defaultWeeklyHours     Int       @default(35)
+  /// Solde bancaire saisi à la main (point de départ de la trésorerie prévisionnelle).
+  cashBalance            Decimal?  @db.Decimal(12, 2)
+  cashBalanceDate        DateTime? @db.Date
+  /// La Cuisine (CRM) : seuils des situations, modifiables dans Réglages CRM.
+  crmSilenceDays         Int       @default(21)
+  crmPaymentTermDays     Int       @default(30)
+  crmBillingHorizonDays  Int       @default(7)
+  crmLowSatisfaction     Int       @default(2)
+  updatedAt              DateTime  @updatedAt
+
+  @@map("agency_setting")
+}
+
+/// Charges fixes récurrentes (loyer, salaires, abonnements) pour la trésorerie à 90 jours.
+model RecurringCharge {
+  id         String          @id @default(cuid())
+  label      String
+  category   String?
+  amount     Decimal         @db.Decimal(12, 2)
+  frequency  ChargeFrequency @default(MENSUELLE)
+  nextDate   DateTime        @db.Date
+  endDate    DateTime?       @db.Date
+  archivedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("recurring_charge")
+}
+
+/// Objectifs annuels de l'agence (chiffre d'affaires facturé, marge, nombre de projets).
+model AnnualObjective {
+  year         Int      @id
+  revenue      Decimal? @db.Decimal(12, 2)
+  margin       Decimal? @db.Decimal(12, 2)
+  projectCount Int?
+  updatedAt    DateTime @updatedAt
+
+  @@map("annual_objective")
+}
+
+/// Compte rendu de réunion : les lignes d'action deviennent des tâches après confirmation.
+model MeetingNote {
+  id            String         @id @default(cuid())
+  title         String
+  body          String
+  occurredAt    DateTime       @db.Date
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  projectId     String?
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  opportunityId String?
+  opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  eventId       String?
+  event         CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdTasks  Int            @default(0)
+  archivedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([opportunityId])
+  @@map("meeting_note")
+}
+
+// ─── Progression (lot G1) ──────────────────────────────────────────────────
+
+enum TaskComplexity {
+  SIMPLE
+  MOYENNE
+  COMPLEXE
+}
+
+/// Registre des XP : chaque gain ou correction est une ligne, jamais un compteur modifiable.
+/// La clé d'idempotence garantit une seule attribution par événement, même rejoué.
+model XpTransaction {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation("XpRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  /// Peut être négatif (correction) ou nul (plafond du jour atteint, conservé pour la transparence).
+  amount         Int
+  /// Règle appliquée (voir src/features/progression/config.ts).
+  kind           String
+  label          String
+  sourceType     String?
+  sourceId       String?
+  idempotencyKey String         @unique
+  /// Correction : transaction annulée par celle-ci.
+  reversesId     String?        @unique
+  reverses       XpTransaction? @relation("XpReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy     XpTransaction? @relation("XpReversal")
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@map("xp_transaction")
+}
+
+/// Jusqu'à trois priorités par associé et par jour (cockpit, mise en place).
+model DailyPriority {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Jour calendaire (Europe/Paris).
+  day       DateTime @db.Date
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position  Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, day, taskId])
+  @@unique([userId, day, position])
+  @@map("daily_priority")
+}
+
+// ─── Temps et estimation (lot G2) ──────────────────────────────────────────
+
+enum TaskCategory {
+  CLIENT
+  AGENCE
+  GESTION
+  BRANDING
+  APPRENTISSAGE
+  ENTRAIDE
+  RITUEL
+}
+
+enum OverrunReason {
+  ESTIMATION_COURTE
+  BRIEF_INCOMPLET
+  RETOURS_SUPPLEMENTAIRES
+  BLOCAGE_EXTERNE
+  PERIMETRE_MODIFIE
+  QUALITE
+  AUTRE
+}
+
+// ─── Briefings (lot G3) ────────────────────────────────────────────────────
+
+enum DayMood {
+  EN_FORME
+  NORMAL
+  CHARGE_ELEVEE
+  BESOIN_ALLEGER
+}
+
+/// « La mise en place » : briefing quotidien, 3 à 5 minutes. Tout est facultatif sauf le jour.
+model DailyBriefing {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Jour calendaire (Europe/Paris).
+  day            DateTime @db.Date
+  mood           DayMood?
+  /// L'état du jour reste privé sauf choix explicite.
+  moodShared     Boolean  @default(false)
+  blocker        String?
+  /// Le blocage devient une demande d'aide envoyée à la brigade.
+  helpWanted     Boolean  @default(false)
+  personalGoal   String?
+  /// Charge prévue au moment du briefing (minutes), pour comparer au réel.
+  plannedMinutes Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, day])
+  @@map("daily_briefing")
+}
+
+enum WeeklyItemKind {
+  OBJECTIF
+  BLOCAGE
+  DECISION
+  ACTION
+}
+
+enum WeeklyItemStatus {
+  OUVERT
+  ATTEINT
+  NON_ATTEINT
+  FAIT
+}
+
+/// « Le menu de la semaine » : une page par semaine, préparée par l'OS, décidée par la brigade.
+model WeeklyBriefing {
+  id            String       @id @default(cuid())
+  /// Lundi de la semaine.
+  weekStart     DateTime     @unique @db.Date
+  /// Compétence, méthode ou amélioration travaillée cette semaine.
+  progressFocus String?
+  notes         String?
+  validatedAt   DateTime?
+  validatedById String?
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         WeeklyItem[]
+
+  @@map("weekly_briefing")
+}
+
+/// Objectifs (3 au plus), blocages (3 au plus), décisions et actions d'une semaine.
+model WeeklyItem {
+  id         String           @id @default(cuid())
+  briefingId String
+  briefing   WeeklyBriefing   @relation(fields: [briefingId], references: [id], onDelete: Cascade)
+  kind       WeeklyItemKind
+  title      String
+  /// Objectif : critère de réussite. Blocage : piste de résolution.
+  detail     String?
+  ownerId    String?
+  owner      User?            @relation("WeeklyItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  dueDate    DateTime?        @db.Date
+  status     WeeklyItemStatus @default(OUVERT)
+  position   Int              @default(0)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([briefingId, kind])
+  @@map("weekly_item")
+}
+
+// ─── Compétences, badges et brigade (lot G5) ────────────────────────────────
+
+/// Niveau de maîtrise d'une compétence (1 Découverte → 5 Transmission), auto-évalué et corrigeable.
+model UserSkill {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Clé de la compétence (src/features/skills/tree.ts).
+  skillKey  String
+  level     Int      @default(1)
+  /// Compétence travaillée en priorité ce mois-ci (une seule à la fois).
+  target    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skillKey])
+  @@map("user_skill")
+}
+
+/// Preuve de progression : un livrable, un projet, un apprentissage, un retour.
+model SkillEvidence {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillKey  String
+  text      String
+  url       String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, skillKey])
+  @@map("skill_evidence")
+}
+
+/// Reconnaissance d'un associé : constructive et jamais obligatoire.
+model SkillEndorsement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("EndorsementFor", fields: [userId], references: [id], onDelete: Cascade)
+  byId      String
+  by        User     @relation("EndorsementBy", fields: [byId], references: [id], onDelete: Cascade)
+  skillKey  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, byId, skillKey])
+  @@map("skill_endorsement")
+}
+
+/// Badge obtenu : une fois par badge et par associé (collection).
+model UserBadge {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("BadgeHolder", fields: [userId], references: [id], onDelete: Cascade)
+  /// Clé du badge (src/features/badges/catalog.ts).
+  badgeKey   String
+  /// Pourquoi : la réussite qui l'a déclenché.
+  reason     String
+  sourceType String?
+  sourceId   String?
+  /// Décerné par un associé (reconnaissance), sinon automatique.
+  givenById  String?
+  givenBy    User?     @relation("BadgeGiver", fields: [givenById], references: [id], onDelete: SetNull)
+  visible    Boolean   @default(true)
+  favorite   Boolean   @default(false)
+  /// Célébration vue (le bandeau ne revient pas).
+  seenAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, badgeKey])
+  @@map("user_badge")
+}
+
+model UserPreference {
+  userId          String    @id
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Animations de célébration (sinon, un simple message).
+  celebrations    Boolean   @default(true)
+  /// Série de régularité affichée ou non.
+  streakEnabled   Boolean   @default(true)
+  /// Jours actifs nécessaires pour qu'une semaine compte (2 à 5).
+  streakDays      Int       @default(3)
+  /// Nouveaux badges visibles par la brigade par défaut.
+  badgesPublic    Boolean   @default(true)
+  /// Disponibilité facultative (DISPONIBLE, CONCENTRE, ABSENT), valable le jour indiqué seulement.
+  availability    String?
+  availabilityDay DateTime? @db.Date
+  updatedAt       DateTime  @updatedAt
+
+  @@map("user_preference")
+}
+
+/// Semaine en pause (congés, maladie, période creuse) : ne compte pas et ne casse pas la série.
+model StreakPause {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStart])
+  @@map("streak_pause")
+}
+
+/// Fil de la brigade : réussites à célébrer (jamais un journal d'activité ou de présence).
+model BrigadeEvent {
+  id        String            @id @default(cuid())
+  /// Associé concerné (null : réussite collective).
+  userId    String?
+  user      User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  detail    String?
+  href      String?
+  dedupeKey String            @unique
+  createdAt DateTime          @default(now())
+  cheers    BrigadeCheer[]
+  reactions BrigadeReaction[]
+
+  @@index([createdAt])
+  @@map("brigade_event")
+}
+
+model BrigadeCheer {
+  id        String       @id @default(cuid())
+  eventId   String
+  event     BrigadeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  createdAt DateTime     @default(now())
+
+  @@unique([eventId, userId])
+  @@map("brigade_cheer")
+}
+
+// ─── La maison : avatar, appartement, recettes, entraide (lot G6) ──────────
+
+/// Avatar cosmétique : identité, jamais une permission ni une compétence.
+model UserAvatar {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skin      String   @default("s3")
+  hat       String   @default("toque")
+  apron     String   @default("noir")
+  accessory String   @default("aucun")
+  backdrop  String   @default("creme")
+  updatedAt DateTime @updatedAt
+
+  @@map("user_avatar")
+}
+
+/// Objet placé dans un emplacement de l'appartement (choisi parmi les objets débloqués).
+model ApartmentItem {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot    String
+  itemKey String
+
+  @@unique([userId, slot])
+  @@map("apartment_item")
+}
+
+/// Carnet de recettes : méthodes, modèles et procédures réutilisables.
+model Recipe {
+  id         String      @id @default(cuid())
+  title      String
+  category   String
+  summary    String
+  body       String
+  url        String?
+  authorId   String
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  uses       RecipeUse[]
+
+  @@index([category, archivedAt])
+  @@map("recipe")
+}
+
+/// « J'ai réutilisé cette recette » : une fois par associé et par recette.
+model RecipeUse {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([recipeId, userId])
+  @@map("recipe_use")
+}
+
+/// Demande d'aide reliée à une tâche ou à une compétence.
+model HelpRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("HelpAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  taskId     String?
+  skillKey   String?
+  message    String
+  takenById  String?
+  takenBy    User?     @relation("HelpTaker", fields: [takenById], references: [id], onDelete: SetNull)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([resolvedAt, createdAt])
+  @@map("help_request")
+}
+
+/// Réaction rapide sur une réussite du fil.
+model BrigadeReaction {
+  id      String       @id @default(cuid())
+  eventId String
+  event   BrigadeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji   String
+
+  @@unique([eventId, userId, emoji])
+  @@map("brigade_reaction")
+}
+
+/// Quête hebdomadaire acceptée par un associé (lot G9). La progression n'est jamais stockée :
+/// elle se calcule à partir des données réelles de la semaine. La validation inscrit les XP
+/// au registre une seule fois (clé quest:<clé>:<semaine>:<associé>).
+model QuestEnrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questKey    String
+  weekStart   DateTime  @db.Date
+  acceptedAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, questKey, weekStart])
+  @@index([userId, weekStart])
+  @@map("quest_enrollment")
 }

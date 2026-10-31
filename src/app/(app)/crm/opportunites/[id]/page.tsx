@@ -13,6 +13,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ActivityForm, NextActionForm, StageForm } from "@/features/crm/components/forms";
 import { activityLabels, effectiveProbability, sourceLabels, stageLabels } from "@/features/crm/rules";
 import { getOpportunity, getStageSettings } from "@/features/crm/service";
+import { OpportunityEstimate } from "@/features/finance/components/estimate-card";
+import { NotesSection } from "@/features/notes/components/notes-section";
 import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay, toDateInput, todayDate } from "@/lib/dates";
 import { formatMoney, percentOf, toCents } from "@/lib/money";
@@ -20,9 +22,16 @@ import { archiveOpportunityAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Opportunité" };
 
-async function OpportunityView({ params }: { params: Promise<{ id: string }> }) {
+async function OpportunityView({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
   const { id } = await params;
+  const { modele } = await searchParams;
   const [opp, settings] = await Promise.all([getOpportunity(id), getStageSettings()]);
   if (!opp || opp.archivedAt) notFound();
   const amount = toCents(opp.amount);
@@ -192,17 +201,27 @@ async function OpportunityView({ params }: { params: Promise<{ id: string }> }) 
               <ActivityForm opportunityId={id} today={toDateInput(today)} />
             </details>
           </Card>
+          <NotesSection filter={{ opportunityId: id }} newHref={`/notes/nouvelle?opportunite=${id}`} />
+          <Suspense
+            fallback={<p className="text-sm text-muted-foreground">Calcul des repères de chiffrage…</p>}
+          >
+            <OpportunityEstimate
+              opportunityId={id}
+              amount={opp.amount ? amount : null}
+              templateKey={typeof modele === "string" ? modele : undefined}
+            />
+          </Suspense>
         </div>
       </div>
     </>
   );
 }
 
-export default function OpportunityPage({ params }: PageProps<"/crm/opportunites/[id]">) {
+export default function OpportunityPage({ params, searchParams }: PageProps<"/crm/opportunites/[id]">) {
   return (
     <div className="flex flex-col gap-5">
       <Suspense fallback={<PageLoading />}>
-        <OpportunityView params={params} />
+        <OpportunityView params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );

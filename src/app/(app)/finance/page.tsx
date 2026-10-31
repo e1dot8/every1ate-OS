@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { FileSpreadsheet, Gauge, Landmark, Plus } from "lucide-react";
-import { EmptyState, Tabs } from "@/components/app/bits";
+import { connection } from "next/server";
+import { Download, FileSpreadsheet, Gauge, Landmark, Plus } from "lucide-react";
+import { EmptyState } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { marginRate } from "@/features/finance/calc";
+import { FinanceTabs, type FinanceTab } from "@/features/finance/components/finance-tabs";
 import { listImports } from "@/features/finance/imports";
 import { contractStatusLabels } from "@/features/finance/labels";
 import { financeOverview, listContracts } from "@/features/finance/service";
 import { requireUser } from "@/lib/auth/session";
-import { formatDay } from "@/lib/dates";
+import { formatDay, toDateInput, todayDate } from "@/lib/dates";
 import { formatMoney, toCents } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -26,14 +29,7 @@ async function Finance({ searchParams }: { searchParams: Promise<{ onglet?: stri
   const tab = ["contrats", "imports"].includes(sp.onglet ?? "") ? sp.onglet! : "projets";
   return (
     <>
-      <Tabs
-        active={tab}
-        items={[
-          { key: "projets", label: "Projets", href: "/finance" },
-          { key: "contrats", label: "Contrats récurrents", href: "/finance?onglet=contrats" },
-          { key: "imports", label: "Imports", href: "/finance?onglet=imports" },
-        ]}
-      />
+      <FinanceTabs active={tab as FinanceTab} />
       {tab === "projets" ? <Projects /> : tab === "contrats" ? <Contracts /> : <Imports />}
     </>
   );
@@ -194,22 +190,70 @@ async function Imports() {
   );
 }
 
+/**
+ * Export comptable : formulaire GET sans JavaScript vers la route de téléchargement.
+ * « Toute l'année » exporte l'année du mois choisi (?mois=AAAA-MM&periode=annee).
+ */
+function ExportForm({ month }: { month?: string }) {
+  return (
+    <form
+      action="/api/export/finance"
+      method="get"
+      aria-label="Export comptable"
+      className="flex flex-wrap items-end gap-2"
+    >
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="export-mois" className="text-sm font-bold">
+          Export comptable (mois)
+        </label>
+        <Input
+          id="export-mois"
+          type="month"
+          name="mois"
+          required
+          defaultValue={month}
+          pattern="\d{4}-\d{2}"
+          placeholder="AAAA-MM"
+          className="w-44"
+        />
+      </div>
+      <Button type="submit" variant="outline" name="periode" value="mois">
+        <Download aria-hidden="true" /> Exporter
+      </Button>
+      <Button type="submit" variant="ghost" name="periode" value="annee">
+        Toute l&apos;année<span className="sr-only"> du mois choisi</span>
+      </Button>
+    </form>
+  );
+}
+
+/** Mois en cours (Paris) par défaut : lecture de l'heure, donc dynamique et sous Suspense. */
+async function ExportControl() {
+  await connection();
+  return <ExportForm month={toDateInput(todayDate()).slice(0, 7)} />;
+}
+
 export default function FinancePage({ searchParams }: PageProps<"/finance">) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <PageHeader title="Finance" description="Pilotage HT : prévisionnel et réalisé toujours séparés." />
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/cockpit">
-              <Gauge aria-hidden="true" /> Cockpit
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/gouvernance">
-              <Landmark aria-hidden="true" /> Gouvernance
-            </Link>
-          </Button>
+        <div className="flex flex-col gap-3 md:items-end">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href="/cockpit">
+                <Gauge aria-hidden="true" /> Cockpit
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/gouvernance">
+                <Landmark aria-hidden="true" /> Gouvernance
+              </Link>
+            </Button>
+          </div>
+          <Suspense fallback={<ExportForm />}>
+            <ExportControl />
+          </Suspense>
         </div>
       </div>
       <Suspense fallback={<PageLoading />}>

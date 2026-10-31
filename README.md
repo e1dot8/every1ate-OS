@@ -17,6 +17,25 @@ Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8
 | 6   | Calendrier interne, abonnement ICS Google/Apple, références Google Drive                                  |
 | 7   | PWA (cache limité, hors ligne, purge à la déconnexion), sauvegardes, durcissement sécurité                |
 
+### Every1.ate OS — cockpit, rituels et progression (lots G1 à G5, [ADR-0017](docs/adr/0017-os-progression-brigade.md))
+
+| Lot | Contenu                                                                                                                                                                                                                 | Pages                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| G1  | Cockpit personnel (3 priorités, courrier, temps, projets), XP idempotents, niveaux et rangs culinaires configurables                                                                                                    | `/`, `/priorites`, `/progression`                      |
+| G2  | Pause/reprise du chrono, catégories, tâches internes (« La maison »), estimations, restant, écart, mini-bilan                                                                                                           | `/taches/[id]`, `/temps/rapport`                       |
+| G3  | La mise en place (briefing quotidien) et le menu de la semaine (hebdomadaire, historisé)                                                                                                                                | `/mise-en-place`, `/service`                           |
+| G4  | Le courrier (3 niveaux, archive, @mentions) et La Salle, ex-« La Cuisine » (CRM : À risque, En attente, À encaisser, À développer)                                                                                      | `/notifications`, `/crm/salle`                         |
+| G5  | Compétences (6 branches), badges, série de régularité, préférences, bureau commun et fil de la brigade                                                                                                                  | `/competences`, `/bureau`, `/plus/preferences`         |
+| G6  | La maison ([ADR-0018](docs/adr/0018-la-maison-univers.md)) : bâtiment interactif, avatar, appartement et objets, carnet de recettes, réactions, demandes d'aide, disponibilité                                          | `/maison`, `/appartement`, `/cuisine`, `/recettes`     |
+| G7  | Direction éditoriale ([ADR-0019](docs/adr/0019-direction-editoriale-et-niveaux.md)) : jetons, rail en 3 niveaux, bâtiment monochrome, La Cuisine / La Salle / Le service de la semaine, XP discrets, partage des badges | `/`, `/maison`, `/cuisine`, `/crm/salle`, `/service`   |
+| G8  | Maquette « La maison » ([ADR-0020](docs/adr/0020-panneaux-et-style-photocopie.md)) : panneaux, rail en carte, textures WOK, bannière vidéo, portraits                                                                   | `/`, `/maison`, `/appartement`, `/bureau`, `/recettes` |
+| G9  | Quêtes de la semaine ([ADR-0021](docs/adr/0021-quetes-hebdomadaires.md)) : 7 quêtes mesurées sur le vrai travail, 3 par semaine, XP une seule fois                                                                      | `/quetes`, `/`                                         |
+
+Barème d'XP, paliers et rangs : `src/features/progression/config.ts`. Badges : `src/features/badges/catalog.ts`.
+Arbre de compétences : `src/features/skills/tree.ts`. Seuils de La Cuisine : Réglages CRM.
+Objets et avatars : `src/features/maison/cosmetics.ts`. Pièces : `src/features/maison/rooms.ts`.
+À venir : quêtes, portail client (lot 8, avec maquette Figma).
+
 ## Stack
 
 Next.js 16 (App Router, Cache Components) · React 19 · TypeScript 6 · Tailwind CSS 4 · composants shadcn/ui ·
@@ -82,6 +101,9 @@ En local, aucun e-mail ne part : ils sont enregistrés dans la table `email_outb
 Règle : un lot n'est pas terminé tant que ces contrôles ne passent pas (CI GitHub incluse).
 
 ## Déployer sur Netlify (première fois)
+
+Guide pas à pas pour les associés (comptes, variables, premiers pas) :
+[`docs/MISE_EN_SERVICE.md`](docs/MISE_EN_SERVICE.md).
 
 > **Crédits** : une mise en production coûte 15 crédits Netlify. Elle n'est lancée que si le
 > message du dernier commit contient `[deploy]` (voir [ADR-0007](docs/adr/0007-deploiement-econome.md)).

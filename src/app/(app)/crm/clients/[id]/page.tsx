@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { stageLabels } from "@/features/crm/rules";
 import { getClient } from "@/features/crm/service";
 import { DocumentsPanel } from "@/features/documents/components/documents-panel";
+import { NotesSection } from "@/features/notes/components/notes-section";
 import { requireUser } from "@/lib/auth/session";
 import { formatDay } from "@/lib/dates";
 import { formatMoney, toCents } from "@/lib/money";
@@ -137,6 +138,7 @@ async function ClientView({ params }: { params: Promise<{ id: string }> }) {
           </ul>
         </Card>
       </div>
+      <NotesSection filter={{ clientId: id }} newHref={`/notes/nouvelle?client=${id}`} />
       <DocumentsPanel target={{ clientId: id }} back={`/crm/clients/${id}`} />
       <p className="text-xs text-muted-foreground">Fiche créée le {formatDay(client.createdAt)}.</p>
     </>

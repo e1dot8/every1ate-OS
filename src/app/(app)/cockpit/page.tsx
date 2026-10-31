@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { BackLink, Chip } from "@/components/app/bits";
+import { AlertTriangle, OctagonAlert } from "lucide-react";
+import { BackLink, Chip, EmptyState } from "@/components/app/bits";
 import { PageHeader, PageLoading } from "@/components/layout/page-header";
 import { Card, CardTitle } from "@/components/ui/card";
+import { objectiveProgressFor } from "@/features/finance/analytics";
 import { agencyCockpit, type Period } from "@/features/finance/cockpit";
+import { ObjectiveGauges } from "@/features/finance/components/objective-gauges";
+import { LOAD_WEEKS, upcomingLoad, type LoadTone, type UpcomingLoad } from "@/features/planning/load-service";
 import { formatMinutes } from "@/features/planning/rules";
 import { requireUser } from "@/lib/auth/session";
-import { formatDay } from "@/lib/dates";
+import { formatDay, todayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -36,12 +40,95 @@ function Kpi({
   );
 }
 
+const loadToneClass: Record<LoadTone, string> = {
+  danger: "bg-danger-soft font-bold text-danger",
+  warning: "bg-warning-soft font-bold text-warning",
+  normal: "",
+};
+
+/** Grille associé × semaine : % de la capacité hebdomadaire (défile dans son cadre sur mobile). */
+function LoadTable({ load }: { load: UpcomingLoad }) {
+  if (!load.rows.length) return <EmptyState title="Aucun associé." />;
+  return (
+    <div
+      role="region"
+      aria-label="Charge à venir par associé"
+      tabIndex={0}
+      className="relative overflow-x-auto rounded-xl border bg-card contain-inline-size"
+    >
+      <table className="w-full min-w-[38rem] text-sm">
+        <caption className="sr-only">
+          Charge à venir par associé et par semaine, en pourcentage de la capacité hebdomadaire
+        </caption>
+        <thead>
+          <tr className="border-b text-xs text-muted-foreground">
+            <th scope="col" className="sticky left-0 bg-card px-3 py-2 text-left font-normal">
+              Associé
+            </th>
+            {load.weekStarts.map((w) => (
+              <th key={w.toISOString()} scope="col" className="px-1 py-2 text-center font-normal">
+                <span className="sr-only">Semaine du </span>
+                {formatDay(w)}
+              </th>
+            ))}
+            <th scope="col" className="px-3 py-2 text-right font-normal">
+              Non planifié
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {load.rows.map((r) => (
+            <tr key={r.id} className="border-b last:border-b-0">
+              <th scope="row" className="sticky left-0 bg-card px-3 py-2 text-left">
+                <span className="block font-bold">{r.name}</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {r.capacityHours} h/sem.{r.capacityIsDefault ? " (agence)" : ""}
+                </span>
+              </th>
+              {r.cells.map((cell) => (
+                <td key={cell.weekStart.toISOString()} className="px-1 py-2 text-center">
+                  <span
+                    title={`${formatMinutes(cell.minutes)} sur ${r.capacityHours} h`}
+                    className={cn(
+                      "inline-flex min-w-14 items-center justify-center gap-1 rounded-md px-1.5 py-1 tabular-nums",
+                      loadToneClass[cell.tone],
+                    )}
+                  >
+                    {cell.tone === "danger" ? (
+                      <OctagonAlert aria-hidden="true" className="size-3" />
+                    ) : cell.tone === "warning" ? (
+                      <AlertTriangle aria-hidden="true" className="size-3" />
+                    ) : null}
+                    {cell.pct} %
+                    <span className="sr-only">
+                      {cell.tone === "danger" ? ", surchargé" : cell.tone === "warning" ? ", chargé" : ""} (
+                      {formatMinutes(cell.minutes)})
+                    </span>
+                  </span>
+                </td>
+              ))}
+              <td className="px-3 py-2 text-right tabular-nums">
+                {r.unplannedMinutes ? formatMinutes(r.unplannedMinutes) : "0 h"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 async function Cockpit({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser();
   const sp = await searchParams;
   const period: Period = sp.periode === "mois" || sp.periode === "trimestre" ? sp.periode : "semaine";
   const team = sp.equipe === "1";
-  const c = await agencyCockpit({ userId: user.id, team, period });
+  const today = todayDate();
+  const [c, objectives, load] = await Promise.all([
+    agencyCockpit({ userId: user.id, team, period }),
+    objectiveProgressFor(today.getUTCFullYear(), today),
+    upcomingLoad(LOAD_WEEKS, today),
+  ]);
   const href = (patch: Partial<SP>) => {
     const p = new URLSearchParams(
       Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][],
@@ -114,6 +201,46 @@ async function Cockpit({ searchParams }: { searchParams: Promise<SP> }) {
           <Kpi label="Marge réelle (projets en cours)" value={m(c.finance.marginActual)} tag="réalisé" />
           <Kpi label="MRR contracté" value={m(c.finance.mrr)} />
         </div>
+      </section>
+
+      <section aria-labelledby="c-objectifs" className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-3">
+          <h2 id="c-objectifs" className="font-bold">
+            Objectifs {objectives.year}
+          </h2>
+          {objectives.hasObjective ? (
+            <Link
+              href="/finance/analyses#objectifs"
+              className="inline-flex min-h-tap items-center text-sm font-bold hover:underline"
+            >
+              Modifier les objectifs
+            </Link>
+          ) : null}
+        </div>
+        <Card>
+          <ObjectiveGauges progress={objectives} today={today} editHref="/finance/analyses#objectifs" />
+        </Card>
+      </section>
+
+      <section aria-labelledby="c-charge" className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-3">
+          <h2 id="c-charge" className="font-bold">
+            Charge à venir ({LOAD_WEEKS} semaines)
+          </h2>
+          <Link
+            href="/plus/reglages"
+            className="inline-flex min-h-tap items-center text-sm font-bold hover:underline"
+          >
+            Régler les capacités
+          </Link>
+        </div>
+        <LoadTable load={load} />
+        <p className="text-xs text-muted-foreground">
+          Reste à faire des tâches ouvertes (estimation − temps passé), réparti sur les jours ouvrés
+          jusqu&apos;à l&apos;échéance ; une tâche en retard pèse sur la semaine en cours. Non planifié :
+          tâches estimées sans échéance. Tâches sans estimation non comptées. Au-delà de 85 % : chargé ;
+          au-delà de 100 % : surchargé.
+        </p>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2">

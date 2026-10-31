@@ -22,7 +22,7 @@ async function Lot({ params }: { params: Promise<{ id: string; lotId: string }> 
   if (!lot) notFound();
   return (
     <>
-      <BackLink href={`/projets/${id}?onglet=lots`}>{lot.project.name}</BackLink>
+      <BackLink href={`/projets/${id}?onglet=vue`}>{lot.project.name}</BackLink>
       <header className="flex flex-col gap-1">
         <p className="font-annotation text-sm text-pen-strong">Lot</p>
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{lot.name}</h1>
