@@ -3,6 +3,7 @@
 Outil interne de pilotage de l'agence EVERY1.ATE : projets, CRM, finance, temps, calendrier.
 Application privée, PWA mobile-first. Spécification : [`docs/CAHIER_DES_CHARGES.md`](docs/CAHIER_DES_CHARGES.md).
 Décisions techniques : [`docs/adr/`](docs/adr/README.md).
+Rejoindre le code : [`CONTRIBUER.md`](CONTRIBUER.md).
 Maquettes : [Figma — Every1.ate OS](https://www.figma.com/design/bjxpFBYomtYT8yJOZKCV4X) (une page par lot).
 
 **État : V1 complète (lots 0 à 7), prête pour le pilote interne.** V2 (portail clients/prestataires, lot 8) : à venir.
@@ -121,4 +122,5 @@ uniquement les migrations versionnées et ne réinitialisent jamais la base.
 
 ## Règles de travail
 
-Voir [`AGENTS.md`](AGENTS.md).
+Voir [`AGENTS.md`](AGENTS.md). Travailler à plusieurs (branches, pull requests, Claude Code) :
+[`CONTRIBUER.md`](CONTRIBUER.md).
