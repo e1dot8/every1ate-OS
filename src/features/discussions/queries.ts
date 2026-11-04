@@ -45,6 +45,7 @@ export type Sidebar = {
 /**
  * Messages non lus par salon (écrits par d'autres après la dernière lecture, hors réponses de fil).
  * Les salons archivés ne comptent pas : ils ne figurent plus dans la barre latérale.
+ * La ligne d'un fil de tâche ou de livrable ne compte pas pour qui y a commenté (il l'a ouverte).
  */
 async function unreadByChannel(userId: string) {
   const rows = await getDb().$queryRaw<{ channelId: string; unread: number; mentions: number }[]>`
@@ -60,6 +61,9 @@ async function unreadByChannel(userId: string) {
       AND m."deletedAt" IS NULL
       AND (m."parentId" IS NULL OR m."alsoInChannel")
       AND (m."authorId" IS NULL OR m."authorId" <> ${userId})
+      AND NOT (m."authorId" IS NULL AND m."parentId" IS NULL
+        AND (m."aboutTaskId" IS NOT NULL OR m."aboutDeliverableId" IS NOT NULL)
+        AND EXISTS (SELECT 1 FROM "message" r WHERE r."parentId" = m."id" AND r."authorId" = ${userId}))
     GROUP BY cm."channelId"`;
   return new Map(rows.map((r) => [r.channelId, { unread: Number(r.unread), mentions: Number(r.mentions) }]));
 }

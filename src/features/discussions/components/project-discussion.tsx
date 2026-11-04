@@ -9,7 +9,7 @@ import type { MessageContext } from "@/features/discussions/components/message-i
 import { MessageList } from "@/features/discussions/components/message-list";
 import { tomorrowAt9 } from "@/features/discussions/rules";
 import { projectDiscussion } from "@/features/discussions/subjects";
-import { repliesLabel, subjectHref, subjectIcons, subjectLabels } from "@/features/discussions/subject-rules";
+import { repliesLabel, subjectIcons, subjectLabels } from "@/features/discussions/subject-rules";
 
 /**
  * Onglet « Discussion » d'un projet : le fil général (derniers messages du salon du projet et
@@ -113,7 +113,7 @@ export async function ProjectDiscussionPanel({
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <Link
-                    href={subjectHref(t.subject)}
+                    href={t.href}
                     className="min-w-0 text-sm font-bold break-words after:absolute after:inset-0 hover:underline"
                   >
                     <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">

@@ -46,7 +46,7 @@ export async function SubjectDiscussion({
       title="Discussion"
       count={visible || undefined}
       action={
-        <TextLink href={salonHref} className="shrink-0 text-xs">
+        <TextLink href={salonHref} className="min-w-0 text-right text-xs">
           <MessagesSquare aria-hidden="true" className="size-4" />
           Voir dans le salon du projet
         </TextLink>
