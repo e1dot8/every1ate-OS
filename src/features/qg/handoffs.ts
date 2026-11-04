@@ -2,8 +2,10 @@ import "server-only";
 import type { HandoffMode } from "@/generated/prisma/client";
 import { recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
+import { todayDate } from "@/lib/dates";
 import { emitEvent } from "@/features/events/emit";
 import { changeOpportunityOwner, setNextAction } from "@/features/crm/service";
+import { WIP_AUTO_REASONS } from "@/features/projects/rules";
 import { assignTask, type ServiceResult } from "@/features/projects/service";
 import {
   PENDING_HANDOFF_ERROR,
@@ -36,7 +38,7 @@ const handoffInclude = {
       ownerId: true,
       archivedAt: true,
       projectId: true,
-      project: { select: { name: true } },
+      project: { select: { name: true, archivedAt: true } },
     },
   },
   opportunity: {
@@ -52,12 +54,24 @@ const handoffInclude = {
   },
 } as const;
 
+/** Une tâche ne change de main que si elle est ouverte et que son projet n'est pas archivé. */
+const taskOpen = (t: { archivedAt: Date | null; status: string; project: { archivedAt: Date | null } }) =>
+  !t.archivedAt && !t.project.archivedAt && t.status !== "TERMINE" && t.status !== "ANNULE";
+
 async function loadTarget(target: Target) {
   const db = getDb();
   if ("taskId" in target) {
     const t = await db.task.findUnique({
       where: { id: target.taskId },
-      select: { id: true, title: true, ownerId: true, status: true, archivedAt: true, projectId: true },
+      select: {
+        id: true,
+        title: true,
+        ownerId: true,
+        status: true,
+        archivedAt: true,
+        projectId: true,
+        project: { select: { archivedAt: true } },
+      },
     });
     if (!t) return null;
     return {
@@ -66,7 +80,7 @@ async function loadTarget(target: Target) {
       title: t.title,
       ownerId: t.ownerId,
       projectId: t.projectId,
-      open: !t.archivedAt && t.status !== "TERMINE" && t.status !== "ANNULE",
+      open: taskOpen(t),
     };
   }
   const o = await db.opportunity.findUnique({
@@ -161,14 +175,13 @@ export async function acceptHandoff(
     { status: h.status, fromId: h.fromId, toId: h.toId, isOpportunity: !!h.opportunityId },
     actor.id,
     { kind: "accepter", ...input },
+    todayDate(),
   );
   if (!check.ok) return failed(check.error);
   const { expectedOwnerId, newOwnerId } = handoffOwners(h);
   const object = h.task ?? h.opportunity;
   if (!object) return failed("Élément introuvable.");
-  const stillOpen = h.task
-    ? !h.task.archivedAt && h.task.status !== "TERMINE" && h.task.status !== "ANNULE"
-    : !h.opportunity!.archivedAt;
+  const stillOpen = h.task ? taskOpen(h.task) : !h.opportunity!.archivedAt;
   if (!stillOpen || object.ownerId !== expectedOwnerId) {
     // L'objet a bougé entre-temps : la proposition n'a plus de sens, on la retire.
     await db.handoff.updateMany({
@@ -200,6 +213,7 @@ export async function acceptHandoff(
       expectedOwnerId,
       reason: h.note ? `Passation acceptée : ${h.note}` : "Passation acceptée",
       notifyOwner: false,
+      overLimitReason: WIP_AUTO_REASONS.handoff,
     });
     if (!moved.ok) {
       await release();

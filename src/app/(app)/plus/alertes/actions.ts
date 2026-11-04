@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth/session";
+import { getCurrentUser, requireUser } from "@/lib/auth/session";
 import type { FormState } from "@/lib/forms";
 import {
+  attachPushSubscriptionToSession,
   configureWhatsapp,
-  isPushSubscriptionKnown,
   removePushSubscription,
   removeWhatsapp,
   savePushSubscription,
@@ -54,12 +54,17 @@ export async function subscribePushAction(input: unknown): Promise<PushActionRes
   return { ok: true, message: "Notifications activées sur cet appareil." };
 }
 
-/** Vrai si l'abonnement de ce navigateur est bien connu du serveur pour l'associé connecté. */
-export async function checkPushSubscriptionAction(input: unknown): Promise<boolean> {
-  const user = await requireUser();
+/**
+ * Vrai si l'abonnement de ce navigateur est connu du serveur pour l'associé connecté ; il est
+ * alors rattaché à la session en cours (les envois ne partent que vers une session valide).
+ * Sans redirection : appelée en arrière-plan sur n'importe quelle page de l'application.
+ */
+export async function attachPushSessionAction(input: unknown): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "associe") return false;
   const parsed = z.object({ endpoint: z.string().min(1).max(2048) }).safeParse(input);
   if (!parsed.success) return false;
-  return isPushSubscriptionKnown(user.id, parsed.data.endpoint);
+  return attachPushSubscriptionToSession(user.id, user.sessionId, parsed.data.endpoint);
 }
 
 export async function unsubscribePushAction(input: unknown): Promise<PushActionResult> {

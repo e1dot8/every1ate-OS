@@ -40,9 +40,12 @@ export function truncateText(text: string, max: number): string {
 const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
 const length = (value: string) => Array.from(value).length;
 
+/** Chemin interne « /… » : ni « //hôte » ni « /\hôte » (lus comme un autre site par le navigateur). */
+const INTERNAL_PATH = /^\/(?![/\\])/;
+
 /** Lien absolu vers l'app (uniquement les chemins internes « /… »). */
 export function appLink(appUrl: string, href: string | undefined): string | null {
-  if (!href || !href.startsWith("/") || href.startsWith("//")) return null;
+  if (!href || !INTERNAL_PATH.test(href)) return null;
   return `${appUrl.replace(/\/$/, "")}${href}`;
 }
 
@@ -146,7 +149,8 @@ export function buildPushMessage(input: {
     title: truncateText(oneLine(input.title), 120) || "Every1.ate OS",
     body: truncateText(input.body?.trim() ?? "", 300),
     href,
-    // Une alerte remplace la précédente sur le même objet (même type, même lien).
+    // Une alerte remplace la précédente sur le même objet (même type, même lien) ; le service
+    // worker la fait sonner de nouveau (renotify). Les liens de message portent déjà son id.
     tag: `${input.kind}:${href}`.slice(0, 120),
   };
 }

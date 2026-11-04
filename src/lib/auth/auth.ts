@@ -55,6 +55,11 @@ function createAuth() {
     user: {
       additionalFields: {
         role: { type: "string", required: false, defaultValue: "associe", input: false },
+        // Colonnes privées de l'associé : jamais renvoyées au navigateur (/api/auth/get-session)
+        // ni modifiables via /api/auth ; le serveur les lit directement avec Prisma.
+        whatsappKey: { type: "string", required: false, input: false, returned: false },
+        whatsappPhone: { type: "string", required: false, input: false, returned: false },
+        notifyPrefs: { type: "json", required: false, input: false, returned: false },
       },
     },
 

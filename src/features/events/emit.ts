@@ -42,10 +42,13 @@ const NOTIFICATION_KIND: Record<EventKind, NotificationInput["kind"]> = {
 
 /**
  * Point d'entrée unique des automatisations : notification dans l'app, puis push et WhatsApp
- * selon les préférences de chacun, puis message du QG dans le salon. Une étape qui échoue
+ * selon les préférences de chacun, puis message du QG dans le salon (sauf si tous les destinataires
+ * avaient déjà reçu la même clé : événement déjà annoncé). Une étape qui échoue
  * n'empêche jamais l'action d'origine (elle est seulement journalisée).
  */
 export async function emitEvent(e: AppEvent): Promise<void> {
+  // Tous les destinataires avaient déjà reçu cette clé : l'événement a déjà été annoncé, le salon aussi.
+  let alreadyAnnounced = false;
   try {
     const recipients =
       e.recipients ??
@@ -70,6 +73,7 @@ export async function emitEvent(e: AppEvent): Promise<void> {
         })
       : [];
     const fresh = created.map((row) => row.userId);
+    alreadyAnnounced = targets.length > 0 && fresh.length === 0;
     if (fresh.length)
       await deliverExternal(fresh, {
         kind: e.kind,
@@ -81,7 +85,7 @@ export async function emitEvent(e: AppEvent): Promise<void> {
   } catch (error) {
     console.error("[événement] notification", e.kind, error);
   }
-  if (e.channelPost === false) return;
+  if (e.channelPost === false || alreadyAnnounced) return;
   try {
     await postSystemMessage({
       projectId: e.projectId ?? null,

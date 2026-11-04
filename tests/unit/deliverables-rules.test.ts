@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { DeliverableStage } from "@/generated/prisma/enums";
 import { parseDateInput } from "@/lib/dates";
 import {
+  DELIVERABLE_ARCHIVED_ISSUE,
   FORMATS,
+  PROJECT_ARCHIVED_ISSUE,
   STAGES,
   WORK_STAGES,
   activityText,
@@ -10,6 +12,7 @@ import {
   autoAdvanceTarget,
   blockReasonIssue,
   calendarGroups,
+  deliverableLockIssue,
   endOfWeek,
   formatEmojis,
   formatLabels,
@@ -162,6 +165,17 @@ describe("validation", () => {
     expect(blockReasonIssue(null)).not.toBeNull();
     expect(blockReasonIssue("Attente rushes")).toBeNull();
     expect(blockReasonIssue("x".repeat(501))).not.toBeNull();
+  });
+
+  it("lecture seule : livrable archivé ou projet archivé", () => {
+    const open = { archivedAt: null, project: { archivedAt: null } };
+    expect(deliverableLockIssue(open)).toBeNull();
+    expect(deliverableLockIssue({ ...open, archivedAt: done })).toBe(DELIVERABLE_ARCHIVED_ISSUE);
+    expect(deliverableLockIssue({ ...open, project: { archivedAt: done } })).toBe(PROJECT_ARCHIVED_ISSUE);
+    expect(PROJECT_ARCHIVED_ISSUE).toMatch(/Projet archivé/);
+    expect(deliverableLockIssue({ archivedAt: done, project: { archivedAt: done } })).toBe(
+      DELIVERABLE_ARCHIVED_ISSUE,
+    );
   });
 
   it("lien : https uniquement", () => {

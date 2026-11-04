@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   deleted: [] as string[],
   touched: [] as string[],
   failUsers: false,
+  userQuery: null as unknown,
   env: {} as Record<string, unknown>,
   sendWebPush: vi.fn(),
   sendCallMeBot: vi.fn(),
@@ -17,9 +18,10 @@ const h = vi.hoisted(() => ({
 vi.mock("@/lib/db/client", () => ({
   getDb: () => ({
     user: {
-      findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+      findMany: async (query: { where: { id: { in: string[] } } }) => {
         if (h.failUsers) throw new Error("base indisponible");
-        return h.users.filter((u) => where.id.in.includes(u.id as string));
+        h.userQuery = query;
+        return h.users.filter((u) => query.where.id.in.includes(u.id as string));
       },
     },
     externalDelivery: {
@@ -97,6 +99,7 @@ beforeEach(() => {
   h.deleted = [];
   h.touched = [];
   h.failUsers = false;
+  h.userQuery = null;
   h.env = {
     appUrl: "https://os.example.test",
     pushTransport: "webpush",
@@ -132,6 +135,19 @@ describe("deliverExternal", () => {
     expect(
       h.created.every((row) => row.eventKind === "livrable.livre" && row.title === "Livrable livré"),
     ).toBe(true);
+  });
+
+  it("push : seuls les appareils dont la session est encore valide sont lus", async () => {
+    h.users = [user("u1")];
+    const before = Date.now();
+    await deliverExternal(["u1"], delivered);
+    const query = h.userQuery as {
+      select: { pushSubscriptions: { where: { session: { is: { expiresAt: { gt: Date } } } } } };
+    };
+    const limit = query.select.pushSubscriptions.where.session.is.expiresAt.gt;
+    expect(limit).toBeInstanceOf(Date);
+    expect(limit.getTime()).toBeGreaterThanOrEqual(before);
+    expect(limit.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
   it("n'envoie rien hors de l'app pour un événement désactivé (point de checklist coché par défaut)", async () => {

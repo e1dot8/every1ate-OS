@@ -55,7 +55,8 @@ test.describe("livrables", () => {
         )
       ).rows.map((r: { dedupeKey: string }) => r.dedupeKey),
     );
-    expect(keys).toContain(`livrable-etape:${id}:CREATION`);
+    // Clé horodatée : un recul puis un nouveau passage en Création préviendrait de nouveau.
+    expect(keys.filter((k: string) => k.startsWith(`livrable-etape:${id}:CREATION:`))).toHaveLength(1);
     expect(keys.filter((k: string) => k.startsWith("livrable-coche:"))).toHaveLength(3);
 
     // Ajouter puis supprimer un point de l'étape courante.

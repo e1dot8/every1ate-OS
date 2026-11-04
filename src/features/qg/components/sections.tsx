@@ -132,6 +132,10 @@ function HandoffObject({ h }: { h: PendingHandoff }) {
   return null;
 }
 
+/** Date de prochaine action à préremplir : une date passée (relance en retard) est à refixer. */
+const upcomingDateInput = (date: Date | null | undefined) =>
+  date && date >= todayDate() ? toDateInput(date) : "";
+
 export function HandoffsSection({ received, sent }: { received: PendingHandoff[]; sent: PendingHandoff[] }) {
   return (
     <Section id="passations" title="Passations" count={received.length + sent.length}>
@@ -162,7 +166,7 @@ export function HandoffsSection({ received, sent }: { received: PendingHandoff[]
                   title={h.task?.title ?? h.opportunity?.title ?? ""}
                   isOpportunity={!!h.opportunity}
                   nextAction={h.opportunity?.nextAction ?? ""}
-                  nextActionDate={toDateInput(h.opportunity?.nextActionDate)}
+                  nextActionDate={upcomingDateInput(h.opportunity?.nextActionDate)}
                 />
               </li>
             ))}

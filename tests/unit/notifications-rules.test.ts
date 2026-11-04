@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SW_SOURCE } from "@/components/pwa/sw-source";
 import {
   CALLMEBOT_ENDPOINT,
   WHATSAPP_HOURLY_LIMIT,
@@ -110,6 +111,9 @@ describe("texte WhatsApp", () => {
   it("ne suit que les liens internes", () => {
     expect(appLink(appUrl, "https://ailleurs.example/x")).toBeNull();
     expect(appLink(appUrl, "//ailleurs.example/x")).toBeNull();
+    // « /\hôte » : le navigateur le lit comme « //hôte » (autre site).
+    expect(appLink(appUrl, "/\\ailleurs.example/x")).toBeNull();
+    expect(appLink(appUrl, "taches")).toBeNull();
     expect(appLink(`${appUrl}/`, "/taches")).toBe(`${appUrl}/taches`);
   });
 
@@ -160,6 +164,7 @@ describe("notifications push", () => {
     expect(buildPushMessage({ kind: "rappel", title: "Rappel", href: "https://ailleurs.example" }).href).toBe(
       "/",
     );
+    expect(buildPushMessage({ kind: "rappel", title: "Rappel", href: "/\\ailleurs.example" }).href).toBe("/");
   });
 
   it("n'accepte que les services push des navigateurs, en HTTPS", () => {
@@ -187,6 +192,72 @@ describe("notifications push", () => {
       ),
     ).toBe("Android · Chrome");
     expect(deviceLabel(null)).toBe("Appareil");
+  });
+});
+
+type Handler = (event: Record<string, unknown>) => void;
+
+/** Exécute le code du service worker avec un `self` simulé (aucun navigateur). */
+function loadServiceWorker() {
+  const origin = "https://os.example.test";
+  const handlers: Record<string, Handler> = {};
+  const shown: { title: string; options: Record<string, unknown> }[] = [];
+  const opened: string[] = [];
+  const self = {
+    location: { origin },
+    addEventListener: (type: string, handler: Handler) => {
+      handlers[type] = handler;
+    },
+    registration: {
+      showNotification: async (title: string, options: Record<string, unknown>) => {
+        shown.push({ title, options });
+      },
+    },
+    clients: {
+      matchAll: async () => [],
+      openWindow: async (url: string) => {
+        opened.push(url);
+      },
+    },
+  };
+  new Function("self", "caches", "fetch", SW_SOURCE)(self, {}, () => Promise.reject(new Error("hors ligne")));
+  const dispatch = async (type: string, event: Record<string, unknown>) => {
+    let pending: Promise<unknown> = Promise.resolve();
+    handlers[type]({ ...event, waitUntil: (p: Promise<unknown>) => (pending = p) });
+    await pending;
+  };
+  return {
+    push: async (data: unknown) => {
+      await dispatch("push", { data: { json: () => data, text: () => "" } });
+      return shown.at(-1)!;
+    },
+    click: async (href: unknown) => {
+      await dispatch("notificationclick", { notification: { close: () => undefined, data: { href } } });
+      return opened.at(-1);
+    },
+  };
+}
+
+describe("service worker : notifications push", () => {
+  it("une alerte qui en remplace une autre (même étiquette) sonne de nouveau", async () => {
+    const sw = loadServiceWorker();
+    const withTag = await sw.push({ title: "Rappel", body: "Appeler", href: "/taches/1", tag: "rappel:/x" });
+    expect(withTag.title).toBe("Rappel");
+    expect(withTag.options).toMatchObject({ tag: "rappel:/x", renotify: true, data: { href: "/taches/1" } });
+    const withoutTag = await sw.push({ title: "Sans étiquette" });
+    expect(withoutTag.options.tag).toBeUndefined();
+    expect(withoutTag.options.renotify).toBeUndefined();
+  });
+
+  it("ne suit que les chemins internes (ni //hôte ni /\\hôte)", async () => {
+    const sw = loadServiceWorker();
+    for (const href of ["//ailleurs.example/x", "/\\ailleurs.example/x", "https://ailleurs.example", 42]) {
+      expect((await sw.push({ title: "T", href })).options.data).toEqual({ href: "/" });
+      expect(await sw.click(href)).toBe("https://os.example.test/");
+    }
+    expect(await sw.click("/discussions/general#m-1")).toBe(
+      "https://os.example.test/discussions/general#m-1",
+    );
   });
 });
 

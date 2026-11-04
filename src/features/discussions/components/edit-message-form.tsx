@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { FormAlert } from "@/components/forms/form-alert";
 import { FormMessages } from "@/components/forms/form-messages";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Textarea } from "@/components/ui/select";
@@ -21,9 +22,18 @@ export function EditMessageForm({
 }) {
   const [state, action] = useActionState(editMessageAction, initialFormState);
   const id = `modifier-${messageId}`;
+  // Une modification réussie referme le formulaire ; s'il reste ouvert, c'est pour un avertissement
+  // (mention ambiguë) : la modification est déjà enregistrée.
+  const saved = state.status === "success";
   return (
     <form action={action} className="flex flex-col gap-2 py-1" noValidate>
-      <FormMessages state={state} />
+      {saved && state.message ? (
+        <FormAlert tone="warning" title={state.message}>
+          Visible par toi seul.
+        </FormAlert>
+      ) : (
+        <FormMessages state={state} />
+      )}
       <input type="hidden" name="messageId" value={messageId} />
       <input type="hidden" name="retour" value={retour} />
       <label htmlFor={id} className="sr-only">
@@ -44,7 +54,7 @@ export function EditMessageForm({
           href={`${retour}#m-${messageId}`}
           className="inline-flex min-h-tap items-center rounded-lg border border-input px-4 text-sm font-bold hover:bg-muted"
         >
-          Annuler
+          {saved ? "Fermer" : "Annuler"}
         </Link>
       </div>
     </form>

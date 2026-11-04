@@ -3,11 +3,42 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CloudOff, RefreshCw } from "lucide-react";
+import { attachPushSessionAction } from "@/app/(app)/plus/alertes/actions";
+
+/** Chemin interne uniquement : « /… », jamais « //hôte » ni « /\hôte » (autre site). */
+const INTERNAL_PATH = /^\/(?![/\\])/;
+/** Pages hors session (connexion, invitation, mot de passe) : aucun abonnement à rattacher. */
+const AUTH_PAGES = /^\/(connexion|invitation|mot-de-passe-oublie|reinitialiser)(\/|$)/;
+const PUSH_SESSION_KEY = "e1-push-session";
+
+/**
+ * Une fois par onglet : si les notifications sont autorisées et que ce navigateur est abonné,
+ * rattache son abonnement à la session en cours (les envois ne partent que vers une session valide).
+ */
+async function attachPushToSession() {
+  try {
+    if (AUTH_PAGES.test(window.location.pathname)) return;
+    if (sessionStorage.getItem(PUSH_SESSION_KEY)) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const registration = await navigator.serviceWorker?.getRegistration("/");
+    const subscription = await registration?.pushManager?.getSubscription();
+    if (!subscription) return;
+    sessionStorage.setItem(PUSH_SESSION_KEY, "1");
+    try {
+      await attachPushSessionAction({ endpoint: subscription.endpoint });
+    } catch {
+      sessionStorage.removeItem(PUSH_SESSION_KEY); // hors ligne : nouvel essai au prochain chargement
+    }
+  } catch {
+    // Navigateur sans notifications push ni stockage de session : rien à rattacher.
+  }
+}
 
 /**
  * - Enregistre le service worker (production uniquement).
  * - Affiche l'état hors ligne / reconnexion (§16.2).
  * - Bloque tout envoi de formulaire hors ligne : rien n'est enregistré silencieusement.
+ * - Rattache l'abonnement push de l'appareil à la session en cours (une fois par onglet).
  */
 export function PwaManager() {
   const router = useRouter();
@@ -39,9 +70,10 @@ export function PwaManager() {
     // Clic sur une notification push quand l'onglet n'est pas piloté par le service worker.
     const onWorkerMessage = (event: MessageEvent) => {
       const href = (event.data as { type?: string; href?: unknown } | null)?.href;
-      if (event.data?.type === "navigate" && typeof href === "string" && /^\/(?!\/)/.test(href))
+      if (event.data?.type === "navigate" && typeof href === "string" && INTERNAL_PATH.test(href))
         router.push(href as Parameters<typeof router.push>[0]);
     };
+    void attachPushToSession();
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
     document.addEventListener("submit", guard, true);

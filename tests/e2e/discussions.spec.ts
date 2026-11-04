@@ -210,7 +210,11 @@ test.describe("discussions", () => {
     await expect(page).toHaveURL(/\/discussions\/dm-/);
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(
-      page.getByText(new RegExp(`${name} est en focus jusqu'à .* : il sera prévenu à la fin\\.`)),
+      page.getByText(
+        new RegExp(
+          `${name} est en focus jusqu'à .* : il verra ton message en sortant du focus \\(pas d'alerte sur son téléphone d'ici là\\)\\.`,
+        ),
+      ),
     ).toBeVisible();
     await expect(page.getByText(/vu à/i)).toHaveCount(0);
     await postMessage(page, `Coucou ${tag}`);

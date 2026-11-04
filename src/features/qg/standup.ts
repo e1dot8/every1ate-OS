@@ -23,14 +23,16 @@ export async function saveStandup(
     create: { userId: user.id, date, today, blocked },
     update: { today, blocked },
   });
-  if (blocked && blocked !== before?.blocked)
+  // Annoncé quand le blocage apparaît (vide → rempli), une fois par associé et par jour :
+  // corriger le texte d'un blocage déjà annoncé ne prévient pas de nouveau.
+  if (blocked && !before?.blocked)
     await emitEvent({
       kind: "standup.bloque",
       actorId: user.id,
       title: `${user.name} est bloqué`,
       body: blocked,
       href: "/qg/standup",
-      dedupeKey: `standup-bloque:${user.id}:${date.toISOString().slice(0, 10)}:${blocked.slice(0, 40)}`,
+      dedupeKey: `standup-bloque:${user.id}:${date.toISOString().slice(0, 10)}`,
     });
   return { ok: true, data: null };
 }

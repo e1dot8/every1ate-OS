@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
 import { addDays, todayDate } from "@/lib/dates";
-import { WIP_STATES } from "@/features/projects/rules";
+import { WIP_AUTO_REASONS, WIP_STATES } from "@/features/projects/rules";
 import { assignTask, type ServiceResult } from "@/features/projects/service";
 import { upcomingLoad } from "@/features/planning/load-service";
 import { effectivePresence, type PresenceInfo } from "@/features/presence/rules";
@@ -13,6 +13,7 @@ import {
   HANDOFF_HOURS,
   computeQuests,
   currentWeek,
+  entersBlocked,
   type QuestFacts,
 } from "@/features/qg/quests";
 
@@ -152,6 +153,7 @@ export async function takeTask(
   const result = await assignTask(taskId, actor.id, actor, {
     expectedOwnerId: null,
     reason: "Prise dans « À prendre » (QG)",
+    overLimitReason: WIP_AUTO_REASONS.take,
   });
   if (!result.ok)
     return result.error.startsWith("La tâche a changé")
@@ -162,7 +164,10 @@ export async function takeTask(
 
 // ─── Quêtes de la semaine ───────────────────────────────────────────────────
 
-/** Tâches bloquées depuis plus de 48 h : date du dernier changement de statut (journal), sinon de la tâche. */
+/**
+ * Tâches bloquées depuis plus de 48 h : date de la dernière ENTRÉE en « Bloquée » (journal ; une
+ * mise à jour Bloquée → Bloquée, ex. nouveau motif, ne remet pas le compteur à zéro), sinon de la tâche.
+ */
 async function blockedOverHours(now: Date, hours: number) {
   const db = getDb();
   const blocked = await db.task.findMany({
@@ -173,10 +178,12 @@ async function blockedOverHours(now: Date, hours: number) {
   const events = await db.auditEvent.findMany({
     where: { action: "task.status_changed", targetType: "task", targetId: { in: blocked.map((t) => t.id) } },
     orderBy: { createdAt: "desc" },
-    select: { targetId: true, createdAt: true },
+    select: { targetId: true, createdAt: true, before: true, after: true },
   });
   const since = new Map<string, Date>();
-  for (const e of events) if (e.targetId && !since.has(e.targetId)) since.set(e.targetId, e.createdAt);
+  for (const e of events)
+    if (e.targetId && !since.has(e.targetId) && entersBlocked(e.before, e.after))
+      since.set(e.targetId, e.createdAt);
   const limit = now.getTime() - hours * HOUR;
   return blocked.filter((t) => (since.get(t.id) ?? t.updatedAt).getTime() < limit).map((t) => t.id);
 }

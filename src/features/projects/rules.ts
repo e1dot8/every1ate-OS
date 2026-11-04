@@ -55,10 +55,11 @@ export const WIP_REASON_MIN = 5;
 export type WipCheck = { ok: true; override: boolean } | { ok: false; error: string; needsReason: true };
 
 /**
- * Limite d'en-cours (« bureau à N places ») : passer une tâche « En cours » alors que son
- * responsable occupe déjà `limit` places (tâches en cours + bloquées, hors celle-ci) est refusé,
- * sauf avec un motif d'au moins 5 caractères. Une tâche qui occupe déjà une place (bloquée qui
- * reprend) ou sans responsable n'est jamais refusée.
+ * Limite d'en-cours (« bureau à N places ») : faire entrer une tâche sur le bureau (« En cours »,
+ * ou « Bloquée » directement, qui occupe aussi une place) alors que son responsable occupe déjà
+ * `limit` places (tâches en cours + bloquées, hors celle-ci) est refusé, sauf avec un motif d'au
+ * moins 5 caractères. Une tâche qui occupe déjà une place (bloquée qui reprend, en cours qui se
+ * bloque) ou sans responsable n'est jamais refusée.
  */
 export function checkWipLimit(input: {
   from: TaskStatus;
@@ -69,18 +70,46 @@ export function checkWipLimit(input: {
   limit: number;
   reason?: string | null;
 }): WipCheck {
-  if (input.to !== "EN_COURS" || WIP_STATES.includes(input.from) || !input.hasOwner)
+  if (!WIP_STATES.includes(input.to) || WIP_STATES.includes(input.from) || !input.hasOwner)
     return { ok: true, override: false };
   if (input.occupied < input.limit) return { ok: true, override: false };
   const reason = input.reason?.trim() ?? "";
   if (reason.length >= WIP_REASON_MIN) return { ok: true, override: true };
+  const full = `Bureau plein (${input.occupied}/${input.limit})`;
   return {
     ok: false,
     needsReason: true,
     error: reason
       ? `Motif trop court : ${WIP_REASON_MIN} caractères minimum.`
-      : `Bureau plein (${input.occupied}/${input.limit}) : terminez ou passez une tâche avant d'en commencer une autre, ou indiquez un motif (visible de tous).`,
+      : input.to === "BLOQUE"
+        ? `${full} : une tâche bloquée occupe aussi une place. Terminez ou passez une tâche, ou indiquez un motif (visible de tous).`
+        : `${full} : terminez ou passez une tâche avant d'en commencer une autre, ou indiquez un motif (visible de tous).`,
   };
+}
+
+/** Motifs posés automatiquement quand une tâche change de responsable au-delà de sa limite. */
+export const WIP_AUTO_REASONS = {
+  handoff: "Reçue par passation au-delà de la limite",
+  take: "Prise au-delà de la limite",
+  reassign: "Réassignée au-delà de la limite",
+} as const;
+
+/**
+ * Changement de responsable (passation acceptée, « Je la prends », modification de la tâche) :
+ * l'ancien motif de dépassement concernait l'ancien bureau. Si la tâche occupe une place et que
+ * le bureau du nouveau responsable est déjà plein (`occupied` ≥ `limit`, hors cette tâche), le
+ * motif automatique `label` est posé, visible de tous ; sinon le motif est effacé (null).
+ */
+export function wipReasonOnReassign(input: {
+  status: TaskStatus;
+  hasOwner: boolean;
+  /** Places déjà occupées par le nouveau responsable, sans compter cette tâche. */
+  occupied: number;
+  limit: number;
+  label: string;
+}): string | null {
+  if (!input.hasOwner || !WIP_STATES.includes(input.status)) return null;
+  return input.occupied >= input.limit ? input.label : null;
 }
 
 export type DependencyEdge = { taskId: string; dependsOnId: string };

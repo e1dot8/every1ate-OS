@@ -446,7 +446,7 @@ export function TaskStatusForm({ taskId, status }: { taskId: string; status: str
       {to === "ANNULE" ? (
         <TextareaField name="reason" label="Pourquoi annuler ?" rows={2} error={state.fieldErrors?.reason} />
       ) : null}
-      {to === "EN_COURS" && (state.fieldErrors?.wipReason || state.values?.wipReason) ? (
+      {(to === "EN_COURS" || to === "BLOQUE") && (state.fieldErrors?.wipReason || state.values?.wipReason) ? (
         // Bureau plein : on peut dépasser la limite avec un motif (5 caractères minimum).
         <Field
           name="wipReason"

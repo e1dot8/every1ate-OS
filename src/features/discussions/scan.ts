@@ -27,7 +27,15 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
       id: true,
       userId: true,
       text: true,
-      message: { select: { id: true, parentId: true, channel: { select: { slug: true } } } },
+      message: {
+        select: {
+          id: true,
+          parentId: true,
+          channelId: true,
+          deletedAt: true,
+          channel: { select: { slug: true } },
+        },
+      },
     },
   });
   for (const r of dueReminders) {
@@ -36,6 +44,10 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
       data: { sentAt: now },
     });
     if (!claimed.count) continue;
+    // Message supprimé depuis, ou salon devenu inaccessible (retiré d'un salon privé) : le rappel
+    // est clos (sentAt posé ci-dessus) sans rien envoyer.
+    if (r.message && (r.message.deletedAt || !(await accessChannel({ id: r.message.channelId }, r.userId))))
+      continue;
     await emitEvent({
       kind: "rappel",
       actorId: null,
@@ -45,6 +57,8 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
       recipients: [r.userId],
       dedupeKey: `rappel:${r.id}`,
       channelPost: false,
+      // Programmé par l'associé lui-même : il arrive sur son téléphone même pendant un focus.
+      urgent: true,
     });
     reminders += 1;
   }
@@ -79,7 +93,14 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
           select: { id: true },
         })
       : null;
-    await publishMessage(s.author, access.channel, { body: s.body, parentId: parent?.id ?? null }, now);
+    // Heure réelle de publication (pas le début de la passe) ; l'auteur n'est pas là : les
+    // messages des autres restent non lus pour lui.
+    await publishMessage(
+      s.author,
+      access.channel,
+      { body: s.body, parentId: parent?.id ?? null, markRead: false },
+      new Date(),
+    );
     scheduled += 1;
   }
   return { reminders, scheduled };

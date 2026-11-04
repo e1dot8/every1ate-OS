@@ -70,16 +70,48 @@ describe("répondre à une passation", () => {
 
   it("un client n'est accepté qu'avec une prochaine action datée", () => {
     const opp = { ...pending, isOpportunity: true };
-    expect(checkHandoffAnswer(opp, "pierre", { kind: "accepter" }).ok).toBe(false);
+    const today = new Date("2026-11-04");
+    expect(checkHandoffAnswer(opp, "pierre", { kind: "accepter" }, today).ok).toBe(false);
     expect(
-      checkHandoffAnswer(opp, "pierre", { kind: "accepter", nextAction: "Appeler", nextActionDate: null }).ok,
+      checkHandoffAnswer(
+        opp,
+        "pierre",
+        { kind: "accepter", nextAction: "Appeler", nextActionDate: null },
+        today,
+      ).ok,
     ).toBe(false);
     expect(
-      checkHandoffAnswer(opp, "pierre", {
-        kind: "accepter",
-        nextAction: "Appeler",
-        nextActionDate: new Date("2026-11-10"),
-      }).ok,
+      checkHandoffAnswer(
+        opp,
+        "pierre",
+        { kind: "accepter", nextAction: "Appeler", nextActionDate: new Date("2026-11-10") },
+        today,
+      ).ok,
+    ).toBe(true);
+  });
+
+  it("la prochaine action d'un client repris est datée d'aujourd'hui (Paris) ou plus tard", () => {
+    const opp = { ...pending, isOpportunity: true };
+    const today = new Date("2026-11-04");
+    const accept = (date: string) =>
+      checkHandoffAnswer(
+        opp,
+        "pierre",
+        { kind: "accepter", nextAction: "Appeler", nextActionDate: new Date(date) },
+        today,
+      );
+    expect(accept("2026-11-04").ok).toBe(true);
+    const past = accept("2026-11-03");
+    expect(past.ok).toBe(false);
+    if (!past.ok) expect(past.error).toMatch(/date de la prochaine action est passée/);
+    // Une tâche n'a pas de prochaine action : la date n'est pas contrôlée.
+    expect(
+      checkHandoffAnswer(
+        pending,
+        "pierre",
+        { kind: "accepter", nextAction: null, nextActionDate: new Date("2020-01-01") },
+        today,
+      ).ok,
     ).toBe(true);
   });
 

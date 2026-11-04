@@ -158,4 +158,16 @@ test.describe("alertes push et WhatsApp", () => {
     expect(await pushSubscriptionCount(email)).toBe(0);
     expect((await auditTrail(email)).map((a) => a.action)).toContain("notification.push_unsubscribed");
   });
+
+  test("push : un appareil sans session valide (déconnecté) ne reçoit rien", async ({ page }) => {
+    const { email } = await activateAssociate(page, "Pierre");
+    await insertPushSubscription(email, { withSession: false });
+    await page.goto("/plus/alertes");
+    const device = region(page, "Notifications sur cet appareil");
+    await expect(device.getByRole("heading", { name: "Mes appareils (1)" })).toBeVisible();
+
+    await device.getByRole("button", { name: "Envoyer un test" }).click();
+    await expect(device.getByText(/Aucun appareil actif/)).toBeVisible();
+    expect(await deliveriesFor(email)).toEqual([]);
+  });
 });

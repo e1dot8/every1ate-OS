@@ -4,6 +4,8 @@
  * REPRENDRE : « from » demande au responsable actuel (« to ») de le lui céder.
  * L'objet ne change de main qu'après acceptation par « to ».
  */
+import { todayDate } from "@/lib/dates";
+
 export type HandoffModeValue = "DONNER" | "REPRENDRE";
 export type HandoffStatusValue = "EN_ATTENTE" | "ACCEPTEE" | "REFUSEE" | "ANNULEE";
 
@@ -52,11 +54,15 @@ export type HandoffAnswer =
   | { kind: "refuser"; answer: string | null }
   | { kind: "annuler" };
 
-/** Vérifie qu'un associé peut répondre à (ou annuler) une passation. */
+/**
+ * Vérifie qu'un associé peut répondre à (ou annuler) une passation. Reprendre un client exige une
+ * prochaine action datée d'aujourd'hui ou plus tard (`today` : jour de Paris, minuit UTC).
+ */
 export function checkHandoffAnswer(
   h: { status: HandoffStatusValue; fromId: string; toId: string; isOpportunity: boolean },
   actorId: string,
   answer: HandoffAnswer,
+  today: Date = todayDate(),
 ): Check {
   if (h.status !== "EN_ATTENTE") return fail("Cette passation a déjà été traitée.");
   if (answer.kind === "annuler")
@@ -68,8 +74,11 @@ export function checkHandoffAnswer(
     if (text.length > HANDOFF_ANSWER_MAX) return fail("Réponse trop longue (500 caractères).");
     return ok(null);
   }
-  if (h.isOpportunity && (!answer.nextAction?.trim() || !answer.nextActionDate))
+  if (!h.isOpportunity) return ok(null);
+  if (!answer.nextAction?.trim() || !answer.nextActionDate)
     return fail("Pour reprendre un client, fixez la prochaine action et sa date.");
+  if (answer.nextActionDate.getTime() < today.getTime())
+    return fail("La date de la prochaine action est passée : choisissez aujourd'hui ou une date à venir.");
   return ok(null);
 }
 

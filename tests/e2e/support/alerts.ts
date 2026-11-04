@@ -16,13 +16,25 @@ export async function deliveriesFor(email: string): Promise<DeliveryRow[]> {
   });
 }
 
-/** Abonnement push fictif (jamais contacté : les tests tournent avec PUSH_TRANSPORT=outbox). */
-export async function insertPushSubscription(email: string): Promise<string> {
+/**
+ * Abonnement push fictif (jamais contacté : les tests tournent avec PUSH_TRANSPORT=outbox),
+ * rattaché à la session la plus récente de l'associé (sans session valide, rien n'est envoyé).
+ * `withSession: false` : abonnement orphelin (appareil d'une session fermée ou d'avant V1.2).
+ */
+export async function insertPushSubscription(
+  email: string,
+  { withSession = true }: { withSession?: boolean } = {},
+): Promise<string> {
   const endpoint = `https://fcm.googleapis.com/fcm/send/e2e-${randomBytes(12).toString("hex")}`;
   await withDb((c) =>
     c.query(
-      `insert into push_subscription (id, "userId", endpoint, p256dh, auth, "userAgent", "createdAt")
-       select $1, u.id, $2, $3, $4, $5, now() from "user" u where u.email = $6`,
+      `insert into push_subscription (id, "userId", endpoint, p256dh, auth, "userAgent", "sessionId", "createdAt")
+       select $1, u.id, $2, $3, $4, $5,
+              case when $7::boolean
+                then (select s.id from "session" s where s."userId" = u.id order by s."createdAt" desc limit 1)
+              end,
+              now()
+       from "user" u where u.email = $6`,
       [
         `ps_${randomBytes(8).toString("hex")}`,
         endpoint,
@@ -30,6 +42,7 @@ export async function insertPushSubscription(email: string): Promise<string> {
         randomBytes(16).toString("base64url"),
         "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
         email,
+        withSession,
       ],
     ),
   );

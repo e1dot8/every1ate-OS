@@ -85,7 +85,11 @@ export async function deliver(
       whatsappPhone: true,
       whatsappKey: true,
       notifyPrefs: true,
-      pushSubscriptions: { select: { id: true, endpoint: true, p256dh: true, auth: true } },
+      // Seuls les appareils dont la session est encore valide (déconnecté ou expiré : rien).
+      pushSubscriptions: {
+        where: { session: { is: { expiresAt: { gt: now } } } },
+        select: { id: true, endpoint: true, p256dh: true, auth: true },
+      },
     },
   });
 

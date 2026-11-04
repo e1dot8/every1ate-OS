@@ -173,6 +173,22 @@ export function blockReasonIssue(reason: string | null | undefined): string | nu
   return null;
 }
 
+export const DELIVERABLE_ARCHIVED_ISSUE = "Livrable introuvable ou archivé.";
+export const PROJECT_ARCHIVED_ISSUE = "Projet archivé : ses livrables sont en lecture seule.";
+
+/**
+ * Lecture seule : un livrable archivé, ou dont le projet est archivé, ne se modifie plus
+ * (seul l'archivage du livrable lui-même reste possible). Renvoie le motif du refus, sinon null.
+ */
+export function deliverableLockIssue(d: {
+  archivedAt: Date | null;
+  project: { archivedAt: Date | null };
+}): string | null {
+  if (d.archivedAt) return DELIVERABLE_ARCHIVED_ISSUE;
+  if (d.project.archivedAt) return PROJECT_ARCHIVED_ISSUE;
+  return null;
+}
+
 /** Lien vers les fichiers : https uniquement. */
 export function isHttpsUrl(value: string): boolean {
   try {

@@ -75,18 +75,27 @@ export type AlertSettings = Awaited<ReturnType<typeof getAlertSettings>>;
 
 export type PushSubscriptionInput = { endpoint: string; p256dh: string; auth: string };
 
-export async function isPushSubscriptionKnown(userId: string, endpoint: string): Promise<boolean> {
-  const found = await getDb().pushSubscription.findFirst({
+/**
+ * Rattache l'abonnement de ce navigateur, s'il est déjà connu pour CET associé, à sa session en
+ * cours : les envois ne partent que vers les appareils dont la session est encore valide.
+ * Renvoie vrai si l'abonnement est connu (et désormais rattaché), faux sinon.
+ */
+export async function attachPushSubscriptionToSession(
+  userId: string,
+  sessionId: string,
+  endpoint: string,
+): Promise<boolean> {
+  const updated = await getDb().pushSubscription.updateMany({
     where: { userId, endpoint },
-    select: { id: true },
+    data: { sessionId },
   });
-  return Boolean(found);
+  return updated.count > 0;
 }
 
 export async function savePushSubscription(
   input: PushSubscriptionInput,
   userAgent: string | null,
-  actor: Actor,
+  actor: Actor & { sessionId: string },
 ): Promise<ServiceResult<null>> {
   if (getServerEnv().pushTransport === "off") return failed("Notifications push non configurées.");
   const db = getDb();
@@ -94,17 +103,25 @@ export async function savePushSubscription(
     where: { endpoint: input.endpoint },
     select: { userId: true },
   });
-  // Un même navigateur ne sert qu'un associé : l'abonnement suit la personne connectée.
+  // Un même navigateur ne sert qu'un associé : l'abonnement suit la personne connectée, et sa
+  // session (déconnexion ou session révoquée : plus aucun envoi vers cet appareil).
   await db.pushSubscription.upsert({
     where: { endpoint: input.endpoint },
     create: {
       userId: actor.id,
+      sessionId: actor.sessionId,
       endpoint: input.endpoint,
       p256dh: input.p256dh,
       auth: input.auth,
       userAgent: userAgent?.slice(0, 300) ?? null,
     },
-    update: { userId: actor.id, p256dh: input.p256dh, auth: input.auth, userAgent: userAgent?.slice(0, 300) },
+    update: {
+      userId: actor.id,
+      sessionId: actor.sessionId,
+      p256dh: input.p256dh,
+      auth: input.auth,
+      userAgent: userAgent?.slice(0, 300),
+    },
   });
   const extra = await db.pushSubscription.findMany({
     where: { userId: actor.id },
@@ -227,7 +244,7 @@ export function summarizeTest(channel: ExternalChannel, logs: DeliveryLog[]): Se
   if (!logs.length)
     return failed(
       channel === "push"
-        ? "Aucun appareil enregistré : activez d'abord les notifications sur cet appareil."
+        ? "Aucun appareil actif : activez les notifications sur cet appareil (un appareil déconnecté ne reçoit plus rien)."
         : "WhatsApp n'est pas configuré.",
     );
   if (count("limite"))

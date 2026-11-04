@@ -196,7 +196,10 @@ async function OpportunityView({
                     title={opp.title}
                     isOpportunity
                     nextAction={opp.nextAction ?? ""}
-                    nextActionDate={toDateInput(opp.nextActionDate)}
+                    // Date passée : à refixer par le repreneur (aujourd'hui ou plus tard).
+                    nextActionDate={
+                      opp.nextActionDate && opp.nextActionDate < today ? "" : toDateInput(opp.nextActionDate)
+                    }
                   />
                 ) : pendingHandoff.fromId === user.id ? (
                   <CancelHandoffForm handoffId={pendingHandoff.id} label="Annuler la proposition" />

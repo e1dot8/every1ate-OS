@@ -33,6 +33,7 @@ import {
   isHttpsUrl,
   isReaction,
   jitsiUrl,
+  marksChannelRead,
   messageHref,
   plainExcerpt,
   reminderAt,
@@ -98,9 +99,14 @@ async function mentionablePeople(channel: ChannelRow) {
   ).map((m) => m.user);
 }
 
-async function resolveMessageMentions(channel: ChannelRow, body: string, authorId: string) {
+/** Personnes mentionnées, et prénoms ambigus (portés par plusieurs associés : personne n'est mentionné). */
+async function resolveMessageMentions(
+  channel: ChannelRow,
+  body: string,
+  authorId: string,
+): Promise<{ ids: string[]; ambiguous: string[] }> {
   const tokens = extractMentionTokens(body);
-  if (!tokens.length) return [];
+  if (!tokens.length) return { ids: [], ambiguous: [] };
   const people = await mentionablePeople(channel);
   const resolved = resolveMentions(tokens, people, authorId);
   const ids = new Set(resolved.ids);
@@ -111,7 +117,7 @@ async function resolveMessageMentions(channel: ChannelRow, body: string, authorI
     });
     for (const m of members) if (m.userId !== authorId) ids.add(m.userId);
   }
-  return [...ids];
+  return { ids: [...ids], ambiguous: resolved.ambiguous };
 }
 
 function channelPlace(channel: ChannelRow) {
@@ -168,7 +174,9 @@ async function announce(
 
 /**
  * Publie le message d'un associé (accès vérifié par l'appelant) : mentions résolues,
- * notifications, salon marqué comme lu pour l'auteur. Utilisé aussi pour les messages programmés.
+ * notifications, salon marqué comme lu pour l'auteur (voir `marksChannelRead` : pas pour une
+ * réponse de fil ni avec `markRead: false`). Utilisé aussi pour les messages programmés.
+ * `ambiguous` : prénoms mentionnés portés par plusieurs associés (personne n'a été mentionné).
  */
 export async function publishMessage(
   author: Actor,
@@ -178,11 +186,13 @@ export async function publishMessage(
     parentId?: string | null;
     alsoInChannel?: boolean;
     attachment?: { title: string; url: string } | null;
+    /** Marquer le salon comme lu pour l'auteur (par défaut : oui, sauf réponse de fil). */
+    markRead?: boolean;
   },
   now = new Date(),
-): Promise<{ id: string }> {
+): Promise<{ id: string; ambiguous: string[] }> {
   const db = getDb();
-  const mentionIds = await resolveMessageMentions(channel, input.body, author.id);
+  const { ids: mentionIds, ambiguous } = await resolveMessageMentions(channel, input.body, author.id);
   const message = await db.message.create({
     data: {
       channelId: channel.id,
@@ -196,13 +206,14 @@ export async function publishMessage(
     },
     select: { id: true, parentId: true, body: true },
   });
+  // Publier rejoint le salon ; la date de lecture n'avance que pour un message lu « sur place ».
   await db.channelMember.upsert({
     where: { channelId_userId: { channelId: channel.id, userId: author.id } },
     create: { channelId: channel.id, userId: author.id, lastReadAt: now },
-    update: { lastReadAt: now },
+    update: marksChannelRead(input) ? { lastReadAt: now } : {},
   });
   await announce(author, channel, message, mentionIds, { direct: true });
-  return { id: message.id };
+  return { id: message.id, ambiguous };
 }
 
 export type NewMessage = {
@@ -234,7 +245,7 @@ async function checkParent(channelId: string, parentId: string | null | undefine
 export async function postMessage(
   actor: Actor,
   input: NewMessage,
-): Promise<ServiceResult<{ id: string; slug: string }>> {
+): Promise<ServiceResult<{ id: string; slug: string; ambiguous: string[] }>> {
   const access = await accessChannel({ id: input.channelId }, actor.id);
   if (!access) return failed(NOT_FOUND);
   if (!canPostInChannel(access.channel, !!access.member)) return failed(ARCHIVED);
@@ -245,14 +256,14 @@ export async function postMessage(
     (await checkParent(access.channel.id, input.parentId));
   if (problem) return failed(problem);
   const message = await publishMessage(actor, access.channel, { ...input, body });
-  return done({ id: message.id, slug: access.channel.slug });
+  return done({ id: message.id, slug: access.channel.slug, ambiguous: message.ambiguous });
 }
 
 export async function editMessage(
   actor: Actor,
   messageId: string,
   rawBody: string,
-): Promise<ServiceResult<{ slug: string; parentId: string | null }>> {
+): Promise<ServiceResult<{ slug: string; parentId: string | null; ambiguous: string[] }>> {
   const found = await accessMessage(messageId, actor.id);
   if (!found || found.message.authorId !== actor.id || found.message.deletedAt)
     return failed(MESSAGE_NOT_FOUND);
@@ -262,7 +273,7 @@ export async function editMessage(
   if (problem) return failed(problem);
   if (isCommand(body))
     return failed("Une commande ne remplace pas un message : écris-la dans un nouveau message.");
-  const mentionIds = await resolveMessageMentions(found.channel, body, actor.id);
+  const { ids: mentionIds, ambiguous } = await resolveMessageMentions(found.channel, body, actor.id);
   await getDb().message.update({
     where: { id: messageId },
     data: { body, mentionIds, editedAt: new Date() },
@@ -271,10 +282,16 @@ export async function editMessage(
   const added = mentionIds.filter((id) => !found.message.mentionIds.includes(id));
   if (added.length)
     await announce(actor, found.channel, { ...found.message, body }, added, { direct: false });
-  return done({ slug: found.channel.slug, parentId: found.message.parentId });
+  return done({ slug: found.channel.slug, parentId: found.message.parentId, ambiguous });
 }
 
-/** Suppression douce : le message devient « Message supprimé », son fil reste lisible. */
+/** Texte des rappels liés à un message supprimé (son contenu ne doit plus apparaître nulle part). */
+const DELETED_REMINDER_TEXT = "Message supprimé";
+
+/**
+ * Suppression douce : le message devient « Message supprimé », son fil reste lisible. Les rappels
+ * pas encore envoyés posés dessus (par n'importe quel associé) perdent leur extrait du texte.
+ */
 export async function deleteMessage(
   actor: Actor,
   messageId: string,
@@ -290,6 +307,10 @@ export async function deleteMessage(
     }),
     db.messageAttachment.deleteMany({ where: { messageId } }),
     db.messageReaction.deleteMany({ where: { messageId } }),
+    db.reminder.updateMany({
+      where: { messageId, sentAt: null },
+      data: { text: DELETED_REMINDER_TEXT },
+    }),
   ]);
   await recordAudit({
     action: "channel.message_deleted",

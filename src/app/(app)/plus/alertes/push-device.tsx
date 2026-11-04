@@ -5,7 +5,7 @@ import { Bell, BellOff } from "lucide-react";
 import { FormAlert } from "@/components/forms/form-alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { checkPushSubscriptionAction, subscribePushAction, unsubscribePushAction } from "./actions";
+import { attachPushSessionAction, subscribePushAction, unsubscribePushAction } from "./actions";
 
 type DeviceState = "loading" | "unsupported" | "denied" | "off" | "on";
 type Notice = { tone: "success" | "warning" | "danger"; text: string } | null;
@@ -73,7 +73,8 @@ export function PushDevice({ publicKey }: { publicKey: string | null }) {
       if (Notification.permission === "denied") return "denied";
       const subscription = await currentSubscription();
       if (!subscription || Notification.permission !== "granted") return "off";
-      return (await checkPushSubscriptionAction({ endpoint: subscription.endpoint })) ? "on" : "off";
+      // Connu du serveur pour cet associé : rattaché au passage à la session en cours.
+      return (await attachPushSessionAction({ endpoint: subscription.endpoint })) ? "on" : "off";
     };
     read()
       .catch((): DeviceState => "off")

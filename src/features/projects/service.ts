@@ -23,11 +23,13 @@ import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
 import { buildNextOccurrence, normalizeRecurrence, recurrenceIssue } from "@/features/projects/recurrence";
 import {
   TASK_DONE_STATES,
+  WIP_AUTO_REASONS,
   WIP_STATES,
   checkProjectTransition,
   checkTaskTransition,
   checkWipLimit,
   findDependencyCycle,
+  wipReasonOnReassign,
   type RuleResult,
 } from "@/features/projects/rules";
 
@@ -694,11 +696,17 @@ export async function saveTask(
         : wanted,
   };
   if (taskId && before) {
-    const changes = diff(before, fields);
+    // Nouveau responsable : le motif de dépassement suit son bureau (voir `wipReasonOnReassign`).
+    const wip =
+      fields.ownerId !== before.ownerId
+        ? await reassignWip(taskId, before.status, fields.ownerId, WIP_AUTO_REASONS.reassign)
+        : null;
+    const data = wip ? { ...fields, wipOverrideReason: wip.reason } : fields;
+    const changes = diff(before, data);
     await db.task.update({
       where: { id: taskId },
       data: {
-        ...fields,
+        ...data,
         contributors: {
           deleteMany: {},
           create: contributorIds.filter((u) => u !== fields.ownerId).map((userId) => ({ userId })),
@@ -714,6 +722,8 @@ export async function saveTask(
         targetId: taskId,
         ...changes,
       });
+    if (wip?.reason)
+      await auditWipOverride({ id: taskId, projectId, ownerId: fields.ownerId }, wip.reason, wip, actor);
     if (fields.ownerId && fields.ownerId !== before.ownerId)
       await notifyAssignment(taskId, fields.ownerId, fields.title, projectId, actor);
     return done({ id: taskId });
@@ -791,34 +801,86 @@ export async function deskCount(ownerId: string, exceptTaskId?: string) {
 }
 
 /**
+ * Motif de dépassement après un changement de responsable (règle `wipReasonOnReassign`) :
+ * `reason` est le motif automatique si le bureau du nouveau responsable est déjà plein, sinon null.
+ */
+async function reassignWip(taskId: string, status: TaskStatus, ownerId: string | null, label: string) {
+  if (!ownerId || !WIP_STATES.includes(status)) return { reason: null, occupied: 0, limit: 0 };
+  const [settings, occupied] = await Promise.all([getAgencySettings(), deskCount(ownerId, taskId)]);
+  const limit = settings.wipLimit;
+  return { reason: wipReasonOnReassign({ status, hasOwner: true, occupied, limit, label }), occupied, limit };
+}
+
+/** Journal d'un dépassement de la limite d'en-cours (motif visible de tous). */
+function auditWipOverride(
+  task: { id: string; projectId: string; ownerId: string | null },
+  reason: string,
+  desk: { occupied: number; limit: number },
+  actor: Actor,
+) {
+  return recordAudit({
+    action: "task.wip_override",
+    actorId: actor.id,
+    projectId: task.projectId,
+    targetType: "task",
+    targetId: task.id,
+    after: { ownerId: task.ownerId, occupied: desk.occupied, limit: desk.limit },
+    reason,
+  });
+}
+
+/**
  * Change le responsable d'une tâche (prise d'une tâche sans responsable, passation acceptée).
  * `expectedOwnerId` (null = sans responsable) protège contre un changement concurrent :
  * la tâche n'est réattribuée que si son responsable est toujours celui attendu.
+ * Bureau du nouveau responsable déjà plein : `overLimitReason` est posé (visible de tous) et journalisé.
  */
 export async function assignTask(
   taskId: string,
   ownerId: string,
   actor: Actor,
-  options: { expectedOwnerId?: string | null; reason?: string; notifyOwner?: boolean } = {},
+  options: {
+    expectedOwnerId?: string | null;
+    reason?: string;
+    notifyOwner?: boolean;
+    overLimitReason?: string;
+  } = {},
 ): Promise<ServiceResult<{ projectId: string; title: string }>> {
   const db = getDb();
   const task = await db.task.findUnique({
     where: { id: taskId },
-    select: { id: true, title: true, ownerId: true, projectId: true, status: true, archivedAt: true },
+    select: {
+      id: true,
+      title: true,
+      ownerId: true,
+      projectId: true,
+      status: true,
+      archivedAt: true,
+      project: { select: { archivedAt: true } },
+    },
   });
   if (!task || task.archivedAt) return failed("Tâche introuvable.");
+  if (task.project.archivedAt) return failed("Projet archivé : la tâche ne peut plus changer de main.");
   if (TASK_DONE_STATES.includes(task.status)) return failed("Cette tâche est déjà terminée ou annulée.");
   if (!(await db.user.findFirst({ where: { id: ownerId, role: "associe" } })))
     return failed("Responsable invalide.");
   if (task.ownerId === ownerId) return done({ projectId: task.projectId, title: task.title });
+  const wip = await reassignWip(
+    taskId,
+    task.status,
+    ownerId,
+    options.overLimitReason ?? WIP_AUTO_REASONS.reassign,
+  );
   const moved = await db.task.updateMany({
     where: {
       id: taskId,
       archivedAt: null,
+      project: { archivedAt: null },
       ...(options.expectedOwnerId !== undefined ? { ownerId: options.expectedOwnerId } : {}),
     },
-    // Le motif de dépassement concernait le bureau de l'ancien responsable.
-    data: { ownerId, wipOverrideReason: null },
+    // Le motif de dépassement concernait le bureau de l'ancien responsable : il est effacé, ou
+    // remplacé par le motif automatique si le bureau du nouveau responsable est déjà plein.
+    data: { ownerId, wipOverrideReason: wip.reason },
   });
   if (moved.count === 0) return failed("La tâche a changé de responsable entre-temps. Rechargez la page.");
   await db.taskContributor.deleteMany({ where: { taskId, userId: ownerId } });
@@ -832,6 +894,8 @@ export async function assignTask(
     after: { ownerId },
     reason: options.reason,
   });
+  if (wip.reason)
+    await auditWipOverride({ id: taskId, projectId: task.projectId, ownerId }, wip.reason, wip, actor);
   if (options.notifyOwner !== false)
     await notifyAssignment(taskId, ownerId, task.title, task.projectId, actor);
   return done({ projectId: task.projectId, title: task.title });
@@ -873,9 +937,10 @@ export async function changeTaskStatus(
   );
   if (error) return failed(error);
 
-  // Limite d'en-cours (V1.2) : bureau du responsable plein → motif obligatoire, visible de tous.
+  // Limite d'en-cours (V1.2) : une tâche qui entre sur le bureau (« En cours », ou « Bloquée »
+  // directement, qui occupe aussi une place) alors qu'il est plein → motif obligatoire, visible de tous.
   let wip: { reason: string; occupied: number; limit: number } | null = null;
-  if (to === "EN_COURS" && task.ownerId && !WIP_STATES.includes(task.status)) {
+  if (WIP_STATES.includes(to) && task.ownerId && !WIP_STATES.includes(task.status)) {
     const [settings, occupied] = await Promise.all([getAgencySettings(), deskCount(task.ownerId, taskId)]);
     const check = checkWipLimit({
       from: task.status,
@@ -974,16 +1039,7 @@ export async function changeTaskStatus(
       : { status: to },
     reason: details.reason ?? undefined,
   });
-  if (wip)
-    await recordAudit({
-      action: "task.wip_override",
-      actorId: actor.id,
-      projectId: task.projectId,
-      targetType: "task",
-      targetId: taskId,
-      after: { ownerId: task.ownerId, occupied: wip.occupied, limit: wip.limit },
-      reason: wip.reason,
-    });
+  if (wip) await auditWipOverride(task, wip.reason, wip, actor);
   if (to === "TERMINE")
     await emitEvent({
       kind: "tache.terminee",

@@ -3,6 +3,7 @@ import {
   computeQuests,
   currentWeek,
   earnedBadges,
+  entersBlocked,
   isStateEvaluationTime,
   isoWeekPeriod,
   parisMidnight,
@@ -69,6 +70,17 @@ describe("quêtes de la semaine (collectives)", () => {
     expect(quests.find((x) => x.key === "zero-relance")!.detail).toMatch(/2 relances en retard/);
     expect(quests.find((x) => x.key === "rien-bloque")!.achieved).toBe(false);
     expect(computeQuests(calm).every((x) => x.achieved)).toBe(true);
+  });
+
+  it("bloquée depuis 48 h : compte depuis l'ENTRÉE en « Bloquée », pas les mises à jour du motif", () => {
+    expect(entersBlocked({ status: "EN_COURS" }, { status: "BLOQUE" })).toBe(true);
+    expect(entersBlocked({ status: "A_FAIRE" }, { status: "BLOQUE" })).toBe(true);
+    expect(entersBlocked(null, { status: "BLOQUE" })).toBe(true);
+    // Bloquée → Bloquée (nouveau motif) : ne remet pas le compteur à zéro.
+    expect(entersBlocked({ status: "BLOQUE" }, { status: "BLOQUE" })).toBe(false);
+    expect(entersBlocked({ status: "BLOQUE" }, { status: "EN_COURS" })).toBe(false);
+    expect(entersBlocked({ status: "A_FAIRE" }, { status: "TERMINE", nextOccurrenceId: "x" })).toBe(false);
+    expect(entersBlocked("BLOQUE", "BLOQUE")).toBe(false);
   });
 
   it("passations : toutes traitées en moins de 24 h, et au moins une", () => {

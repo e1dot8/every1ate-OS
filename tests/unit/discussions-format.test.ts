@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ambiguousMentionWarning,
   extractMentionTokens,
   parseInline,
   resolveMentions,
@@ -105,5 +106,15 @@ describe("mentions", () => {
     const twins = [...people, { id: "p2", name: "Pierre Lenoir" }];
     expect(resolveMentions(["Pierre"], twins, null)).toEqual({ ids: [], here: false, ambiguous: ["Pierre"] });
     expect(resolveMentions(["PierreLenoir"], twins, null).ids).toEqual(["p2"]);
+  });
+
+  it("prénom partagé : l'auteur est averti (message éphémère)", () => {
+    expect(ambiguousMentionWarning([])).toBeNull();
+    expect(ambiguousMentionWarning(["Camille"])).toBe(
+      "Plusieurs associés s'appellent Camille : personne n'a été mentionné. Écris le nom complet.",
+    );
+    const several = ambiguousMentionWarning(["Camille", "Pierre"]);
+    expect(several).toContain("Camille, Pierre");
+    expect(several).toContain("Écris le nom complet.");
   });
 });

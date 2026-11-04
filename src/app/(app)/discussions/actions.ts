@@ -14,6 +14,7 @@ import {
   REACTIONS,
   REMINDER_CHOICES,
   TOPIC_MAX,
+  ambiguousMentionWarning,
   formatMomentFr,
   isCommand,
   nextMondayAt9,
@@ -160,7 +161,9 @@ export async function sendMessageAction(_prev: ComposerState, formData: FormData
   });
   if (!result.ok) return failure(result.error, formData);
   refresh();
-  return { status: "success" };
+  // Prénom porté par plusieurs associés : le message est parti, l'auteur est averti (lui seul).
+  const warning = ambiguousMentionWarning(result.data.ambiguous);
+  return warning ? { status: "success", message: warning } : { status: "success" };
 }
 
 // ─── Actions sur un message ─────────────────────────────────────────────────
@@ -184,6 +187,15 @@ export async function editMessageAction(_prev: FormState, formData: FormData): P
   const result = await editMessage(user, parsed.data.messageId, parsed.data.body);
   if (!result.ok) return failure(result.error, formData);
   refresh();
+  // Prénom ambigu : la modification est enregistrée ; le formulaire reste ouvert avec l'avertissement
+  // (visible par l'auteur seul) pour qu'il puisse écrire le nom complet.
+  const warning = ambiguousMentionWarning(result.data.ambiguous);
+  if (warning)
+    return {
+      status: "success",
+      message: `Modification enregistrée. ${warning}`,
+      values: { body: parsed.data.body.trim() },
+    };
   redirect(`${parsed.data.retour}#m-${parsed.data.messageId}`);
 }
 

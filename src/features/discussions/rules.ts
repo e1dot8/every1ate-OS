@@ -205,6 +205,31 @@ export function resolveMentions(
   return { ids: [...ids], here, ambiguous };
 }
 
+/**
+ * Avertissement éphémère (visible par l'auteur seul) quand un prénom mentionné est porté par
+ * plusieurs associés : le message part, mais personne n'est mentionné pour ce prénom.
+ */
+export function ambiguousMentionWarning(ambiguous: string[]): string | null {
+  if (!ambiguous.length) return null;
+  if (ambiguous.length === 1)
+    return `Plusieurs associés s'appellent ${ambiguous[0]} : personne n'a été mentionné. Écris le nom complet.`;
+  return `Prénoms portés par plusieurs associés (${ambiguous.join(", ")}) : personne n'a été mentionné pour ces prénoms. Écris le nom complet.`;
+}
+
+/**
+ * Publier marque-t-il le salon comme lu pour l'auteur ? Oui pour un message du salon ; non pour une
+ * réponse dans un fil (sauf « aussi dans le salon ») ni quand l'appelant le refuse (message
+ * programmé, publié sans que l'auteur soit là) : les messages des autres restent non lus.
+ */
+export function marksChannelRead(input: {
+  parentId?: string | null;
+  alsoInChannel?: boolean;
+  markRead?: boolean;
+}): boolean {
+  if (input.markRead === false) return false;
+  return !input.parentId || !!input.alsoInChannel;
+}
+
 // ─── Mise en forme légère ───────────────────────────────────────────────────
 
 export type InlineNode =
@@ -405,10 +430,19 @@ export function reminderAt(choice: ReminderChoice, now: Date): Date {
 }
 
 const MAX_DELAY_MINUTES = 7 * 24 * 60;
+/** « Nh » à partir de cette heure (et jusqu'à 23) : une heure de la journée, pas un délai. */
+const FIRST_CLOCK_HOUR = 7;
+
+/** Prochaine occurrence d'une heure de Paris : aujourd'hui si elle est encore à venir, sinon demain. */
+function nextParisTime(hour: number, minute: number, now: Date): Date {
+  const today = parisAt(todayDate(now), hour, minute);
+  return today > now ? today : parisAt(addDays(todayDate(now), 1), hour, minute);
+}
 
 /**
- * Délai d'un « /rappel » : « 20m », « 45min », « 2h », « 15h30 » (aujourd'hui, ou demain si l'heure
- * est passée) ou « demain » (9 h). Null si illisible ou au-delà d'une semaine.
+ * Délai d'un « /rappel » : « 20m », « 45min », « 2h » (délai de 1 à 6 h, ou de 24 h et plus),
+ * « 17h » (heure de la journée de 7 à 23 h), « 15h30 » (aujourd'hui, ou demain si l'heure est
+ * passée) ou « demain » (9 h), heure de Paris. Null si illisible ou au-delà d'une semaine.
  */
 export function parseDelay(token: string, now: Date): Date | null {
   const t = foldText(token.trim());
@@ -421,14 +455,15 @@ export function parseDelay(token: string, now: Date): Date | null {
   m = /^(\d{1,3})\s*(h|heure|heures)$/.exec(t);
   if (m) {
     const hours = Number(m[1]);
+    // « /rappel 17h Appeler X » : à 17 h, pas dans 17 heures.
+    if (hours >= FIRST_CLOCK_HOUR && hours <= 23) return nextParisTime(hours, 0, now);
     return hours >= 1 && hours * 60 <= MAX_DELAY_MINUTES ? new Date(now.getTime() + hours * 3_600_000) : null;
   }
   m = /^(\d{1,2})h(\d{2})$/.exec(t);
   if (m) {
     const [hour, minute] = [Number(m[1]), Number(m[2])];
     if (hour > 23 || minute > 59) return null;
-    const today = parisAt(todayDate(now), hour, minute);
-    return today > now ? today : parisAt(addDays(todayDate(now), 1), hour, minute);
+    return nextParisTime(hour, minute, now);
   }
   return null;
 }
@@ -531,7 +566,9 @@ export function presenceNotice(
 ): string | null {
   const who = firstName(name);
   const until = presence.until ? ` jusqu'à ${formatMomentFr(presence.until, now)}` : "";
-  if (presence.state === "FOCUS") return `${who} est en focus${until} : il sera prévenu à la fin.`;
+  // En focus, aucune alerte n'arrive sur son téléphone (sauf urgence) : il lira en sortant du focus.
+  if (presence.state === "FOCUS")
+    return `${who} est en focus${until} : il verra ton message en sortant du focus (pas d'alerte sur son téléphone d'ici là).`;
   if (presence.state === "ABSENT") return `${who} est absent${until} : il verra ton message à son retour.`;
   if (presence.state === "REUNION") return `${who} est en réunion${until}.`;
   return null;
@@ -566,7 +603,11 @@ export const COMMANDS = [
     usage: "/standup Ce que je fais | Ce qui me bloque",
     help: "Stand-up du jour (la partie après | est le blocage).",
   },
-  { name: "rappel", usage: "/rappel 20m Texte", help: "Rappel dans 20m, 1h, à 15h30 ou demain (9 h)." },
+  {
+    name: "rappel",
+    usage: "/rappel 17h Texte",
+    help: "Rappel à une heure (17h, 15h30), dans un délai (20m, 2h : de 1 à 6 h) ou demain (9 h).",
+  },
   { name: "huddle", usage: "/huddle", help: "Partage le lien visio du salon." },
 ] as const;
 
@@ -628,7 +669,7 @@ export function parseCommand(body: string, now: Date): ParsedCommand | null {
       return { ok: true, command: "standup", today: t, blocked: b };
     }
     case "rappel": {
-      const usage = "Écris : /rappel 20m Texte (ou 1h, 15h30, demain).";
+      const usage = "Écris : /rappel 17h Texte (ou 15h30, 20m, 2h, demain).";
       const [delay = "", ...words] = rest.split(/\s+/);
       const text = words.join(" ").trim();
       const remindAt = delay ? parseDelay(delay, now) : null;

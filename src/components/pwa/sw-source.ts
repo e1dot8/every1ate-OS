@@ -5,7 +5,8 @@ export const SW_SOURCE = String.raw`/* Every1.ate OS — service worker (V1, cac
  *   ou financière n'est stockée sur l'appareil.
  * - Hors ligne, une navigation affiche la page « hors-ligne.html ».
  * - Message { type: "purge" } : vide tous les caches (déconnexion, changement d'utilisateur).
- * - Notifications push (V1.2) : affiche { title, body, href, tag } ; un clic ouvre l'app sur href.
+ * - Notifications push (V1.2) : affiche { title, body, href, tag } ; une alerte qui en remplace
+ *   une autre (même tag) sonne de nouveau ; un clic ouvre l'app sur href (chemin interne seulement).
  */
 const VERSION = "e1-static-v1";
 const OFFLINE_URL = "/hors-ligne.html";
@@ -73,9 +74,12 @@ self.addEventListener("fetch", (event) => {
 // ── Notifications push ─────────────────────────────────────────────────────────
 const APP_ICON = "/icons/icon-192.png";
 
-/** Seuls les chemins internes sont suivis (jamais une adresse externe reçue dans un message). */
+/**
+ * Seuls les chemins internes sont suivis (jamais une adresse externe reçue dans un message) :
+ * « /… », mais ni « //hôte » ni « /\hôte » (que le navigateur lit comme un autre site).
+ */
 function safeHref(value) {
-  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  return typeof value === "string" && /^\/(?![\/\\])/.test(value) ? value : "/";
 }
 
 self.addEventListener("push", (event) => {
@@ -91,7 +95,11 @@ self.addEventListener("push", (event) => {
     icon: APP_ICON,
     data: { href: safeHref(data.href) },
   };
-  if (typeof data.tag === "string" && data.tag) options.tag = data.tag;
+  if (typeof data.tag === "string" && data.tag) {
+    options.tag = data.tag;
+    // Remplace l'alerte précédente du même objet, mais sonne et vibre de nouveau.
+    options.renotify = true;
+  }
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

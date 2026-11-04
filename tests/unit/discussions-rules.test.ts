@@ -12,6 +12,7 @@ import {
   groupByDay,
   isHttpsUrl,
   jitsiUrl,
+  marksChannelRead,
   messageHref,
   nextMondayAt9,
   permalink,
@@ -134,6 +135,18 @@ describe("jours et regroupement", () => {
     expect(groups[1].items.map((i) => i.compact)).toEqual([false, false, true, false, false, false]);
   });
 
+  it("publier marque le salon lu, sauf réponse de fil ou message programmé", () => {
+    expect(marksChannelRead({})).toBe(true);
+    expect(marksChannelRead({ parentId: null })).toBe(true);
+    // Répondre dans un fil ne lit pas tout le salon…
+    expect(marksChannelRead({ parentId: "m1" })).toBe(false);
+    // … sauf si la réponse est aussi envoyée dans le salon.
+    expect(marksChannelRead({ parentId: "m1", alsoInChannel: true })).toBe(true);
+    // Message programmé : l'auteur n'est pas là.
+    expect(marksChannelRead({ parentId: null, markRead: false })).toBe(false);
+    expect(marksChannelRead({ parentId: "m1", alsoInChannel: true, markRead: false })).toBe(false);
+  });
+
   it("premier non lu : après la dernière lecture et pas de moi", () => {
     const msgs = [
       { createdAt: new Date("2026-11-04T10:00:00Z"), authorId: "b" },
@@ -161,16 +174,18 @@ describe("textes dérivés", () => {
     expect(taskTitleFromMessage("   ")).toBe("Tâche issue d'un message");
   });
 
-  it("encadré de présence : jamais d'heure de connexion", () => {
+  it("encadré de présence : jamais d'heure de connexion, pas de fausse promesse d'alerte", () => {
+    const later = " : il verra ton message en sortant du focus (pas d'alerte sur son téléphone d'ici là).";
     expect(
       presenceNotice("Pierre Martin", { state: "FOCUS", until: new Date("2026-11-04T14:00:00Z") }, NOW),
-    ).toBe("Pierre est en focus jusqu'à 15 h : il sera prévenu à la fin.");
+    ).toBe(`Pierre est en focus jusqu'à 15 h${later}`);
     expect(presenceNotice("Pierre", { state: "FOCUS", until: null }, NOW)).toBe(
-      "Pierre est en focus : il sera prévenu à la fin.",
+      `Pierre est en focus${later}`,
     );
     expect(presenceNotice("Pierre", { state: "FOCUS", until: new Date("2026-11-05T08:00:00Z") }, NOW)).toBe(
-      "Pierre est en focus jusqu'à demain à 9 h : il sera prévenu à la fin.",
+      `Pierre est en focus jusqu'à demain à 9 h${later}`,
     );
+    expect(presenceNotice("Pierre", { state: "FOCUS", until: null }, NOW)).not.toContain("prévenu");
     expect(presenceNotice("Pierre", { state: "DISPO", until: null }, NOW)).toBeNull();
   });
 

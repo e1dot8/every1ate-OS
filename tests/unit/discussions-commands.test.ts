@@ -41,9 +41,39 @@ describe("délais de /rappel", () => {
     expect(parseDelay("demain", NOW)?.toISOString()).toBe("2026-11-05T08:00:00.000Z");
   });
 
+  it("« Nh » : délai de 1 à 6 h, heure de la journée de 7 à 23 h (hiver, UTC+1)", () => {
+    expect(parseDelay("2h", NOW)?.toISOString()).toBe("2026-11-04T15:30:00.000Z");
+    expect(parseDelay("6h", NOW)?.toISOString()).toBe("2026-11-04T19:30:00.000Z");
+    // 17 h aujourd'hui (encore à venir), pas dans 17 heures.
+    expect(parseDelay("17h", NOW)?.toISOString()).toBe("2026-11-04T16:00:00.000Z");
+    expect(parseDelay("17heures", NOW)?.toISOString()).toBe("2026-11-04T16:00:00.000Z");
+    expect(parseDelay("23h", NOW)?.toISOString()).toBe("2026-11-04T22:00:00.000Z");
+    // 14 h et 7 h sont passés : demain.
+    expect(parseDelay("14h", NOW)?.toISOString()).toBe("2026-11-05T13:00:00.000Z");
+    expect(parseDelay("7h", NOW)?.toISOString()).toBe("2026-11-05T06:00:00.000Z");
+    // Au-delà de 23 : un délai, jusqu'à une semaine.
+    expect(parseDelay("24h", NOW)?.toISOString()).toBe("2026-11-05T13:30:00.000Z");
+  });
+
+  it("« Nh » en été (UTC+2), tard le soir et au changement d'heure", () => {
+    const summer = new Date("2026-07-01T08:00:00Z"); // 10 h à Paris
+    expect(parseDelay("17h", summer)?.toISOString()).toBe("2026-07-01T15:00:00.000Z");
+    expect(parseDelay("8h", summer)?.toISOString()).toBe("2026-07-02T06:00:00.000Z");
+    expect(parseDelay("3h", summer)?.toISOString()).toBe("2026-07-01T11:00:00.000Z");
+    // 0 h 30 le 5 novembre à Paris : 17 h, c'est le 5 (jour de Paris, pas jour UTC).
+    expect(parseDelay("17h", new Date("2026-11-04T23:30:00Z"))?.toISOString()).toBe(
+      "2026-11-05T16:00:00.000Z",
+    );
+    // Samedi 24 octobre 20 h (été) → dimanche 25 à 9 h, déjà en heure d'hiver.
+    expect(parseDelay("9h", new Date("2026-10-24T18:00:00Z"))?.toISOString()).toBe(
+      "2026-10-25T08:00:00.000Z",
+    );
+  });
+
   it("refuse l'illisible et au-delà d'une semaine", () => {
     expect(parseDelay("bientôt", NOW)).toBeNull();
     expect(parseDelay("0m", NOW)).toBeNull();
+    expect(parseDelay("0h", NOW)).toBeNull();
     expect(parseDelay("200h", NOW)).toBeNull();
     expect(parseDelay("25h00", NOW)).toBeNull();
   });
@@ -137,6 +167,17 @@ describe("analyse des commandes", () => {
     );
     expect(parseCommand("/rappel demain", NOW)).toMatchObject({ ok: false });
     expect(parseCommand("/rappel bientôt Texte", NOW)).toMatchObject({ ok: false });
+  });
+
+  it("/rappel 17h : à 17 h aujourd'hui, et /aide l'explique", () => {
+    const parsed = parseCommand("/rappel 17h Appeler Brume", NOW);
+    expect(parsed).toMatchObject({ ok: true, command: "rappel", text: "Appeler Brume" });
+    expect(parsed?.ok && parsed.command === "rappel" && parsed.remindAt.toISOString()).toBe(
+      "2026-11-04T16:00:00.000Z",
+    );
+    const help = helpLines().find((l) => l.text.startsWith("/rappel"))!.text;
+    expect(help).toContain("17h");
+    expect(help).toContain("de 1 à 6 h");
   });
 
   it("commande inconnue : message explicite", () => {

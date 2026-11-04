@@ -1,5 +1,4 @@
 import "server-only";
-import { createHash } from "node:crypto";
 import type { DeliverableFormat, DeliverableStage, Prisma } from "@/generated/prisma/client";
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
@@ -8,8 +7,10 @@ import { zonedToUtc } from "@/features/calendar/rules";
 import { emitEvent, type AppEvent } from "@/features/events/emit";
 import type { ServiceResult } from "@/features/projects/service";
 import {
+  DELIVERABLE_ARCHIVED_ISSUE,
   advanceOnCheck,
   blockReasonIssue,
+  deliverableLockIssue,
   endOfWeek,
   isHttpsUrl,
   isWorkStage,
@@ -24,7 +25,10 @@ const done = <T>(data: T): ServiceResult<T> => ({ ok: true, data });
 const failed = (error: string): ServiceResult<never> => ({ ok: false, error });
 
 const userSelect = { id: true, name: true } as const;
-const ARCHIVED = "Livrable introuvable ou archivé.";
+const ARCHIVED = DELIVERABLE_ARCHIVED_ISSUE;
+const ITEM_MISSING = "Point introuvable.";
+/** De quoi savoir si le livrable est en lecture seule (projet archivé), voir `deliverableLockIssue`. */
+const projectLock = { project: { select: { archivedAt: true } } } as const;
 
 // ─── Lectures ───────────────────────────────────────────────────────────────
 
@@ -282,8 +286,10 @@ export async function updateDeliverable(
   actor: Actor,
 ): Promise<ServiceResult<{ projectId: string; previousProjectId: string }>> {
   const db = getDb();
-  const before = await db.deliverable.findUnique({ where: { id } });
-  if (!before || before.archivedAt) return failed(ARCHIVED);
+  const before = await db.deliverable.findUnique({ where: { id }, include: projectLock });
+  if (!before) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(before);
+  if (locked) return failed(locked);
   const error = await checkInput(input);
   if (error) return failed(error);
   const data = clean(input);
@@ -309,8 +315,10 @@ export async function saveDeliverableNotes(
   actor: Actor,
 ): Promise<ServiceResult<{ projectId: string }>> {
   const db = getDb();
-  const before = await db.deliverable.findUnique({ where: { id } });
-  if (!before || before.archivedAt) return failed(ARCHIVED);
+  const before = await db.deliverable.findUnique({ where: { id }, include: projectLock });
+  if (!before) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(before);
+  if (locked) return failed(locked);
   const value = notes?.trim() || null;
   if (value !== before.notes) {
     await db.deliverable.update({ where: { id }, data: { notes: value } });
@@ -349,8 +357,12 @@ export async function setDeliverableArchived(
 
 type Header = { id: string; title: string; projectId: string; project: { name: string } };
 
-/** Événement d'arrivée dans une étape : « passe en Montage » ou « est livré ». */
-function stageEvent(d: Header, stage: DeliverableStage, actor: Actor): AppEvent {
+/**
+ * Événement d'arrivée dans une étape : « passe en Montage » ou « est livré ».
+ * `at` (horodatage du passage, `deliveredAt` pour la livraison) distingue une nouvelle arrivée
+ * après un recul ; le double clic est déjà écarté par la mise à jour conditionnelle ou le verrou.
+ */
+function stageEvent(d: Header, stage: DeliverableStage, actor: Actor, at: Date): AppEvent {
   const href = `/livrables/${d.id}`;
   if (stage === "LIVRE")
     return {
@@ -360,7 +372,7 @@ function stageEvent(d: Header, stage: DeliverableStage, actor: Actor): AppEvent 
       body: d.project.name,
       href,
       projectId: d.projectId,
-      dedupeKey: `livrable-livre:${d.id}`,
+      dedupeKey: `livrable-livre:${d.id}:${at.toISOString()}`,
     };
   return {
     kind: "livrable.etape",
@@ -369,7 +381,7 @@ function stageEvent(d: Header, stage: DeliverableStage, actor: Actor): AppEvent 
     body: d.project.name,
     href,
     projectId: d.projectId,
-    dedupeKey: `livrable-etape:${d.id}:${stage}`,
+    dedupeKey: `livrable-etape:${d.id}:${stage}:${at.toISOString()}`,
   };
 }
 
@@ -382,15 +394,18 @@ export async function changeDeliverableStage(
   const db = getDb();
   const d = await db.deliverable.findUnique({
     where: { id },
-    include: { project: { select: { name: true } } },
+    include: { project: { select: { name: true, archivedAt: true } } },
   });
-  if (!d || d.archivedAt) return failed(ARCHIVED);
+  if (!d) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(d);
+  if (locked) return failed(locked);
   if (d.stage === to) return done({ projectId: d.projectId });
+  const at = new Date();
   const moved = await db.deliverable.updateMany({
     where: { id, stage: d.stage },
     data: {
       stage: to,
-      deliveredAt: to === "LIVRE" ? new Date() : null,
+      deliveredAt: to === "LIVRE" ? at : null,
       // Livré : plus rien ne bloque.
       ...(to === "LIVRE" ? { blockedReason: null } : {}),
     },
@@ -405,11 +420,9 @@ export async function changeDeliverableStage(
     before: { stage: d.stage },
     after: { stage: to },
   });
-  if (stageIndex(to) > stageIndex(d.stage)) await emitEvent(stageEvent(d, to, actor));
+  if (stageIndex(to) > stageIndex(d.stage)) await emitEvent(stageEvent(d, to, actor, at));
   return done({ projectId: d.projectId });
 }
-
-const shortHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 10);
 
 export async function blockDeliverable(
   id: string,
@@ -421,13 +434,26 @@ export async function blockDeliverable(
   const db = getDb();
   const d = await db.deliverable.findUnique({
     where: { id },
-    include: { project: { select: { name: true } } },
+    include: { project: { select: { name: true, archivedAt: true } } },
   });
-  if (!d || d.archivedAt) return failed(ARCHIVED);
+  if (!d) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(d);
+  if (locked) return failed(locked);
   if (d.stage === "LIVRE") return failed("Un livrable livré ne peut pas être bloqué.");
   const motive = reason.trim();
   if (d.blockedReason === motive) return done({ projectId: d.projectId });
-  await db.deliverable.update({ where: { id }, data: { blockedReason: motive } });
+  const blockedAt = new Date();
+  // Mise à jour conditionnelle : un double envoi ne bloque (et ne prévient) qu'une fois.
+  const moved = await db.deliverable.updateMany({
+    where: { id, blockedReason: d.blockedReason, stage: { not: "LIVRE" } },
+    data: { blockedReason: motive },
+  });
+  if (!moved.count) {
+    const fresh = await db.deliverable.findUnique({ where: { id }, select: { blockedReason: true } });
+    return fresh?.blockedReason === motive
+      ? done({ projectId: d.projectId })
+      : failed("Le livrable vient d'être modifié : rechargez la page.");
+  }
   await recordAudit({
     action: "deliverable.blocked",
     actorId: actor.id,
@@ -445,8 +471,8 @@ export async function blockDeliverable(
     body: motive,
     href: `/livrables/${id}`,
     projectId: d.projectId,
-    // Un même blocage (même motif, même jour) n'est annoncé qu'une fois.
-    dedupeKey: `livrable-bloque:${id}:${todayDate().toISOString().slice(0, 10)}:${shortHash(motive)}`,
+    // Chaque blocage est annoncé, y compris un nouveau blocage au même motif après un déblocage.
+    dedupeKey: `livrable-bloque:${id}:${blockedAt.toISOString()}`,
     urgent: true,
   });
   return done({ projectId: d.projectId });
@@ -457,8 +483,10 @@ export async function unblockDeliverable(
   actor: Actor,
 ): Promise<ServiceResult<{ projectId: string }>> {
   const db = getDb();
-  const d = await db.deliverable.findUnique({ where: { id } });
-  if (!d || d.archivedAt) return failed(ARCHIVED);
+  const d = await db.deliverable.findUnique({ where: { id }, include: projectLock });
+  if (!d) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(d);
+  if (locked) return failed(locked);
   if (!d.blockedReason) return done({ projectId: d.projectId });
   await db.deliverable.update({ where: { id }, data: { blockedReason: null } });
   await recordAudit({
@@ -493,16 +521,20 @@ export async function toggleCheckItem(
       where: { id: itemId },
       select: { deliverableId: true },
     });
-    if (!ref) return { error: "Point introuvable." } as const;
+    if (!ref) return { error: ITEM_MISSING } as const;
     await tx.$queryRaw`SELECT "id" FROM "deliverable" WHERE "id" = ${ref.deliverableId} FOR UPDATE`;
     const d = await tx.deliverable.findUnique({
       where: { id: ref.deliverableId },
-      include: { checkItems: true, project: { select: { name: true } } },
+      include: { checkItems: true, project: { select: { name: true, archivedAt: true } } },
     });
-    if (!d || d.archivedAt) return { error: ARCHIVED } as const;
-    const item = d.checkItems.find((i) => i.id === itemId)!;
-    if (!!item.doneAt === checked) return { d, item, changed: false, target: null } as const;
+    if (!d) return { error: ARCHIVED } as const;
+    const locked = deliverableLockIssue(d);
+    if (locked) return { error: locked } as const;
+    // Le point a pu être supprimé entre la lecture et le verrou.
+    const item = d.checkItems.find((i) => i.id === itemId);
+    if (!item) return { error: ITEM_MISSING } as const;
     const now = new Date();
+    if (!!item.doneAt === checked) return { d, item, changed: false, target: null, at: now } as const;
     await tx.deliverableCheckItem.update({
       where: { id: itemId },
       data: checked ? { doneAt: now, doneById: actor.id } : { doneAt: null, doneById: null },
@@ -517,10 +549,10 @@ export async function toggleCheckItem(
           ...(target === "LIVRE" ? { deliveredAt: now, blockedReason: null } : {}),
         },
       });
-    return { d, item, changed: true, target } as const;
+    return { d, item, changed: true, target, at: now } as const;
   });
-  if ("error" in outcome) return failed(outcome.error ?? "Point introuvable.");
-  const { d, item, changed, target } = outcome;
+  if ("error" in outcome) return failed(outcome.error ?? ITEM_MISSING);
+  const { d, item, changed, target, at } = outcome;
   if (changed) {
     await recordAudit({
       action: checked ? "deliverable.item_checked" : "deliverable.item_unchecked",
@@ -538,7 +570,9 @@ export async function toggleCheckItem(
         body: `${d.title} · ${d.project.name}`,
         href: `/livrables/${d.id}`,
         projectId: d.projectId,
-        dedupeKey: `livrable-coche:${itemId}`,
+        // Horodatage de la coche (`doneAt`) : cocher, décocher puis recocher prévient de nouveau ;
+        // le double clic est écarté par le verrou ci-dessus.
+        dedupeKey: `livrable-coche:${itemId}:${at.toISOString()}`,
       });
     if (target) {
       await recordAudit({
@@ -550,17 +584,23 @@ export async function toggleCheckItem(
         before: { stage: d.stage },
         after: { stage: target, auto: true },
       });
-      await emitEvent(stageEvent(d, target, actor));
+      await emitEvent(stageEvent(d, target, actor, at));
     }
   }
   return done({ deliverableId: d.id, projectId: d.projectId, advancedTo: changed ? target : null });
 }
 
+/** Point à modifier, ou motif du refus : point absent, livrable ou projet archivé (lecture seule). */
 async function loadItem(itemId: string) {
-  return getDb().deliverableCheckItem.findUnique({
+  const item = await getDb().deliverableCheckItem.findUnique({
     where: { id: itemId },
-    include: { deliverable: { select: { id: true, title: true, projectId: true, archivedAt: true } } },
+    include: {
+      deliverable: { select: { id: true, title: true, projectId: true, archivedAt: true, ...projectLock } },
+    },
   });
+  if (!item) return { ok: false, error: ITEM_MISSING } as const;
+  const locked = deliverableLockIssue(item.deliverable);
+  return locked ? ({ ok: false, error: locked } as const) : ({ ok: true, item } as const);
 }
 
 export async function addCheckItem(
@@ -573,8 +613,10 @@ export async function addCheckItem(
   if (!isWorkStage(stage)) return failed("Étape invalide.");
   const text = label.trim();
   if (!text) return failed("Libellé requis.");
-  const d = await db.deliverable.findUnique({ where: { id: deliverableId } });
-  if (!d || d.archivedAt) return failed(ARCHIVED);
+  const d = await db.deliverable.findUnique({ where: { id: deliverableId }, include: projectLock });
+  if (!d) return failed(ARCHIVED);
+  const locked = deliverableLockIssue(d);
+  if (locked) return failed(locked);
   const last = await db.deliverableCheckItem.aggregate({
     where: { deliverableId, stage },
     _max: { position: true },
@@ -594,8 +636,9 @@ export async function addCheckItem(
 }
 
 export async function renameCheckItem(itemId: string, label: string, actor: Actor): Promise<ItemResult> {
-  const item = await loadItem(itemId);
-  if (!item || item.deliverable.archivedAt) return failed("Point introuvable.");
+  const loaded = await loadItem(itemId);
+  if (!loaded.ok) return failed(loaded.error);
+  const { item } = loaded;
   const text = label.trim();
   if (!text) return failed("Libellé requis.");
   const ids = { deliverableId: item.deliverableId, projectId: item.deliverable.projectId };
@@ -614,8 +657,9 @@ export async function renameCheckItem(itemId: string, label: string, actor: Acto
 }
 
 export async function deleteCheckItem(itemId: string, actor: Actor): Promise<ItemResult> {
-  const item = await loadItem(itemId);
-  if (!item || item.deliverable.archivedAt) return failed("Point introuvable.");
+  const loaded = await loadItem(itemId);
+  if (!loaded.ok) return failed(loaded.error);
+  const { item } = loaded;
   await getDb().deliverableCheckItem.delete({ where: { id: itemId } });
   const ids = { deliverableId: item.deliverableId, projectId: item.deliverable.projectId };
   await recordAudit({
@@ -633,8 +677,9 @@ export async function deleteCheckItem(itemId: string, actor: Actor): Promise<Ite
 /** Monte ou descend un point dans son étape (positions renumérotées 0..n). */
 export async function moveCheckItem(itemId: string, direction: "up" | "down"): Promise<ItemResult> {
   const db = getDb();
-  const item = await loadItem(itemId);
-  if (!item || item.deliverable.archivedAt) return failed("Point introuvable.");
+  const loaded = await loadItem(itemId);
+  if (!loaded.ok) return failed(loaded.error);
+  const { item } = loaded;
   const ids = { deliverableId: item.deliverableId, projectId: item.deliverable.projectId };
   const siblings = await db.deliverableCheckItem.findMany({
     where: { deliverableId: item.deliverableId, stage: item.stage },
@@ -661,8 +706,9 @@ export async function assignCheckItem(
   actor: Actor,
 ): Promise<ItemResult> {
   const db = getDb();
-  const item = await loadItem(itemId);
-  if (!item || item.deliverable.archivedAt) return failed("Point introuvable.");
+  const loaded = await loadItem(itemId);
+  if (!loaded.ok) return failed(loaded.error);
+  const { item } = loaded;
   const assignee = assigneeId
     ? await db.user.findFirst({ where: { id: assigneeId, role: "associe" }, select: userSelect })
     : null;

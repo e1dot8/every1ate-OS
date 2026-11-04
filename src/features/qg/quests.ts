@@ -110,6 +110,17 @@ export function computeQuests(f: QuestFacts): QuestView[] {
   }));
 }
 
+const statusOf = (snapshot: unknown) =>
+  snapshot && typeof snapshot === "object" && "status" in snapshot ? snapshot.status : undefined;
+
+/**
+ * Entrée du journal « changement de statut » où la tâche ENTRE en « Bloquée » : point de départ
+ * des 48 h. Une mise à jour Bloquée → Bloquée (nouveau motif) ne remet pas le compteur à zéro.
+ */
+export function entersBlocked(before: unknown, after: unknown): boolean {
+  return statusOf(after) === "BLOQUE" && statusOf(before) !== "BLOQUE";
+}
+
 /** Semaine ISO d'une date calendrier (minuit UTC), ex. « 2026-W45 ». */
 export function isoWeekPeriod(day: Date): string {
   const d = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));

@@ -42,15 +42,20 @@ export type Sidebar = {
   totalUnread: number;
 };
 
-/** Messages non lus par salon (écrits par d'autres après la dernière lecture, hors réponses de fil). */
+/**
+ * Messages non lus par salon (écrits par d'autres après la dernière lecture, hors réponses de fil).
+ * Les salons archivés ne comptent pas : ils ne figurent plus dans la barre latérale.
+ */
 async function unreadByChannel(userId: string) {
   const rows = await getDb().$queryRaw<{ channelId: string; unread: number; mentions: number }[]>`
     SELECT cm."channelId",
            count(m."id")::int AS "unread",
            (count(m."id") FILTER (WHERE ${userId} = ANY(m."mentionIds")))::int AS "mentions"
     FROM "channel_member" cm
+    JOIN "channel" c ON c."id" = cm."channelId"
     JOIN "message" m ON m."channelId" = cm."channelId"
     WHERE cm."userId" = ${userId}
+      AND c."archivedAt" IS NULL
       AND m."createdAt" > cm."lastReadAt"
       AND m."deletedAt" IS NULL
       AND (m."parentId" IS NULL OR m."alsoInChannel")
@@ -504,8 +509,9 @@ export async function searchDiscussions(
 // ─── Rafraîchissement ───────────────────────────────────────────────────────
 
 /**
- * Marqueur d'activité des salons accessibles : dernier message, modification ou réaction,
- * et total des non-lus. Le navigateur ne rafraîchit la page que s'il change.
+ * Marqueur d'activité des salons accessibles et non archivés : dernier message, modification ou
+ * réaction, salons suivis et total des non-lus. Le navigateur ne rafraîchit la page que s'il change
+ * (archiver ou restaurer un salon suivi le change aussi).
  */
 export async function activityMarker(userId: string): Promise<{ marker: string; unread: number }> {
   const db = getDb();
@@ -514,16 +520,19 @@ export async function activityMarker(userId: string): Promise<{ marker: string; 
       SELECT
         (SELECT max(greatest(m."createdAt", m."editedAt", m."deletedAt", m."pinnedAt"))
            FROM "message" m JOIN "channel" c ON c."id" = m."channelId"
-          WHERE c."kind" = 'PUBLIC'
-             OR EXISTS (SELECT 1 FROM "channel_member" cm WHERE cm."channelId" = c."id" AND cm."userId" = ${userId})
+          WHERE c."archivedAt" IS NULL
+            AND (c."kind" = 'PUBLIC'
+              OR EXISTS (SELECT 1 FROM "channel_member" cm WHERE cm."channelId" = c."id" AND cm."userId" = ${userId}))
         ) AS "last",
         (SELECT max(r."createdAt")
            FROM "message_reaction" r JOIN "message" m ON m."id" = r."messageId"
            JOIN "channel" c ON c."id" = m."channelId"
-          WHERE c."kind" = 'PUBLIC'
-             OR EXISTS (SELECT 1 FROM "channel_member" cm WHERE cm."channelId" = c."id" AND cm."userId" = ${userId})
+          WHERE c."archivedAt" IS NULL
+            AND (c."kind" = 'PUBLIC'
+              OR EXISTS (SELECT 1 FROM "channel_member" cm WHERE cm."channelId" = c."id" AND cm."userId" = ${userId}))
         ) AS "reaction",
-        (SELECT count(*)::int FROM "channel_member" cm WHERE cm."userId" = ${userId}) AS "channels"`,
+        (SELECT count(*)::int FROM "channel_member" cm JOIN "channel" c ON c."id" = cm."channelId"
+          WHERE cm."userId" = ${userId} AND c."archivedAt" IS NULL) AS "channels"`,
     unreadByChannel(userId),
   ]);
   const stamp = (v: Date | string | null) => (v ? new Date(v).toISOString() : "-");
