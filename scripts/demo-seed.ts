@@ -33,6 +33,18 @@ import { addComment, saveMilestone } from "@/features/planning/service";
 import { changeTaskStatus, createProject, saveTask } from "@/features/projects/service";
 import { TEMPLATES, planTemplate } from "@/features/projects/templates";
 import { addManualEntry } from "@/features/time/service";
+import {
+  assignCheckItem,
+  blockDeliverable,
+  changeDeliverableStage,
+  createDeliverable,
+  toggleCheckItem,
+} from "@/features/deliverables/service";
+import type { DeliverableInput } from "@/features/deliverables/service";
+import { setPresence } from "@/features/presence/service";
+import { proposeHandoff } from "@/features/qg/handoffs";
+import { isoWeekPeriod } from "@/features/qg/quests";
+import { saveStandup } from "@/features/qg/standup";
 
 const PASSWORD = "Demo-Every1ate-2026!";
 const db = getDb();
@@ -173,7 +185,10 @@ async function main() {
     "Relancer sur la proposition V2",
     -2,
   ]);
-  await opp("Identité visuelle boutique", solene, johan, 12500, "QUALIFICATION", ["Atelier de cadrage", 3]);
+  const identite = await opp("Identité visuelle boutique", solene, johan, 12500, "QUALIFICATION", [
+    "Atelier de cadrage",
+    3,
+  ]);
   await opp("Série de portraits", nord, pierre, 8000, "PREMIER_ECHANGE", ["Envoyer les références", 1]);
   await opp("Menu digital", lumen, charles, 4500, "NEGOCIATION", ["Valider le périmètre", 5]);
   await opp("Pop-up store été", solene, johan, 18000, "A_CONTACTER");
@@ -712,6 +727,208 @@ async function main() {
     johan,
   );
   if (!atelier.ok) throw new Error(atelier.error);
+
+  // ─── V1.2 : livrables (checklists, étapes, blocage) ──────────────────────
+  const deliverable = async (
+    input: Omit<DeliverableInput, "workPackageId" | "link" | "notes"> & { notes?: string },
+    actor: { id: string; name: string },
+  ) => {
+    const r = await createDeliverable({ workPackageId: null, link: null, notes: null, ...input }, actor);
+    if (!r.ok) throw new Error(r.error);
+    return r.data.id;
+  };
+  const itemsOf = (deliverableId: string) =>
+    db.deliverableCheckItem.findMany({ where: { deliverableId }, orderBy: [{ position: "asc" }] });
+  /** Coche, dans l'ordre des étapes, les `count` premiers points (déclenche les passages d'étape). */
+  const checkFirst = async (deliverableId: string, count: number, actor: { id: string; name: string }) => {
+    const stageOrder = ["PREPARATION", "CREATION", "PRODUCTION", "MONTAGE", "LIVRAISON"];
+    const items = (await itemsOf(deliverableId)).sort(
+      (a, b) => stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage) || a.position - b.position,
+    );
+    for (const item of items.slice(0, count)) await toggleCheckItem(item.id, true, actor);
+  };
+  const countItems = async (deliverableId: string, stages: string[]) =>
+    (await itemsOf(deliverableId)).filter((i) => stages.includes(i.stage)).length;
+
+  const reel = await deliverable(
+    {
+      projectId: p1,
+      title: "Reel lancement collection",
+      format: "REEL",
+      channel: "Instagram",
+      ownerId: charles.id,
+      dueDate: day(3),
+      publishDate: day(5),
+      notes: "Format 9:16, 30 secondes, musique libre de droits.",
+    },
+    charles,
+  );
+  await checkFirst(reel, (await countItems(reel, ["PREPARATION", "CREATION"])) + 1, charles);
+
+  const lookbook = await deliverable(
+    {
+      projectId: p1,
+      title: "Shooting lookbook printemps",
+      format: "PHOTO",
+      channel: "Site",
+      ownerId: pierre.id,
+      dueDate: day(-1),
+      publishDate: day(4),
+    },
+    pierre,
+  );
+  await checkFirst(lookbook, (await countItems(lookbook, ["PREPARATION"])) + 1, pierre);
+
+  const carrousel = await deliverable(
+    {
+      projectId: p1,
+      title: "Carrousel nouveautés",
+      format: "CAROUSEL",
+      channel: "Instagram",
+      ownerId: johan.id,
+      dueDate: day(8),
+      publishDate: day(10),
+    },
+    johan,
+  );
+  await checkFirst(carrousel, 2, johan);
+  const nextCarrouselItem = (await itemsOf(carrousel)).find((i) => !i.doneAt);
+  if (nextCarrouselItem) await assignCheckItem(nextCarrouselItem.id, johan.id, today, charles);
+
+  const makingOf = await deliverable(
+    {
+      projectId: p2,
+      title: "Making-of du tournage",
+      format: "VIDEO",
+      channel: "YouTube",
+      ownerId: pierre.id,
+      dueDate: day(12),
+      publishDate: day(14),
+    },
+    pierre,
+  );
+  await checkFirst(makingOf, await countItems(makingOf, ["PREPARATION"]), pierre);
+  await blockDeliverable(makingOf, "En attente des rushes du vidéaste", pierre);
+
+  const clip = await deliverable(
+    {
+      projectId: p2,
+      title: "Clip « Nuit claire » — version finale",
+      format: "VIDEO",
+      channel: "YouTube",
+      ownerId: pierre.id,
+      dueDate: day(20),
+      publishDate: day(24),
+    },
+    pierre,
+  );
+  await checkFirst(clip, 3, pierre);
+
+  const posts = await deliverable(
+    {
+      projectId: p3,
+      title: "Posts de la semaine",
+      format: "POST",
+      channel: "Instagram",
+      ownerId: charles.id,
+      dueDate: day(1),
+      publishDate: day(2),
+    },
+    charles,
+  );
+  await checkFirst(
+    posts,
+    await countItems(posts, ["PREPARATION", "CREATION", "PRODUCTION", "MONTAGE"]),
+    charles,
+  );
+
+  const story = await deliverable(
+    {
+      projectId: p3,
+      title: "Story menu d'automne",
+      format: "STORY",
+      channel: "Instagram",
+      ownerId: charles.id,
+      dueDate: day(-2),
+      publishDate: day(-2),
+    },
+    charles,
+  );
+  await checkFirst(
+    story,
+    await countItems(story, ["PREPARATION", "CREATION", "PRODUCTION", "MONTAGE", "LIVRAISON"]),
+    charles,
+  );
+  if ((await db.deliverable.findUniqueOrThrow({ where: { id: story } })).stage !== "LIVRE")
+    await changeDeliverableStage(story, "LIVRE", charles);
+
+  await deliverable(
+    {
+      projectId: p3,
+      title: "Plateforme de marque (PDF)",
+      format: "PRINT",
+      channel: null,
+      ownerId: johan.id,
+      dueDate: day(15),
+      publishDate: null,
+    },
+    johan,
+  );
+
+  // ─── V1.2 : QG (stand-up, présence, passations, tâches à prendre, badges) ─
+  await saveStandup(charles, {
+    today: "Montage du reel de lancement, puis posts Café Lumen.",
+    blocked: "Il me manque la musique validée par Maison Solène.",
+  });
+  await saveStandup(pierre, { today: "Dérushage du clip « Nuit claire ».", blocked: null });
+  const focusUntil = new Date(Date.now() + 3 * 3600 * 1000);
+  await setPresence(pierre.id, { state: "FOCUS", until: focusUntil, note: "Montage", shared: true });
+
+  const charlesTodo = await db.task.findFirst({
+    where: { ownerId: charles.id, status: "A_FAIRE", archivedAt: null },
+    orderBy: { dueDate: "asc" },
+  });
+  if (charlesTodo)
+    await proposeHandoff(
+      {
+        target: { taskId: charlesTodo.id },
+        mode: "DONNER",
+        toId: johan.id,
+        note: "Je suis plein cette semaine, tu peux la reprendre ?",
+      },
+      charles,
+    );
+  await proposeHandoff(
+    {
+      target: { opportunityId: identite },
+      mode: "DONNER",
+      toId: pierre.id,
+      note: "Tu connais bien leur univers, tu veux mener l'atelier ?",
+    },
+    johan,
+  );
+  await saveTask(
+    p2,
+    null,
+    {
+      title: "Réserver le studio d'étalonnage",
+      description: "Deux jours la semaine prochaine.",
+      workPackageId: null,
+      ownerId: null,
+      contributorIds: [],
+      priority: "AUTO",
+      impact: "MOYEN",
+      startDate: day(1),
+      dueDate: day(4),
+      estimatedMinutes: 30,
+    },
+    pierre,
+  );
+  await db.teamBadge.upsert({
+    where: { key_period: { key: "huit-taches", period: isoWeekPeriod(day(-7)) } },
+    create: { key: "huit-taches", period: isoWeekPeriod(day(-7)) },
+    update: {},
+  });
 
   await runScheduledScan();
   console.log("Données de démonstration créées.");
