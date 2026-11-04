@@ -127,7 +127,7 @@ export function Composer({
           </label>
         ) : null}
         {/* Sur mobile, place libre à droite pour le bouton flottant « Créer » de l'application. */}
-        <div className="flex flex-wrap items-start gap-1 pr-16 md:pr-0">
+        <div className="flex flex-wrap items-start gap-1">
           <details className="group" open={!!values?.attachmentUrl}>
             <summary className={summaryClass}>
               <Paperclip aria-hidden="true" className="size-4" />

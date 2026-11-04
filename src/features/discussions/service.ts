@@ -813,6 +813,7 @@ export async function runCommand(
         message: cmd.blocked
           ? "Stand-up enregistré : l'équipe est prévenue du blocage."
           : "Stand-up enregistré.",
+        lines: [{ text: "Voir les stand-ups du jour", href: "/qg/standup" }],
       });
     }
     case "rappel": {

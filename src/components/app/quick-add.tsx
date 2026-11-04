@@ -43,7 +43,11 @@ export function QuickAdd() {
   return (
     <div
       ref={root}
-      className="fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-40 md:static md:z-auto"
+      className={cn(
+        "fixed right-4 bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)] z-40 md:static md:z-auto",
+        // Dans les discussions, le compositeur occupe le bas de l'écran : bouton masqué sur mobile.
+        pathname.startsWith("/discussions") && "hidden md:block",
+      )}
     >
       <button
         type="button"

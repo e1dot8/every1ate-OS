@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Search, Timer } from "lucide-react";
+import { Bell, MessagesSquare, Search, Timer } from "lucide-react";
 import { QuickAdd } from "@/components/app/quick-add";
 import { Elapsed } from "@/features/time/components/timer";
 import { unreadCount } from "@/features/notifications/service";
@@ -7,17 +7,20 @@ import { getActiveTimer } from "@/features/time/service";
 import { PresenceMenu } from "@/features/presence/components/presence-menu";
 import { choiceFor, effectivePresence, presenceText } from "@/features/presence/rules";
 import { getPresence } from "@/features/presence/service";
+import { activityMarker } from "@/features/discussions/queries";
 import { getCurrentUser } from "@/lib/auth/session";
 
 /** Barre d'état : chronomètre en cours, statut de présence et cloche des notifications. */
 export async function TopBar() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const [active, unread, presence] = await Promise.all([
+  const [active, unread, presence, discussions] = await Promise.all([
     getActiveTimer(user.id),
     unreadCount(user.id),
     getPresence(user.id),
+    activityMarker(user.id).catch(() => ({ unread: 0 })),
   ]);
+  const unreadMessages = discussions.unread;
   const now = new Date();
   const mine = presence ? effectivePresence(presence, now, true) : null;
   return (
@@ -47,6 +50,26 @@ export async function TopBar() {
         className="inline-flex size-tap items-center justify-center rounded-full hover:bg-muted"
       >
         <Search aria-hidden="true" className="size-5" />
+      </Link>
+      {/* Sur mobile, Discussions n'est pas dans la barre basse : accès ici, avec les non-lus. */}
+      <Link
+        href="/discussions"
+        aria-label={
+          unreadMessages
+            ? `Discussions, ${unreadMessages} message${unreadMessages > 1 ? "s" : ""} non lu${unreadMessages > 1 ? "s" : ""}`
+            : "Discussions"
+        }
+        className="relative inline-flex size-tap items-center justify-center rounded-full hover:bg-muted md:hidden"
+      >
+        <MessagesSquare aria-hidden="true" className="size-5" />
+        {unreadMessages ? (
+          <span
+            aria-hidden="true"
+            className="absolute top-1 right-1 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] leading-4 font-bold text-paper"
+          >
+            {unreadMessages > 9 ? "9+" : unreadMessages}
+          </span>
+        ) : null}
       </Link>
       <QuickAdd />
       <Link
