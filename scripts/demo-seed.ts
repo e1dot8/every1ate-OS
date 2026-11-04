@@ -41,6 +41,18 @@ import {
   toggleCheckItem,
 } from "@/features/deliverables/service";
 import type { DeliverableInput } from "@/features/deliverables/service";
+import {
+  ensureDirectChannel,
+  ensureGeneralChannel,
+  ensureProjectChannel,
+} from "@/features/discussions/channels";
+import {
+  postMessage,
+  scheduleMessage,
+  toggleReaction,
+  togglePin,
+  updateChannel,
+} from "@/features/discussions/service";
 import { setPresence } from "@/features/presence/service";
 import { proposeHandoff } from "@/features/qg/handoffs";
 import { isoWeekPeriod } from "@/features/qg/quests";
@@ -874,6 +886,62 @@ async function main() {
     },
     johan,
   );
+
+  // ─── V1.2 : discussions (salons, fil, réactions, épinglé, message direct, programmé) ──
+  const say = async (
+    channelId: string,
+    author: { id: string; name: string },
+    body: string,
+    parentId: string | null = null,
+  ) => {
+    const r = await postMessage(author, { channelId, body, parentId });
+    if (!r.ok) throw new Error(r.error);
+    return r.data.id;
+  };
+  const general = await ensureGeneralChannel();
+  if (general) {
+    const hello = await say(
+      general.id,
+      johan,
+      "Bonjour à tous ! Point rapide : le **reel de lancement** Maison Solène passe en production aujourd'hui.",
+    );
+    await toggleReaction(charles, hello, "🎉");
+    await toggleReaction(pierre, hello, "👍");
+    const rule = await say(
+      general.id,
+      charles,
+      "Rappel : on garde 3 tâches en cours max chacun. Si ça déborde, on se passe le relais sur le QG.",
+    );
+    await togglePin(charles, rule);
+    await say(general.id, pierre, "Je suis en focus montage jusqu'à midi, je réponds après 🙏");
+  }
+  const solenePlace = await ensureProjectChannel(p1, johan.id);
+  if (solenePlace) {
+    await updateChannel(johan, solenePlace.id, {
+      topic: "Campagne printemps : visuels, reel, lookbook",
+      meetUrl: "https://meet.jit.si/every1ate-demo-solene",
+    });
+    const brief = await say(
+      solenePlace.id,
+      johan,
+      "@Charles tu peux vérifier la musique du reel avec Claire avant jeudi ?",
+    );
+    await say(solenePlace.id, charles, "Oui, je l'appelle demain matin.", brief);
+    await say(solenePlace.id, johan, "Parfait, merci !", brief);
+  }
+  const dm = await ensureDirectChannel(johan.id, pierre.id);
+  if (dm) {
+    await say(
+      dm.id,
+      pierre,
+      "Tu as le lien des rushes du making-of ? Je n'arrive pas à remettre la main dessus.",
+    );
+    await scheduleMessage(johan, {
+      channelId: dm.id,
+      body: "Je te renvoie le lien des rushes dès que le vidéaste l'a déposé.",
+      sendAt: new Date(Date.now() + 2 * 3600 * 1000),
+    });
+  }
 
   // ─── V1.2 : QG (stand-up, présence, passations, tâches à prendre, badges) ─
   await saveStandup(charles, {
