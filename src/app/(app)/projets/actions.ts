@@ -30,7 +30,7 @@ import {
   toggleClosureItem,
   updateProject,
 } from "@/features/projects/service";
-import { addComment, deleteComment } from "@/features/planning/service";
+import { addComment } from "@/features/planning/service";
 import { RECURRENCES, occurrenceCreatedMessage, recurrenceIssue } from "@/features/projects/recurrence";
 
 const PHASES = ["RECETTE", "PREPARATION", "CUISSON", "DRESSAGE", "SERVICE"] as const;
@@ -405,6 +405,11 @@ const commentSchema = z.object({
   body: z.string().trim().min(1, "Écrivez un commentaire.").max(5000),
 });
 
+/**
+ * Commentaire sur une tâche (formulaire simple) : publié dans la discussion de la tâche (V1.3).
+ * La page de la tâche utilise désormais `postSubjectCommentAction` (mentions, lien joint, salon).
+ * Les commentaires se modifient et se suppriment comme tout message de discussion.
+ */
 export async function addCommentAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const parsed = commentSchema.safeParse(Object.fromEntries(formData));
@@ -412,13 +417,8 @@ export async function addCommentAction(_prev: FormState, formData: FormData): Pr
   const result = await addComment(parsed.data.taskId, parsed.data.body, user);
   if (!result.ok) return failure(result.error, formData);
   revalidatePath(`/taches/${parsed.data.taskId}`);
+  revalidatePath("/discussions", "layout");
   return { status: "success", message: "Commentaire publié." };
-}
-
-export async function deleteCommentAction(formData: FormData) {
-  const user = await requireUser();
-  const result = await deleteComment(String(formData.get("commentId")), user);
-  if (result.ok) revalidatePath(`/taches/${result.data.taskId}`);
 }
 
 export async function checkVerifiedClosureAction(formData: FormData) {

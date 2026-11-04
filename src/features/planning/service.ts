@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { notify } from "@/features/notifications/service";
 import { planMove, suggestPriority } from "@/features/planning/rules";
+import { postSubjectComment } from "@/features/discussions/subjects";
 import type { ServiceResult } from "@/features/projects/service";
 
 type Actor = { id: string };
@@ -247,68 +248,16 @@ export async function taskPrioritySuggestion(taskId: string) {
 
 // ─── Commentaires ───────────────────────────────────────────────────────────
 
-export async function listComments(taskId: string) {
-  return getDb().taskComment.findMany({
-    where: { taskId, deletedAt: null },
-    orderBy: { createdAt: "asc" },
-    include: { author: { select: { id: true, name: true } } },
-  });
-}
-
-export async function addComment(taskId: string, body: string, actor: Actor): Promise<ServiceResult<null>> {
-  const db = getDb();
-  const task = await db.task.findUnique({
-    where: { id: taskId },
-    select: {
-      projectId: true,
-      title: true,
-      ownerId: true,
-      archivedAt: true,
-      contributors: { select: { userId: true } },
-    },
-  });
-  if (!task || task.archivedAt) return failed("Tâche introuvable.");
-  const comment = await db.taskComment.create({ data: { taskId, authorId: actor.id, body } });
-  await recordAudit({
-    action: "task.commented",
-    actorId: actor.id,
-    projectId: task.projectId,
-    targetType: "task",
-    targetId: taskId,
-  });
-  const people = new Set(
-    [task.ownerId, ...task.contributors.map((c) => c.userId)].filter(Boolean) as string[],
-  );
-  people.delete(actor.id);
-  const author = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
-  for (const userId of people)
-    await notify({
-      userId,
-      kind: "action",
-      title: `${author?.name ?? "Un associé"} a commenté « ${task.title} »`,
-      body: body.slice(0, 200),
-      href: `/taches/${taskId}#commentaires`,
-      projectId: task.projectId,
-      taskId,
-      dedupeKey: `commentaire:${comment.id}`,
-    });
-  return done(null);
-}
-
-export async function deleteComment(id: string, actor: Actor): Promise<ServiceResult<{ taskId: string }>> {
-  const db = getDb();
-  const c = await db.taskComment.findUnique({
-    where: { id },
-    include: { task: { select: { projectId: true } } },
-  });
-  if (!c || c.deletedAt || c.authorId !== actor.id) return failed("Commentaire introuvable.");
-  await db.taskComment.update({ where: { id }, data: { deletedAt: new Date() } });
-  await recordAudit({
-    action: "task.comment_deleted",
-    actorId: actor.id,
-    projectId: c.task.projectId,
-    targetType: "task",
-    targetId: c.taskId,
-  });
-  return done({ taskId: c.taskId });
+/**
+ * Commentaire sur une tâche (appelants V1 : données de démonstration). Depuis la V1.3, il est
+ * publié dans la discussion de la tâche (fil du salon du projet) : plus rien n'est écrit dans
+ * l'ancienne table des commentaires, reprise par `moveLegacyTaskComments`.
+ */
+export async function addComment(
+  taskId: string,
+  body: string,
+  actor: Actor & { name?: string },
+): Promise<ServiceResult<null>> {
+  const result = await postSubjectComment(actor, { type: "task", id: taskId }, { body });
+  return result.ok ? done(null) : failed(result.error);
 }

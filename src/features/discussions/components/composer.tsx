@@ -25,6 +25,7 @@ export function Composer({
   placeholder,
   defaultSendAt,
   focusEndLabel,
+  inline = false,
 }: {
   channelId: string;
   parentId?: string | null;
@@ -33,6 +34,8 @@ export function Composer({
   defaultSendAt: string;
   /** Message direct : fin du focus de l'autre associé (« 15 h »), pour programmer à ce moment. */
   focusEndLabel?: string | null;
+  /** Dans une page qui continue après le compositeur (onglet d'un projet) : pas collé en bas. */
+  inline?: boolean;
 }) {
   const [state, action, pending] = useActionState(sendMessageAction, initial);
   const [dismissed, setDismissed] = useState<ComposerState | null>(null);
@@ -44,7 +47,13 @@ export function Composer({
   const id = parentId ? `composer-${parentId}` : "composer";
 
   return (
-    <div className="sticky bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom))] z-20 mt-2 border-t bg-background pt-2 pb-2 shadow-[0_-10px_12px_-12px_rgba(0,0,0,0.25)] md:bottom-0 md:pb-4">
+    <div
+      className={cn(
+        "mt-2 border-t bg-background pt-2 pb-2",
+        !inline &&
+          "sticky bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom))] z-20 shadow-[0_-10px_12px_-12px_rgba(0,0,0,0.25)] md:bottom-0 md:pb-4",
+      )}
+    >
       {shown ? (
         <div
           role={shown.status === "error" ? "alert" : "status"}

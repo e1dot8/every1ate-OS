@@ -28,6 +28,7 @@ import { DocumentsPanel } from "@/features/documents/components/documents-panel"
 import { NotesSection } from "@/features/notes/components/notes-section";
 import { ClosurePanel } from "@/features/projects/components/closure-panel";
 import { ProjectDeliverables } from "@/features/deliverables/components/project-deliverables";
+import { ProjectDiscussionPanel } from "@/features/discussions/components/project-discussion";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Projet" };
@@ -37,11 +38,19 @@ const TABS = [
   { key: "vue", label: "Vue" },
   { key: "taches", label: "Tâches" },
   { key: "livrables", label: "Livrables" },
+  { key: "discussion", label: "Discussion" },
   { key: "finance", label: "Finance" },
   { key: "docs", label: "Docs" },
   { key: "cloture", label: "Clôture" },
 ];
-const ALIASES: Record<string, string> = { lots: "vue", documents: "docs" };
+const ALIASES: Record<string, string> = {
+  lots: "vue",
+  documents: "docs",
+  discussions: "discussion",
+  commentaires: "discussion",
+};
+
+type SearchParams = { onglet?: string; deja?: string; decision?: string; modifier?: string | string[] };
 
 function lotStatus(tasks: { status: TaskStatus }[]): TaskStatus {
   const live = tasks.filter((t) => t.status !== "ANNULE");
@@ -57,9 +66,9 @@ async function ProjectView({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ onglet?: string; deja?: string; decision?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const project = await getProject(id);
   if (!project) notFound();
@@ -220,6 +229,15 @@ async function ProjectView({
 
       {tab === "livrables" ? <ProjectDeliverables projectId={id} archived={!!project.archivedAt} /> : null}
 
+      {tab === "discussion" ? (
+        <ProjectDiscussionPanel
+          projectId={id}
+          viewerId={user.id}
+          archived={!!project.archivedAt}
+          editingId={typeof sp.modifier === "string" && sp.modifier ? sp.modifier : null}
+        />
+      ) : null}
+
       {tab === "cloture" ? <ClosurePanel project={project} items={project.closureItems} /> : null}
 
       {tab === "finance" ? <ProjectFinance projectId={id} archived={!!project.archivedAt} /> : null}
@@ -339,10 +357,7 @@ async function Journal({ projectId }: { projectId: string }) {
 export default function ProjectPage({ params, searchParams }: PageProps<"/projets/[id]">) {
   return (
     <Suspense fallback={<PageLoading />}>
-      <ProjectView
-        params={params}
-        searchParams={searchParams as Promise<{ onglet?: string; deja?: string; decision?: string }>}
-      />
+      <ProjectView params={params} searchParams={searchParams as Promise<SearchParams>} />
     </Suspense>
   );
 }

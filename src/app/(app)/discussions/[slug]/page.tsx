@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ChevronUp, FolderKanban, Settings, Users, Video } from "lucide-react";
+import { ChevronUp, FolderKanban, ListTree, Settings, Users, Video } from "lucide-react";
 import { PageLoading } from "@/components/layout/page-header";
 import { Callout, EmptyLine, NotionPage, Toggle } from "@/components/notion/blocks";
 import { Button } from "@/components/ui/button";
@@ -120,6 +120,15 @@ async function ChannelView({
             >
               <FolderKanban aria-hidden="true" className="size-4" />
               Voir le projet
+            </Link>
+          ) : null}
+          {channel.project ? (
+            <Link
+              href={`/projets/${channel.project.id}?onglet=discussion#par-element`}
+              className="inline-flex min-h-9 items-center gap-1.5 hover:underline"
+            >
+              <ListTree aria-hidden="true" className="size-4" />
+              Par élément
             </Link>
           ) : null}
         </p>

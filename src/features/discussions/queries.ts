@@ -192,6 +192,9 @@ export const messageInclude = (userId: string) =>
     attachments: { orderBy: { createdAt: "asc" }, select: { id: true, title: true, url: true } },
     saves: { where: { userId }, select: { id: true } },
     parent: { select: { id: true, body: true, deletedAt: true, author: { select: { name: true } } } },
+    // Fil d'un élément (V1.3) : titre à jour de la tâche ou du livrable discuté.
+    aboutTask: { select: { id: true, title: true } },
+    aboutDeliverable: { select: { id: true, title: true } },
     replies: {
       where: { deletedAt: null },
       orderBy: { createdAt: "desc" },

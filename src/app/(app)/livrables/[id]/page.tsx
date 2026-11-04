@@ -41,6 +41,7 @@ import { BlockedBadge, StageBadge } from "@/features/deliverables/components/bit
 import { StageChecklists } from "@/features/deliverables/components/checklist";
 import { BlockForm, NotesForm } from "@/features/deliverables/components/forms";
 import { StageTrack } from "@/features/deliverables/components/stage-track";
+import { SubjectDiscussion } from "@/features/discussions/components/subject-discussion";
 import { archiveDeliverableAction, unblockDeliverableAction } from "../actions";
 
 export const metadata: Metadata = { title: "Livrable" };
@@ -58,9 +59,16 @@ function ArchiveButton({ id, archived }: { id: string; archived: boolean }) {
   );
 }
 
-async function DeliverableView({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
-  const { id } = await params;
+async function DeliverableView({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ modifier?: string | string[] }>;
+}) {
+  const user = await requireUser();
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const editingId = typeof sp.modifier === "string" && sp.modifier ? sp.modifier : null;
   const d = await getDeliverable(id);
   if (!d) notFound();
   const [activity, options] = await Promise.all([deliverableActivity(id), deliverableFormOptions()]);
@@ -194,9 +202,9 @@ async function DeliverableView({ params }: { params: Promise<{ id: string }> }) 
         </Property>
       </Properties>
 
-      <TextLink href={`/discussions?projet=${d.project.id}`} className="w-fit">
+      <TextLink href="#discussion" className="w-fit">
         <MessagesSquare aria-hidden="true" className="size-4" />
-        Discuter dans le salon du projet
+        Discuter de ce livrable
       </TextLink>
 
       <Section id="etapes" title="Étapes">
@@ -224,6 +232,8 @@ async function DeliverableView({ params }: { params: Promise<{ id: string }> }) 
         )}
       </Section>
 
+      <SubjectDiscussion subject={{ type: "deliverable", id }} viewerId={user.id} editingId={editingId} />
+
       <Section id="activite" title="Activité" count={activity.length || undefined}>
         {activity.length ? (
           <ol aria-label="Activité du livrable" className="flex flex-col">
@@ -242,10 +252,13 @@ async function DeliverableView({ params }: { params: Promise<{ id: string }> }) 
   );
 }
 
-export default function DeliverablePage({ params }: PageProps<"/livrables/[id]">) {
+export default function DeliverablePage({ params, searchParams }: PageProps<"/livrables/[id]">) {
   return (
     <Suspense fallback={<PageLoading />}>
-      <DeliverableView params={params} />
+      <DeliverableView
+        params={params}
+        searchParams={searchParams as Promise<{ modifier?: string | string[] }>}
+      />
     </Suspense>
   );
 }

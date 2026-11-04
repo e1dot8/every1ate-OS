@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { toggleReactionAction } from "@/app/(app)/discussions/actions";
 import type { MessageWithDetails } from "@/features/discussions/queries";
 import { plainExcerpt, safeHref } from "@/features/discussions/rules";
+import { subjectHref, subjectIcons, subjectLabels, type Subject } from "@/features/discussions/subject-rules";
 import { EditMessageForm } from "@/features/discussions/components/edit-message-form";
 import { MessageActions } from "@/features/discussions/components/message-actions";
 import { RichText } from "@/features/discussions/components/rich-text";
@@ -30,6 +31,81 @@ function metaHref(meta: unknown): string | null {
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
+
+/** Élément discuté (tâche ou livrable) porté par un message, avec son titre à jour. */
+function subjectOfMessage(message: MessageWithDetails): { subject: Subject; title: string } | null {
+  if (message.aboutTask)
+    return { subject: { type: "task", id: message.aboutTask.id }, title: message.aboutTask.title };
+  if (message.aboutDeliverable)
+    return {
+      subject: { type: "deliverable", id: message.aboutDeliverable.id },
+      title: message.aboutDeliverable.title,
+    };
+  return null;
+}
+
+/**
+ * Racine du fil d'une tâche ou d'un livrable : « Tâche · Titre » (lien vers l'élément) et, dans
+ * le salon, le résumé du fil (« 2 réponses · dernière à 14:05 ») qui l'ouvre comme les autres.
+ */
+function SubjectLine({
+  message,
+  about,
+  ctx,
+}: {
+  message: MessageWithDetails;
+  about: { subject: Subject; title: string };
+  ctx: MessageContext;
+}) {
+  const replies = message._count.replies;
+  const last = message.replies[0];
+  const label = subjectLabels[about.subject.type];
+  return (
+    <li id={`m-${message.id}`} className="flex scroll-mt-28 gap-3 rounded-md px-1.5 py-1.5 hover:bg-muted/60">
+      <span
+        aria-hidden="true"
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-highlight/40 text-base"
+      >
+        {subjectIcons[about.subject.type]}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <Link
+            href={subjectHref(about.subject)}
+            className="min-w-0 font-bold break-words underline-offset-2 hover:underline"
+          >
+            <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-bold text-muted-foreground">
+              {label}
+            </span>{" "}
+            · {about.title}
+          </Link>
+          <time dateTime={message.createdAt.toISOString()} className="text-xs text-muted-foreground">
+            {formatTime(message.createdAt)}
+          </time>
+        </p>
+        {ctx.view === "salon" ? (
+          <Link
+            href={`/discussions/${ctx.slug}/fil/${message.id}`}
+            className="mt-1 flex min-h-9 w-fit items-center gap-1.5 text-sm font-bold text-info hover:underline"
+          >
+            <MessageSquareText aria-hidden="true" className="size-4" />
+            {replies ? plural(replies, "réponse") : "Ouvrir la discussion"}{" "}
+            {last ? (
+              <span className="font-normal text-muted-foreground">
+                · dernière à {formatTime(last.createdAt)}
+              </span>
+            ) : null}
+          </Link>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Discussion {about.subject.type === "task" ? "de la tâche" : "du livrable"} : les réponses
+            s&apos;affichent aussi sur sa page.
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
 
 function Reactions({ message, ctx }: { message: MessageWithDetails; ctx: MessageContext }) {
   const groups = new Map<string, { names: string[]; mine: boolean }>();
@@ -126,6 +202,9 @@ export function MessageItem({
   compact: boolean;
   ctx: MessageContext;
 }) {
+  const about = subjectOfMessage(message);
+  if (!message.authorId && about && !message.parentId)
+    return <SubjectLine message={message} about={about} ctx={ctx} />;
   if (!message.authorId) return <SystemLine message={message} />;
   const deleted = !!message.deletedAt;
   const isMine = message.authorId === ctx.viewerId;
@@ -135,6 +214,8 @@ export function MessageItem({
   const replies = message._count.replies;
   const taskTitle = message.taskId ? (ctx.tasks.get(message.taskId) ?? "Tâche liée") : null;
   const name = message.author?.name ?? "Ancien associé";
+  // La page de retour peut déjà porter un paramètre (onglet Discussion d'un projet).
+  const editHref = `${ctx.retour}${ctx.retour.includes("?") ? "&" : "?"}modifier=${message.id}#m-${message.id}`;
   return (
     <li
       id={`m-${message.id}`}
@@ -162,7 +243,14 @@ export function MessageItem({
             </time>
           </p>
         )}
-        {message.parentId && ctx.view === "salon" ? (
+        {message.parentId && ctx.view === "salon" && about ? (
+          <p className="text-xs text-muted-foreground">
+            A répondu dans la discussion {about.subject.type === "task" ? "de la tâche" : "du livrable"}{" "}
+            <Link href={threadHref} className="underline underline-offset-2">
+              « {about.title} »
+            </Link>
+          </p>
+        ) : message.parentId && ctx.view === "salon" ? (
           <p className="text-xs text-muted-foreground">
             A répondu dans le fil{message.parent?.author ? ` de ${message.parent.author.name}` : ""} :{" "}
             <Link href={threadHref} className="underline underline-offset-2">
@@ -237,7 +325,7 @@ export function MessageItem({
           messageId={message.id}
           threadHref={ctx.view === "salon" ? threadHref : null}
           taskHref={ctx.writable && !message.taskId ? `/discussions/${ctx.slug}/tache/${message.id}` : null}
-          editHref={isMine && ctx.writable ? `${ctx.retour}?modifier=${message.id}#m-${message.id}` : null}
+          editHref={isMine && ctx.writable ? editHref : null}
           isMine={isMine}
           pinned={!!message.pinnedAt}
           saved={message.saves.length > 0}

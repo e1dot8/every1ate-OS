@@ -13,6 +13,8 @@ import { MessageList } from "@/features/discussions/components/message-list";
 import { ScrollToEnd } from "@/features/discussions/components/scroll-to-end";
 import { directPartner, linkedTasks, threadMessages } from "@/features/discussions/queries";
 import { channelTitle, tomorrowAt9 } from "@/features/discussions/rules";
+import { loadSubjectContext } from "@/features/discussions/subject-notify";
+import { subjectOf, subjectReadOnlyReason } from "@/features/discussions/subject-rules";
 
 export const metadata: Metadata = { title: "Fil de discussion" };
 
@@ -38,7 +40,17 @@ async function ThreadView({
   const partner = channel.kind === "DIRECT" ? await directPartner(channel.id, user.id, now) : null;
   const title = channelTitle({ ...channel, projectName: channel.project?.name, partnerName: partner?.name });
   const tasks = await linkedTasks([thread.root, ...thread.replies]);
-  const writable = !channel.archivedAt;
+  // Fil d'une tâche ou d'un livrable : lecture seule aussi quand le projet ou l'élément est archivé.
+  const about = subjectOf(thread.root);
+  const subject = about ? await loadSubjectContext(about) : null;
+  const subjectLocked = subject
+    ? subjectReadOnlyReason({
+        type: subject.subject.type,
+        projectArchived: subject.projectArchived,
+        elementArchived: subject.archived,
+      })
+    : null;
+  const writable = !channel.archivedAt && !subjectLocked;
   const ctx: MessageContext = {
     slug: channel.slug,
     viewerId: user.id,
@@ -68,6 +80,11 @@ async function ThreadView({
       <ul aria-label="Message d'origine" className="flex flex-col border-b pb-2">
         <MessageItem message={thread.root} compact={false} ctx={ctx} />
       </ul>
+      {subjectLocked ? (
+        <Callout icon="🗄️" tone="warning">
+          <p role="status">{subjectLocked}</p>
+        </Callout>
+      ) : null}
       <div className="flex flex-col">
         <h2 className="mb-1 text-sm font-bold text-muted-foreground">
           {count ? `${count} réponse${count > 1 ? "s" : ""}` : "Aucune réponse pour l'instant"}

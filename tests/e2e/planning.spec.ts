@@ -273,6 +273,19 @@ test.describe("priorités, retards et notifications", () => {
     await page.getByLabel("Ajouter un commentaire").fill("Le client valide la V2.");
     await page.getByRole("button", { name: "Publier" }).click();
     await expect(page.getByText("Commentaire publié.")).toBeVisible();
-    await expect(page.locator("#commentaires").getByText("Le client valide la V2.")).toBeVisible();
+    // V1.3 : le commentaire est un message du fil de la tâche (salon du projet), plus une ligne
+    // de l'ancienne table des commentaires.
+    await expect(page.locator("#discussion").getByText("Le client valide la V2.")).toBeVisible();
+    const counts = await withDb(
+      async (c) =>
+        (
+          await c.query(
+            `select (select count(*)::int from message where "aboutTaskId"=$1 and "parentId" is not null) as messages,
+                    (select count(*)::int from task_comment where "taskId"=$1) as legacy`,
+            [t.id],
+          )
+        ).rows[0],
+    );
+    expect(counts).toEqual({ messages: 1, legacy: 0 });
   });
 });

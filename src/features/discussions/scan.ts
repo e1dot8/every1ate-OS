@@ -4,6 +4,7 @@ import { emitEvent } from "@/features/events/emit";
 import { accessChannel } from "@/features/discussions/channels";
 import { canPostInChannel, permalink } from "@/features/discussions/rules";
 import { publishMessage } from "@/features/discussions/service";
+import { moveLegacyTaskComments } from "@/features/discussions/subjects";
 
 /** Au plus par passage : une passe suivante reprend le reste. */
 const BATCH = 50;
@@ -106,7 +107,20 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
   return { reminders, scheduled };
 }
 
-/** Passe planifiée (appelée par runScheduledScan). */
-export async function runDiscussionsScan(now: Date): Promise<{ reminders: number; scheduled: number }> {
-  return processDueDiscussions(now);
+/** Anciens commentaires de tâche repris par passe planifiée. */
+const LEGACY_BATCH = 200;
+
+/**
+ * Passe planifiée (appelée par runScheduledScan) : échéances, puis reprise par lots des anciens
+ * commentaires de tâche dans la discussion de leur tâche (une erreur n'empêche pas les échéances).
+ */
+export async function runDiscussionsScan(
+  now: Date,
+): Promise<{ reminders: number; scheduled: number; comments: number }> {
+  const due = await processDueDiscussions(now);
+  const legacy = await moveLegacyTaskComments({ limit: LEGACY_BATCH }, now).catch((error) => {
+    console.error("[discussions] reprise des commentaires", error);
+    return { moved: 0 };
+  });
+  return { ...due, comments: legacy.moved };
 }

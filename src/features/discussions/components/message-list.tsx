@@ -10,12 +10,15 @@ export function MessageList({
   lastReadAt,
   now,
   label,
+  dayHeading: DayHeading = "h2",
 }: {
   messages: MessageWithDetails[];
   ctx: MessageContext;
   lastReadAt: Date | null;
   now: Date;
   label: string;
+  /** Niveau des titres de jour : h3 quand la liste est sous une section (page d'un élément, projet). */
+  dayHeading?: "h2" | "h3";
 }) {
   const unreadAt = firstUnreadIndex(messages, lastReadAt, ctx.viewerId);
   const firstUnreadId = unreadAt >= 0 ? messages[unreadAt].id : null;
@@ -23,11 +26,11 @@ export function MessageList({
     <div className="flex flex-col gap-1">
       {groupByDay(messages, now).map((group) => (
         <section key={group.day} aria-label={group.label} className="flex flex-col">
-          <h2 className="sticky top-0 z-10 my-1 flex items-center gap-3 bg-background/95 py-1 text-xs font-bold text-muted-foreground backdrop-blur">
+          <DayHeading className="sticky top-0 z-10 my-1 flex items-center gap-3 bg-background/95 py-1 text-xs font-bold text-muted-foreground backdrop-blur">
             <span className="h-px flex-1 bg-border" aria-hidden="true" />
             {group.label}
             <span className="h-px flex-1 bg-border" aria-hidden="true" />
-          </h2>
+          </DayHeading>
           <ul aria-label={`${label}, ${group.label.toLowerCase()}`} className="flex flex-col">
             {group.items.map(({ message, compact }) => (
               <Fragment key={message.id}>

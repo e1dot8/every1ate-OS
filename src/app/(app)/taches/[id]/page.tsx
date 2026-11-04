@@ -18,10 +18,11 @@ import { getTask } from "@/features/projects/service";
 import { requireUser } from "@/lib/auth/session";
 import { getDb } from "@/lib/db/client";
 import { formatDateTime, formatDay } from "@/lib/dates";
-import { archiveAction, deleteCommentAction, removeDependencyAction } from "../../projets/actions";
-import { CommentForm } from "@/features/planning/components/comment-form";
+import { archiveAction, removeDependencyAction } from "../../projets/actions";
 import { DocumentsPanel } from "@/features/documents/components/documents-panel";
-import { listComments, taskPrioritySuggestion } from "@/features/planning/service";
+import { SubjectDiscussion } from "@/features/discussions/components/subject-discussion";
+import { moveLegacyTaskComments } from "@/features/discussions/subjects";
+import { taskPrioritySuggestion } from "@/features/planning/service";
 import { formatMinutes } from "@/features/planning/rules";
 import { ManualTimeForm, TimerControl } from "@/features/time/components/timer";
 import { getActiveTimer, taskTime } from "@/features/time/service";
@@ -38,9 +39,16 @@ import {
 
 export const metadata: Metadata = { title: "Tâche" };
 
-async function TaskView({ params }: { params: Promise<{ id: string }> }) {
+async function TaskView({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ modifier?: string | string[] }>;
+}) {
   const user = await requireUser();
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const editingId = typeof sp.modifier === "string" && sp.modifier ? sp.modifier : null;
   const task = await getTask(id);
   if (!task) notFound();
   const db = getDb();
@@ -63,9 +71,12 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
       : null,
   ]);
   const repeats = recurrenceSummary(task.recurrence, task.recurrenceUntil);
-  const [suggestion, comments, time, active, pendingHandoff, associates] = await Promise.all([
+  // Anciens commentaires (V1) de cette tâche recopiés dans sa discussion avant l'affichage.
+  await moveLegacyTaskComments({ taskId: id, limit: 200 }).catch((error) => {
+    console.error("[tâche] reprise des commentaires", error);
+  });
+  const [suggestion, time, active, pendingHandoff, associates] = await Promise.all([
     taskPrioritySuggestion(id),
-    listComments(id),
     taskTime(id),
     getActiveTimer(user.id),
     pendingHandoffFor({ taskId: id }),
@@ -376,38 +387,7 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
             ) : null}
           </Card>
           <DocumentsPanel target={{ taskId: id }} back={`/taches/${id}`} readOnly={!!task.archivedAt} />
-          <Card className="gap-3" id="commentaires">
-            <CardTitle>Commentaires</CardTitle>
-            <ol className="flex flex-col gap-3">
-              {comments.map((c) => (
-                <li key={c.id} className="flex flex-col gap-1 border-b pb-3 last:border-b-0">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Avatar name={c.author.name} />
-                    <b>{c.author.name}</b>
-                    <span className="text-muted-foreground">{formatDateTime(c.createdAt)}</span>
-                    {c.authorId === user.id ? (
-                      <form action={deleteCommentAction} className="ml-auto">
-                        <input type="hidden" name="commentId" value={c.id} />
-                        <Button
-                          type="submit"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Supprimer mon commentaire"
-                        >
-                          <X aria-hidden="true" />
-                        </Button>
-                      </form>
-                    ) : null}
-                  </div>
-                  <p className="whitespace-pre-line">{c.body}</p>
-                </li>
-              ))}
-              {!comments.length ? (
-                <li className="text-sm text-muted-foreground">Aucun commentaire.</li>
-              ) : null}
-            </ol>
-            {!task.archivedAt ? <CommentForm taskId={id} /> : null}
-          </Card>
+          <SubjectDiscussion subject={{ type: "task", id }} viewerId={user.id} editingId={editingId} />
           <Card className="gap-2">
             <CardTitle>Historique</CardTitle>
             <ol className="flex flex-col gap-1.5 text-sm">
@@ -431,11 +411,11 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-export default function TaskPage({ params }: PageProps<"/taches/[id]">) {
+export default function TaskPage({ params, searchParams }: PageProps<"/taches/[id]">) {
   return (
     <div className="flex flex-col gap-5">
       <Suspense fallback={<PageLoading />}>
-        <TaskView params={params} />
+        <TaskView params={params} searchParams={searchParams as Promise<{ modifier?: string | string[] }>} />
       </Suspense>
     </div>
   );

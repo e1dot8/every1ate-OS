@@ -42,6 +42,18 @@ import {
   type ParsedCommand,
   type ReminderChoice,
 } from "@/features/discussions/rules";
+import {
+  aboutFields,
+  subjectMessageHref,
+  subjectOf,
+  subjectPhrase,
+  subjectReadOnlyReason,
+} from "@/features/discussions/subject-rules";
+import {
+  announceSubjectComment,
+  loadSubjectContext,
+  type SubjectContext,
+} from "@/features/discussions/subject-notify";
 
 /** Associé qui agit (session). */
 export type Actor = { id: string; name: string };
@@ -56,7 +68,7 @@ const MESSAGE_NOT_FOUND = "Message introuvable.";
 const isUniqueViolation = (e: unknown) =>
   typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "P2002";
 
-function checkBody(body: string, allowEmpty = false): string | null {
+export function checkBody(body: string, allowEmpty = false): string | null {
   if (!body && !allowEmpty) return "Écris un message.";
   if (body.length > MESSAGE_MAX_LENGTH)
     return `Message trop long (${MESSAGE_MAX_LENGTH.toLocaleString("fr-FR")} caractères au plus).`;
@@ -75,6 +87,8 @@ async function accessMessage(messageId: string, userId: string) {
       body: true,
       mentionIds: true,
       taskId: true,
+      aboutTaskId: true,
+      aboutDeliverableId: true,
       deletedAt: true,
       pinnedAt: true,
     },
@@ -82,6 +96,35 @@ async function accessMessage(messageId: string, userId: string) {
   if (!message) return null;
   const access = await accessChannel({ id: message.channelId }, userId);
   return access ? { message, ...access } : null;
+}
+
+/** Élément discuté dans le fil d'un message (racine), avec son contexte ; null sinon. */
+async function parentSubject(parentId: string): Promise<SubjectContext | null> {
+  const parent = await getDb().message.findUnique({
+    where: { id: parentId },
+    select: { aboutTaskId: true, aboutDeliverableId: true },
+  });
+  const about = parent ? subjectOf(parent) : null;
+  return about ? loadSubjectContext(about) : null;
+}
+
+/**
+ * Élément discuté par un message et, si sa discussion est en lecture seule (projet ou élément
+ * archivé), le motif. Le salon archivé est contrôlé à part (`canPostInChannel`).
+ */
+async function subjectLock(message: {
+  aboutTaskId: string | null;
+  aboutDeliverableId: string | null;
+}): Promise<{ subject: SubjectContext | null; locked: string | null }> {
+  const about = subjectOf(message);
+  const subject = about ? await loadSubjectContext(about) : null;
+  if (!subject) return { subject: null, locked: null };
+  const locked = subjectReadOnlyReason({
+    type: subject.subject.type,
+    projectArchived: subject.projectArchived,
+    elementArchived: subject.archived,
+  });
+  return { subject, locked };
 }
 
 // ─── Publication (mentions, messages directs) ───────────────────────────────
@@ -126,22 +169,27 @@ function channelPlace(channel: ChannelRow) {
   return `« ${channelTitle({ ...channel, projectName: channel.project?.name })} »`;
 }
 
-/** Notifie les nouvelles mentions et, en message direct, l'autre associé. */
+/**
+ * Notifie les nouvelles mentions et, en message direct, l'autre associé. Dans le fil d'un élément,
+ * la mention mène au commentaire sur la page de l'élément.
+ */
 async function announce(
   author: Actor,
   channel: ChannelRow,
   message: { id: string; parentId: string | null; body: string },
   mentionIds: string[],
-  options: { direct: boolean },
+  options: { direct: boolean; subject?: SubjectContext | null },
 ) {
-  const href = messageHref(channel.slug, message);
+  const subject = options.subject ?? null;
+  const href = subject ? subjectMessageHref(subject.subject, message.id) : messageHref(channel.slug, message);
+  const place = subject ? subjectPhrase(subject.subject.type, subject.title) : channelPlace(channel);
   const body = plainExcerpt(message.body) || undefined;
   const mentioned = mentionIds.filter((id) => id !== author.id);
   if (mentioned.length)
     await emitEvent({
       kind: "mention",
       actorId: author.id,
-      title: `${author.name} te mentionne dans ${channelPlace(channel)}`,
+      title: `${author.name} te mentionne dans ${place}`,
       body,
       href,
       projectId: channel.projectId,
@@ -176,6 +224,8 @@ async function announce(
  * Publie le message d'un associé (accès vérifié par l'appelant) : mentions résolues,
  * notifications, salon marqué comme lu pour l'auteur (voir `marksChannelRead` : pas pour une
  * réponse de fil ni avec `markRead: false`). Utilisé aussi pour les messages programmés.
+ * Une réponse dans le fil d'un élément (tâche, livrable) porte cet élément et déclenche
+ * l'événement « commentaire ».
  * `ambiguous` : prénoms mentionnés portés par plusieurs associés (personne n'a été mentionné).
  */
 export async function publishMessage(
@@ -188,10 +238,17 @@ export async function publishMessage(
     attachment?: { title: string; url: string } | null;
     /** Marquer le salon comme lu pour l'auteur (par défaut : oui, sauf réponse de fil). */
     markRead?: boolean;
+    /** Élément du fil, déjà chargé par l'appelant (sinon déduit de la racine). */
+    subject?: SubjectContext | null;
   },
   now = new Date(),
 ): Promise<{ id: string; ambiguous: string[] }> {
   const db = getDb();
+  const subject = input.parentId
+    ? input.subject !== undefined
+      ? input.subject
+      : await parentSubject(input.parentId)
+    : null;
   const { ids: mentionIds, ambiguous } = await resolveMessageMentions(channel, input.body, author.id);
   const message = await db.message.create({
     data: {
@@ -202,6 +259,7 @@ export async function publishMessage(
       body: input.body,
       mentionIds,
       createdAt: now,
+      ...(subject ? aboutFields(subject.subject) : {}),
       ...(input.attachment ? { attachments: { create: [input.attachment] } } : {}),
     },
     select: { id: true, parentId: true, body: true },
@@ -212,7 +270,9 @@ export async function publishMessage(
     create: { channelId: channel.id, userId: author.id, lastReadAt: now },
     update: marksChannelRead(input) ? { lastReadAt: now } : {},
   });
-  await announce(author, channel, message, mentionIds, { direct: true });
+  await announce(author, channel, message, mentionIds, { direct: true, subject });
+  if (subject && message.parentId)
+    await announceSubjectComment(author, subject, { ...message, parentId: message.parentId }, mentionIds);
   return { id: message.id, ambiguous };
 }
 
@@ -222,9 +282,11 @@ export type NewMessage = {
   parentId?: string | null;
   alsoInChannel?: boolean;
   attachment?: { title: string; url: string } | null;
+  /** Marquer le salon comme lu pour l'auteur (voir `publishMessage`). */
+  markRead?: boolean;
 };
 
-function checkAttachment(attachment: NewMessage["attachment"]): string | null {
+export function checkAttachment(attachment: NewMessage["attachment"]): string | null {
   if (!attachment) return null;
   if (!isHttpsUrl(attachment.url)) return "Le lien joint doit commencer par https://.";
   if (attachment.title.length > ATTACHMENT_TITLE_MAX) return "Titre du lien trop long.";
@@ -255,7 +317,17 @@ export async function postMessage(
     checkAttachment(input.attachment) ??
     (await checkParent(access.channel.id, input.parentId));
   if (problem) return failed(problem);
-  const message = await publishMessage(actor, access.channel, { ...input, body });
+  // Fil d'une tâche ou d'un livrable : lecture seule si le projet ou l'élément est archivé.
+  const subject = input.parentId ? await parentSubject(input.parentId) : null;
+  if (subject) {
+    const locked = subjectReadOnlyReason({
+      type: subject.subject.type,
+      projectArchived: subject.projectArchived,
+      elementArchived: subject.archived,
+    });
+    if (locked) return failed(locked);
+  }
+  const message = await publishMessage(actor, access.channel, { ...input, body, subject });
   return done({ id: message.id, slug: access.channel.slug, ambiguous: message.ambiguous });
 }
 
@@ -268,6 +340,8 @@ export async function editMessage(
   if (!found || found.message.authorId !== actor.id || found.message.deletedAt)
     return failed(MESSAGE_NOT_FOUND);
   if (!canPostInChannel(found.channel, !!found.member)) return failed(ARCHIVED);
+  const { subject, locked } = await subjectLock(found.message);
+  if (locked) return failed(locked);
   const body = rawBody.trim();
   const problem = checkBody(body);
   if (problem) return failed(problem);
@@ -281,7 +355,7 @@ export async function editMessage(
   // Seules les personnes ajoutées sont prévenues (même clé : jamais deux fois la même personne).
   const added = mentionIds.filter((id) => !found.message.mentionIds.includes(id));
   if (added.length)
-    await announce(actor, found.channel, { ...found.message, body }, added, { direct: false });
+    await announce(actor, found.channel, { ...found.message, body }, added, { direct: false, subject });
   return done({ slug: found.channel.slug, parentId: found.message.parentId, ambiguous });
 }
 
@@ -326,6 +400,8 @@ async function writableMessage(actor: Actor, messageId: string) {
   const found = await accessMessage(messageId, actor.id);
   if (!found || found.message.deletedAt) return { error: MESSAGE_NOT_FOUND } as const;
   if (!canPostInChannel(found.channel, !!found.member)) return { error: ARCHIVED } as const;
+  const { locked } = await subjectLock(found.message);
+  if (locked) return { error: locked } as const;
   return { found } as const;
 }
 

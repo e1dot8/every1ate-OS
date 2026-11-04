@@ -43,6 +43,8 @@ import {
   toggleSaved,
   updateChannel,
 } from "@/features/discussions/service";
+import { postSubjectComment } from "@/features/discussions/subjects";
+import { SUBJECT_TYPES, subjectPath } from "@/features/discussions/subject-rules";
 
 /**
  * Actions des discussions : session exigée, entrée validée (Zod), contrôle d'accès dans le
@@ -60,7 +62,16 @@ const checkbox = z
   .string()
   .optional()
   .transform((v) => v === "on" || v === "true");
-const refresh = () => revalidatePath("/discussions", "layout");
+/**
+ * Pages des discussions, et pages qui affichent aussi des fils : discussion d'une tâche, d'un
+ * livrable, onglet Discussion d'un projet (réactions, modification, suppression depuis ces pages).
+ */
+const refresh = () => {
+  revalidatePath("/discussions", "layout");
+  revalidatePath("/taches/[id]", "page");
+  revalidatePath("/livrables/[id]", "page");
+  revalidatePath("/projets/[id]", "page");
+};
 const field = (formData: FormData, name: string) => {
   const v = formData.get(name);
   return typeof v === "string" ? v : undefined;
@@ -70,6 +81,19 @@ const failure = (message: string, formData: FormData): FormState => ({
   message,
   values: keptValues(formData),
 });
+
+/** Lien joint saisi (titre par défaut : le nom du site) ; « invalide » si l'adresse est illisible. */
+function linkAttachment(
+  url: string | null | undefined,
+  title: string | undefined,
+): { title: string; url: string } | null | "invalide" {
+  if (!url) return null;
+  try {
+    return { title: title || new URL(url).hostname, url };
+  } catch {
+    return "invalide";
+  }
+}
 
 // ─── Compositeur ────────────────────────────────────────────────────────────
 
@@ -142,16 +166,8 @@ export async function sendMessageAction(_prev: ComposerState, formData: FormData
     };
   }
 
-  let attachment: { title: string; url: string } | null = null;
-  if (attachmentUrl) {
-    let host = "";
-    try {
-      host = new URL(attachmentUrl).hostname;
-    } catch {
-      return failure("Le lien joint doit commencer par https://.", formData);
-    }
-    attachment = { title: input.attachmentTitle || host, url: attachmentUrl };
-  }
+  const attachment = linkAttachment(attachmentUrl, input.attachmentTitle);
+  if (attachment === "invalide") return failure("Le lien joint doit commencer par https://.", formData);
   const result = await postMessage(user, {
     channelId: input.channelId,
     parentId: input.parentId,
@@ -166,9 +182,57 @@ export async function sendMessageAction(_prev: ComposerState, formData: FormData
   return warning ? { status: "success", message: warning } : { status: "success" };
 }
 
+// ─── Discussion d'un élément (tâche, livrable) ──────────────────────────────
+
+const subjectCommentSchema = z.object({
+  subjectType: z.enum(SUBJECT_TYPES),
+  subjectId: id,
+  body: z
+    .string()
+    .max(MESSAGE_MAX_LENGTH * 2, `Commentaire trop long (${MESSAGE_MAX_LENGTH} caractères au plus).`)
+    .transform((s) => s.trim()),
+  alsoInChannel: checkbox,
+  attachmentTitle: z.string().trim().max(ATTACHMENT_TITLE_MAX, "Titre du lien trop long.").optional(),
+  attachmentUrl: z.string().trim().max(2000, "Lien trop long.").optional(),
+});
+
+/**
+ * Commentaire sur la page d'une tâche ou d'un livrable : réponse dans le fil de l'élément
+ * (salon du projet). Accès, lecture seule et validation revérifiés par le service.
+ */
+export async function postSubjectCommentAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = subjectCommentSchema.safeParse({
+    subjectType: field(formData, "subjectType"),
+    subjectId: field(formData, "subjectId"),
+    body: field(formData, "body") ?? "",
+    alsoInChannel: field(formData, "alsoInChannel"),
+    attachmentTitle: field(formData, "attachmentTitle"),
+    attachmentUrl: field(formData, "attachmentUrl"),
+  });
+  if (!parsed.success) return validationError(parsed.error, formData);
+  const input = parsed.data;
+  const attachment = linkAttachment(input.attachmentUrl, input.attachmentTitle);
+  if (attachment === "invalide") return failure("Le lien joint doit commencer par https://.", formData);
+  const subject = { type: input.subjectType, id: input.subjectId };
+  const result = await postSubjectComment(user, subject, {
+    body: input.body,
+    attachment,
+    alsoInChannel: input.alsoInChannel,
+  });
+  if (!result.ok) return failure(result.error, formData);
+  revalidatePath(subjectPath(subject));
+  revalidatePath(`/projets/${result.data.projectId}`);
+  refresh();
+  const warning = ambiguousMentionWarning(result.data.ambiguous);
+  return { status: "success", message: warning ? `Commentaire publié. ${warning}` : "Commentaire publié." };
+}
+
 // ─── Actions sur un message ─────────────────────────────────────────────────
 
-const RETURN_PATH = /^\/discussions\/[A-Za-z0-9-]+(\/fil\/[A-Za-z0-9]+)?$/;
+/** Pages où un message peut être modifié sur place : salon, fil, élément, onglet Discussion d'un projet. */
+const RETURN_PATH =
+  /^\/(discussions\/[A-Za-z0-9-]+(\/fil\/[A-Za-z0-9]+)?|taches\/[A-Za-z0-9]+|livrables\/[A-Za-z0-9]+|projets\/[A-Za-z0-9]+\?onglet=discussion)$/;
 
 const editSchema = z.object({
   messageId: id,
