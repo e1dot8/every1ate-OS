@@ -6,6 +6,11 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined;
 // Secret de test pour /api/cron/scan (jamais utilisé hors tests).
 const E2E_CRON_SECRET = "e2e-only-cron-secret-0123456789abcdef";
+// Clés VAPID générées pour les tests uniquement (`web-push generate-vapid-keys`) ; en mode outbox,
+// rien n'est envoyé. Ne jamais les réutiliser ailleurs.
+const E2E_VAPID_PUBLIC_KEY =
+  "BBmc6J7BEcRI9lLjk-FHHB9wro6bL1d9V5JKpq40NB1Ocf5ogrvsPCWFy3PjStuhVAf3htIOC12Bhmv4J84Fz-o";
+const E2E_VAPID_PRIVATE_KEY = "mN78EGGwXA1DhLvPPQaSXJzfyxBC1TH_zbsdtP2Y144";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -35,6 +40,12 @@ export default defineConfig({
           EMAIL_TRANSPORT: "outbox",
           PASSWORD_BREACH_CHECK: "off",
           CRON_SECRET: E2E_CRON_SECRET,
+          // Alertes : journalisées dans external_delivery, aucun appel aux services push ni à CallMeBot.
+          PUSH_TRANSPORT: "outbox",
+          WHATSAPP_TRANSPORT: "outbox",
+          VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+          VAPID_PRIVATE_KEY: E2E_VAPID_PRIVATE_KEY,
+          VAPID_SUBJECT: "mailto:e2e@example.test",
         },
       },
 });

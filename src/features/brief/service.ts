@@ -8,85 +8,107 @@ import { buildBrief } from "@/features/brief/rules";
 
 const OPEN = ["TERMINE", "ANNULE"] as ("TERMINE" | "ANNULE")[];
 
-/** Brief du jour d'un associé : ses retards, relances, réunions, avis attendus, encaissements en retard. */
+/**
+ * Brief du jour d'un associé : ses retards, relances, réunions, avis attendus, encaissements en retard,
+ * livrables en retard ou à livrer aujourd'hui, points de checklist qui lui sont confiés.
+ */
 export async function getBrief(userId: string, now = new Date()) {
   const db = getDb();
   const today = todayDate(now);
   const dayStart = zonedToUtc(`${today.toISOString().slice(0, 10)}T00:00`)!;
   const dayEnd = zonedToUtc(`${addDays(today, 1).toISOString().slice(0, 10)}T00:00`)!;
   const mine = { OR: [{ ownerId: userId }, { contributors: { some: { userId } } }] };
-  const [tasks, followUps, meetings, decisions, billing, contracts] = await Promise.all([
-    db.task.findMany({
-      where: {
-        archivedAt: null,
-        status: { notIn: OPEN },
-        project: { archivedAt: null },
-        AND: [mine, { OR: [{ dueDate: { lte: today } }, { status: "BLOQUE" }] }],
-      },
-      select: {
-        id: true,
-        title: true,
-        dueDate: true,
-        status: true,
-        blockedReason: true,
-        project: { select: { name: true } },
-      },
-      orderBy: { dueDate: "asc" },
-      take: 50,
-    }),
-    db.opportunity.findMany({
-      where: {
-        ownerId: userId,
-        archivedAt: null,
-        stage: { notIn: ["GAGNE", "PERDU"] },
-        nextActionDate: { lte: today },
-      },
-      select: { id: true, title: true, nextAction: true, nextActionDate: true },
-      orderBy: { nextActionDate: "asc" },
-    }),
-    db.calendarEvent.findMany({
-      where: {
-        cancelledAt: null,
-        startsAt: { lt: dayEnd },
-        endsAt: { gt: dayStart },
-        OR: [{ ownerId: userId }, { attendees: { some: { userId } } }],
-      },
-      select: { id: true, title: true, startsAt: true, allDay: true },
-      orderBy: { startsAt: "asc" },
-    }),
-    db.decisionRequest.findMany({
-      where: { status: "OUVERTE", votes: { none: { userId } } },
-      select: { id: true, title: true },
-    }),
-    db.billingMilestone.findMany({
-      where: {
-        archivedAt: null,
-        status: { not: "ANNULE" },
-        plannedDate: { lt: today },
-        project: { ownerId: userId, archivedAt: null },
-      },
-      select: {
-        id: true,
-        label: true,
-        amount: true,
-        projectId: true,
-        project: { select: { name: true } },
-        payments: { where: { deletedAt: null }, select: { amount: true } },
-      },
-    }),
-    db.recurringContract.findMany({
-      where: { status: "ACTIF", archivedAt: null },
-      select: {
-        id: true,
-        label: true,
-        status: true,
-        renewalDate: true,
-        endDate: true,
-        noticeDays: true,
-        client: { select: { name: true } },
-      },
-    }),
-  ]);
+  // Livrables en cours (V1.2) : ni archivés, ni livrés, projet ouvert.
+  const liveDeliverable = {
+    archivedAt: null,
+    stage: { not: "LIVRE" as const },
+    project: { archivedAt: null },
+  };
+  const [tasks, followUps, meetings, decisions, billing, contracts, deliverables, checkItems] =
+    await Promise.all([
+      db.task.findMany({
+        where: {
+          archivedAt: null,
+          status: { notIn: OPEN },
+          project: { archivedAt: null },
+          AND: [mine, { OR: [{ dueDate: { lte: today } }, { status: "BLOQUE" }] }],
+        },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          status: true,
+          blockedReason: true,
+          project: { select: { name: true } },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 50,
+      }),
+      db.opportunity.findMany({
+        where: {
+          ownerId: userId,
+          archivedAt: null,
+          stage: { notIn: ["GAGNE", "PERDU"] },
+          nextActionDate: { lte: today },
+        },
+        select: { id: true, title: true, nextAction: true, nextActionDate: true },
+        orderBy: { nextActionDate: "asc" },
+      }),
+      db.calendarEvent.findMany({
+        where: {
+          cancelledAt: null,
+          startsAt: { lt: dayEnd },
+          endsAt: { gt: dayStart },
+          OR: [{ ownerId: userId }, { attendees: { some: { userId } } }],
+        },
+        select: { id: true, title: true, startsAt: true, allDay: true },
+        orderBy: { startsAt: "asc" },
+      }),
+      db.decisionRequest.findMany({
+        where: { status: "OUVERTE", votes: { none: { userId } } },
+        select: { id: true, title: true },
+      }),
+      db.billingMilestone.findMany({
+        where: {
+          archivedAt: null,
+          status: { not: "ANNULE" },
+          plannedDate: { lt: today },
+          project: { ownerId: userId, archivedAt: null },
+        },
+        select: {
+          id: true,
+          label: true,
+          amount: true,
+          projectId: true,
+          project: { select: { name: true } },
+          payments: { where: { deletedAt: null }, select: { amount: true } },
+        },
+      }),
+      db.recurringContract.findMany({
+        where: { status: "ACTIF", archivedAt: null },
+        select: {
+          id: true,
+          label: true,
+          status: true,
+          renewalDate: true,
+          endDate: true,
+          noticeDays: true,
+          client: { select: { name: true } },
+        },
+      }),
+      db.deliverable.findMany({
+        where: { ...liveDeliverable, ownerId: userId, dueDate: { lte: today } },
+        select: { id: true, title: true, dueDate: true, project: { select: { name: true } } },
+        orderBy: { dueDate: "asc" },
+        take: 30,
+      }),
+      db.deliverableCheckItem.findMany({
+        where: { assigneeId: userId, doneAt: null, dueDate: { lte: today }, deliverable: liveDeliverable },
+        select: { label: true, dueDate: true, deliverable: { select: { id: true, title: true } } },
+        orderBy: { dueDate: "asc" },
+        take: 30,
+      }),
+    ]);
   const renewals = commercialSignals({
     today,
     clients: [],
@@ -119,5 +141,17 @@ export async function getBrief(userId: string, now = new Date()) {
       .filter((b) => b.payments.reduce((n, p) => n + toCents(p.amount), 0) < toCents(b.amount))
       .map((b) => ({ projectId: b.projectId, label: b.label, project: b.project.name })),
     renewals: renewals.map((r) => ({ href: r.href, title: r.title })),
+    lateDeliverables: deliverables
+      .filter((d) => d.dueDate && d.dueDate < today)
+      .map((d) => ({ id: d.id, title: d.title, project: d.project.name, dueDate: d.dueDate! })),
+    deliverablesDueToday: deliverables
+      .filter((d) => d.dueDate && d.dueDate.getTime() === today.getTime())
+      .map((d) => ({ id: d.id, title: d.title, project: d.project.name })),
+    checkItemsDue: checkItems.map((c) => ({
+      deliverableId: c.deliverable.id,
+      deliverable: c.deliverable.title,
+      label: c.label,
+      late: !!c.dueDate && c.dueDate < today,
+    })),
   });
 }

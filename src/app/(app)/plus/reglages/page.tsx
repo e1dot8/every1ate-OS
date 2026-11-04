@@ -22,11 +22,13 @@ async function Settings() {
       <Card className="max-w-2xl gap-3">
         <CardTitle>Agence</CardTitle>
         <CardDescription>
-          Sert à valoriser le temps passé dans les marges et à calculer la charge à venir.
+          Sert à valoriser le temps passé dans les marges, à calculer la charge à venir et à fixer le
+          nombre de places du bureau de chacun sur le QG.
         </CardDescription>
         <AgencyForm
           defaultHourlyCostCents={agency.defaultHourlyCostCents}
           defaultWeeklyHours={agency.defaultWeeklyHours}
+          wipLimit={agency.wipLimit}
         />
       </Card>
       <Card className="max-w-2xl gap-1">

@@ -36,13 +36,21 @@ export function PwaManager() {
         setBlocked(true);
       }
     };
+    // Clic sur une notification push quand l'onglet n'est pas piloté par le service worker.
+    const onWorkerMessage = (event: MessageEvent) => {
+      const href = (event.data as { type?: string; href?: unknown } | null)?.href;
+      if (event.data?.type === "navigate" && typeof href === "string" && /^\/(?!\/)/.test(href))
+        router.push(href as Parameters<typeof router.push>[0]);
+    };
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
     document.addEventListener("submit", guard, true);
+    navigator.serviceWorker?.addEventListener("message", onWorkerMessage);
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
       document.removeEventListener("submit", guard, true);
+      navigator.serviceWorker?.removeEventListener("message", onWorkerMessage);
     };
   }, [router]);
 
@@ -69,10 +77,19 @@ export function PwaManager() {
   );
 }
 
-/** Après déconnexion : vide les caches du navigateur et du service worker (§16.2, §20.8). */
+/**
+ * Après déconnexion : vide les caches du navigateur et du service worker (§16.2, §20.8)
+ * et désabonne l'appareil des notifications push (plus rien n'arrive sur un appareil déconnecté).
+ */
 export function PurgeOnSignOut() {
   useEffect(() => {
     const purge = async () => {
+      try {
+        const registration = await navigator.serviceWorker?.getRegistration("/");
+        await (await registration?.pushManager?.getSubscription())?.unsubscribe();
+      } catch {
+        // Navigateur sans notifications push : rien à désabonner.
+      }
       try {
         if ("caches" in window) for (const key of await caches.keys()) await caches.delete(key);
         navigator.serviceWorker?.controller?.postMessage({ type: "purge" });

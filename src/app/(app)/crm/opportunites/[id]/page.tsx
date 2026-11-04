@@ -19,6 +19,13 @@ import { requireUser } from "@/lib/auth/session";
 import { formatDateTime, formatDay, toDateInput, todayDate } from "@/lib/dates";
 import { formatMoney, percentOf, toCents } from "@/lib/money";
 import { archiveOpportunityAction } from "../../actions";
+import { listAssociates } from "@/features/projects/service";
+import { pendingHandoffFor } from "@/features/qg/handoffs";
+import {
+  CancelHandoffForm,
+  HandoffAnswerForm,
+  ProposeHandoffForm,
+} from "@/features/qg/components/handoff-forms";
 
 export const metadata: Metadata = { title: "Opportunité" };
 
@@ -29,10 +36,15 @@ async function OpportunityView({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const { modele } = await searchParams;
-  const [opp, settings] = await Promise.all([getOpportunity(id), getStageSettings()]);
+  const [opp, settings, pendingHandoff, associates] = await Promise.all([
+    getOpportunity(id),
+    getStageSettings(),
+    pendingHandoffFor({ opportunityId: id }),
+    listAssociates(),
+  ]);
   if (!opp || opp.archivedAt) notFound();
   const amount = toCents(opp.amount);
   const p = effectiveProbability(opp.stage, opp.probability, settings);
@@ -164,6 +176,54 @@ async function OpportunityView({
               nextAction={opp.nextAction ?? ""}
               nextActionDate={toDateInput(opp.nextActionDate)}
             />
+          </Card>
+          <Card className="gap-3" id="passation">
+            <CardTitle>Passation</CardTitle>
+            {pendingHandoff ? (
+              <>
+                <p className="text-sm">
+                  {pendingHandoff.mode === "DONNER"
+                    ? `${pendingHandoff.from.name} propose ce client à ${pendingHandoff.to.name}.`
+                    : `${pendingHandoff.from.name} propose de le reprendre à ${pendingHandoff.to.name}.`}{" "}
+                  En attente de réponse.
+                </p>
+                {pendingHandoff.note ? (
+                  <p className="text-sm whitespace-pre-line">« {pendingHandoff.note} »</p>
+                ) : null}
+                {pendingHandoff.toId === user.id ? (
+                  <HandoffAnswerForm
+                    handoffId={pendingHandoff.id}
+                    title={opp.title}
+                    isOpportunity
+                    nextAction={opp.nextAction ?? ""}
+                    nextActionDate={toDateInput(opp.nextActionDate)}
+                  />
+                ) : pendingHandoff.fromId === user.id ? (
+                  <CancelHandoffForm handoffId={pendingHandoff.id} label="Annuler la proposition" />
+                ) : null}
+              </>
+            ) : opp.owner.id === user.id ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Passer à… : le client ne change de responsable que si l&apos;associé accepte et fixe sa
+                  prochaine action.
+                </p>
+                <ProposeHandoffForm
+                  target="opportunity"
+                  targetId={id}
+                  mode="DONNER"
+                  associates={associates.filter((a) => a.id !== user.id)}
+                />
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {opp.owner.name} est responsable. Proposez-lui de reprendre ce client : il change de main
+                  s&apos;il accepte.
+                </p>
+                <ProposeHandoffForm target="opportunity" targetId={id} mode="REPRENDRE" />
+              </>
+            )}
           </Card>
           <Card className="gap-3">
             <CardTitle>Historique</CardTitle>

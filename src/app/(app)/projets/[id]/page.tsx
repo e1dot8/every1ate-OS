@@ -27,14 +27,16 @@ import { ProjectFinance } from "@/features/finance/components/project-finance";
 import { DocumentsPanel } from "@/features/documents/components/documents-panel";
 import { NotesSection } from "@/features/notes/components/notes-section";
 import { ClosurePanel } from "@/features/projects/components/closure-panel";
+import { ProjectDeliverables } from "@/features/deliverables/components/project-deliverables";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Projet" };
 
-// Cinq onglets courts (lisibles sur iPhone). Anciens liens conservés : lots → vue, documents → docs.
+// Onglets courts (lisibles sur iPhone, la barre défile). Anciens liens conservés : lots → vue, documents → docs.
 const TABS = [
   { key: "vue", label: "Vue" },
   { key: "taches", label: "Tâches" },
+  { key: "livrables", label: "Livrables" },
   { key: "finance", label: "Finance" },
   { key: "docs", label: "Docs" },
   { key: "cloture", label: "Clôture" },
@@ -215,6 +217,8 @@ async function ProjectView({
           </EmptyState>
         )
       ) : null}
+
+      {tab === "livrables" ? <ProjectDeliverables projectId={id} archived={!!project.archivedAt} /> : null}
 
       {tab === "cloture" ? <ClosurePanel project={project} items={project.closureItems} /> : null}
 

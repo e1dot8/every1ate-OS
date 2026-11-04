@@ -26,6 +26,15 @@ import { formatMinutes } from "@/features/planning/rules";
 import { ManualTimeForm, TimerControl } from "@/features/time/components/timer";
 import { getActiveTimer, taskTime } from "@/features/time/service";
 import { toDateInput, todayDate } from "@/lib/dates";
+import { listAssociates } from "@/features/projects/service";
+import { pendingHandoffFor } from "@/features/qg/handoffs";
+import { qgJournalLabel } from "@/features/qg/labels";
+import {
+  CancelHandoffForm,
+  HandoffAnswerForm,
+  ProposeHandoffForm,
+  TakeTaskButton,
+} from "@/features/qg/components/handoff-forms";
 
 export const metadata: Metadata = { title: "Tâche" };
 
@@ -54,12 +63,15 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
       : null,
   ]);
   const repeats = recurrenceSummary(task.recurrence, task.recurrenceUntil);
-  const [suggestion, comments, time, active] = await Promise.all([
+  const [suggestion, comments, time, active, pendingHandoff, associates] = await Promise.all([
     taskPrioritySuggestion(id),
     listComments(id),
     taskTime(id),
     getActiveTimer(user.id),
+    pendingHandoffFor({ taskId: id }),
+    listAssociates(),
   ]);
+  const taskOpen = !task.archivedAt && task.status !== "TERMINE" && task.status !== "ANNULE";
   const runningHere = active?.taskId === id ? active.startedAt!.toISOString() : null;
   const names = new Map(
     (await db.user.findMany({ select: { id: true, name: true } })).map((u) => [u.id, u.name]),
@@ -176,6 +188,11 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
           )}
         </aside>
         <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {task.wipOverrideReason ? (
+            <FormAlert tone="warning" title={`Motif de dépassement : ${task.wipOverrideReason}`}>
+              La limite de tâches en cours de son responsable était atteinte ; ce motif est visible de tous.
+            </FormAlert>
+          ) : null}
           {task.status === "BLOQUE" ? (
             <FormAlert tone="danger" title={`Bloquée : ${task.blockedReason ?? "raison non précisée"}`}>
               {task.blockedNextAction ? `Prochaine action : ${task.blockedNextAction}. ` : ""}
@@ -201,6 +218,60 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
             <Card className="gap-3">
               <CardTitle>Changer le statut</CardTitle>
               <TaskStatusForm taskId={id} status={task.status} />
+            </Card>
+          ) : null}
+          {pendingHandoff || taskOpen ? (
+            <Card className="gap-3" id="passation">
+              <CardTitle>Passation</CardTitle>
+              {pendingHandoff ? (
+                <>
+                  <p className="text-sm">
+                    {pendingHandoff.mode === "DONNER"
+                      ? `${pendingHandoff.from.name} propose cette tâche à ${pendingHandoff.to.name}.`
+                      : `${pendingHandoff.from.name} propose de la reprendre à ${pendingHandoff.to.name}.`}{" "}
+                    En attente de réponse.
+                  </p>
+                  {pendingHandoff.note ? (
+                    <p className="text-sm whitespace-pre-line">« {pendingHandoff.note} »</p>
+                  ) : null}
+                  {pendingHandoff.toId === user.id ? (
+                    <HandoffAnswerForm
+                      handoffId={pendingHandoff.id}
+                      title={task.title}
+                      isOpportunity={false}
+                      nextAction=""
+                      nextActionDate=""
+                    />
+                  ) : pendingHandoff.fromId === user.id ? (
+                    <CancelHandoffForm handoffId={pendingHandoff.id} label="Annuler la proposition" />
+                  ) : null}
+                </>
+              ) : task.ownerId === user.id ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Passer à… : la tâche change de main seulement quand l&apos;associé accepte.
+                  </p>
+                  <ProposeHandoffForm
+                    target="task"
+                    targetId={id}
+                    mode="DONNER"
+                    associates={associates.filter((a) => a.id !== user.id)}
+                  />
+                </>
+              ) : task.ownerId ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {task.owner?.name} est responsable. Vous pouvez lui proposer de la reprendre : elle
+                    change de main s&apos;il accepte.
+                  </p>
+                  <ProposeHandoffForm target="task" targetId={id} mode="REPRENDRE" />
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">Sans responsable : elle est à prendre.</p>
+                  <TakeTaskButton taskId={id} title={task.title} />
+                </div>
+              )}
             </Card>
           ) : null}
           {suggestion && !task.archivedAt ? (
@@ -345,7 +416,8 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
                 return (
                   <li key={h.id}>
                     <span className="text-muted-foreground">{formatDateTime(h.createdAt)} · </span>
-                    <b>{h.actorId ? names.get(h.actorId) : "Système"}</b> {journalLabel(h.action)}
+                    <b>{h.actorId ? names.get(h.actorId) : "Système"}</b>{" "}
+                    {qgJournalLabel(h.action) ?? journalLabel(h.action)}
                     {detail ? <span className="text-muted-foreground"> ({detail})</span> : null}
                     {h.reason ? <span className="text-muted-foreground"> — {h.reason}</span> : null}
                   </li>

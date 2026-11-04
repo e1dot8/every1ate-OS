@@ -47,6 +47,44 @@ export function checkTaskTransition(
   return ok;
 }
 
+/** Statuts qui occupent une place du « bureau » (limite de tâches en cours, V1.2). */
+export const WIP_STATES: TaskStatus[] = ["EN_COURS", "BLOQUE"];
+/** Longueur minimale du motif de dépassement (visible de tous). */
+export const WIP_REASON_MIN = 5;
+
+export type WipCheck =
+  | { ok: true; override: boolean }
+  | { ok: false; error: string; needsReason: true };
+
+/**
+ * Limite d'en-cours (« bureau à N places ») : passer une tâche « En cours » alors que son
+ * responsable occupe déjà `limit` places (tâches en cours + bloquées, hors celle-ci) est refusé,
+ * sauf avec un motif d'au moins 5 caractères. Une tâche qui occupe déjà une place (bloquée qui
+ * reprend) ou sans responsable n'est jamais refusée.
+ */
+export function checkWipLimit(input: {
+  from: TaskStatus;
+  to: TaskStatus;
+  hasOwner: boolean;
+  /** Places occupées par le responsable, sans compter cette tâche. */
+  occupied: number;
+  limit: number;
+  reason?: string | null;
+}): WipCheck {
+  if (input.to !== "EN_COURS" || WIP_STATES.includes(input.from) || !input.hasOwner)
+    return { ok: true, override: false };
+  if (input.occupied < input.limit) return { ok: true, override: false };
+  const reason = input.reason?.trim() ?? "";
+  if (reason.length >= WIP_REASON_MIN) return { ok: true, override: true };
+  return {
+    ok: false,
+    needsReason: true,
+    error: reason
+      ? `Motif trop court : ${WIP_REASON_MIN} caractères minimum.`
+      : `Bureau plein (${input.occupied}/${input.limit}) : terminez ou passez une tâche avant d'en commencer une autre, ou indiquez un motif (visible de tous).`,
+  };
+}
+
 export type DependencyEdge = { taskId: string; dependsOnId: string };
 
 /**

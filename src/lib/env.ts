@@ -30,6 +30,29 @@ export const serverEnvSchema = z
     PASSWORD_BREACH_CHECK: z.enum(["on", "off"]).default("on"),
     /** Secret partagé avec la fonction planifiée Netlify (escalades, priorités). */
     CRON_SECRET: z.string().min(32, { message: "doit contenir au moins 32 caractères" }).optional(),
+    /** Notifications push (Web Push, VAPID) : `npx web-push generate-vapid-keys`. */
+    VAPID_PUBLIC_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{80,90}$/, { message: "doit être une clé publique VAPID (base64url)" })
+      .optional(),
+    VAPID_PRIVATE_KEY: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{40,46}$/, { message: "doit être une clé privée VAPID (base64url)" })
+      .optional(),
+    /** Contact de l'expéditeur des notifications push : mailto: ou https:. */
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:\S+@\S+|https:\/\/\S+)$/, { message: "doit commencer par mailto: ou https://" })
+      .optional(),
+    /** webpush = envoi réel ; outbox = journal seulement (tests). Par défaut : webpush si clés VAPID. */
+    PUSH_TRANSPORT: z.enum(["webpush", "outbox"]).optional(),
+    /** callmebot = envoi réel (gratuit, usage personnel) ; outbox = journal seulement (tests). */
+    WHATSAPP_TRANSPORT: z.enum(["callmebot", "outbox"]).default("callmebot"),
+    /** Clé de chiffrement des secrets stockés (32 octets en base64). À défaut : dérivée de BETTER_AUTH_SECRET. */
+    SECRETS_KEY: z
+      .string()
+      .refine((value) => decodesTo32Bytes(value), { message: "doit faire 32 octets encodés en base64" })
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.EMAIL_TRANSPORT === "resend" && !env.RESEND_API_KEY) {
@@ -39,12 +62,43 @@ export const serverEnvSchema = z
         message: "requise quand EMAIL_TRANSPORT=resend",
       });
     }
+    if (Boolean(env.VAPID_PUBLIC_KEY) !== Boolean(env.VAPID_PRIVATE_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [env.VAPID_PUBLIC_KEY ? "VAPID_PRIVATE_KEY" : "VAPID_PUBLIC_KEY"],
+        message: "les deux clés VAPID vont ensemble",
+      });
+    }
+    if (env.PUSH_TRANSPORT === "webpush" && !(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["VAPID_PUBLIC_KEY"],
+        message: "requise quand PUSH_TRANSPORT=webpush",
+      });
+    }
   })
-  .transform((env) => ({
-    ...env,
-    appUrl: (env.APP_URL ?? env.URL ?? "http://localhost:3000").replace(/\/$/, ""),
-    emailTransport: env.EMAIL_TRANSPORT ?? (env.RESEND_API_KEY ? "resend" : "outbox"),
-  }));
+  .transform((env) => {
+    const appUrl = (env.APP_URL ?? env.URL ?? "http://localhost:3000").replace(/\/$/, "");
+    const hasVapid = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+    const fromAddress = /<([^>]+)>/.exec(env.EMAIL_FROM)?.[1] ?? env.EMAIL_FROM;
+    return {
+      ...env,
+      appUrl,
+      emailTransport: env.EMAIL_TRANSPORT ?? (env.RESEND_API_KEY ? "resend" : "outbox"),
+      /** off = notifications push indisponibles (aucune clé VAPID). */
+      pushTransport: (env.PUSH_TRANSPORT ?? (hasVapid ? "webpush" : "off")) as "webpush" | "outbox" | "off",
+      vapidSubject:
+        env.VAPID_SUBJECT ?? (appUrl.startsWith("https://") ? appUrl : `mailto:${fromAddress.trim()}`),
+      whatsappTransport: env.WHATSAPP_TRANSPORT,
+    };
+  });
+
+/** Vrai si la chaîne (base64 ou base64url) décode exactement 32 octets. */
+function decodesTo32Bytes(value: string): boolean {
+  const trimmed = value.trim();
+  if (!/^[A-Za-z0-9+/_-]{42,44}={0,2}$/.test(trimmed)) return false;
+  return Buffer.from(trimmed.replace(/-/g, "+").replace(/_/g, "/"), "base64").length === 32;
+}
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 

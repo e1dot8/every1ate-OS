@@ -27,11 +27,24 @@ export async function loadRates(): Promise<{ rateOf: RateOf; anyRate: boolean }>
   };
 }
 
-export type AgencyInput = { defaultHourlyCostCents: number | null; defaultWeeklyHours: number };
+export type AgencyInput = {
+  defaultHourlyCostCents: number | null;
+  defaultWeeklyHours: number;
+  /** Places du « bureau » : tâches en cours + bloquées par associé avant de devoir finir (V1.2). */
+  wipLimit?: number;
+};
+
+export const WIP_LIMIT_MIN = 1;
+export const WIP_LIMIT_MAX = 10;
 
 export async function saveAgencySettings(input: AgencyInput, actor: Actor): Promise<ServiceResult<null>> {
   if (input.defaultWeeklyHours < 1 || input.defaultWeeklyHours > 80)
     return failed("Capacité entre 1 et 80 heures par semaine.");
+  if (
+    input.wipLimit !== undefined &&
+    (!Number.isInteger(input.wipLimit) || input.wipLimit < WIP_LIMIT_MIN || input.wipLimit > WIP_LIMIT_MAX)
+  )
+    return failed(`Limite de tâches en cours entre ${WIP_LIMIT_MIN} et ${WIP_LIMIT_MAX}.`);
   const before = await getAgencySettings();
   const changes = diff(before, input);
   if (!changes.changed) return done(null);

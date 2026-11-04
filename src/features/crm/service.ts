@@ -3,7 +3,7 @@ import type { ActivityKind, LeadSource, Prisma } from "@/generated/prisma/client
 import { diff, recordAudit } from "@/lib/audit/audit";
 import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
-import { centsToDecimal, toCents } from "@/lib/money";
+import { centsToDecimal, formatMoney, toCents } from "@/lib/money";
 import {
   DEFAULT_PROBABILITIES,
   STAGES,
@@ -13,6 +13,7 @@ import {
   type Stage,
 } from "@/features/crm/rules";
 import type { ServiceResult } from "@/features/projects/service";
+import { emitEvent } from "@/features/events/emit";
 
 type Actor = { id: string };
 const done = <T>(data: T): ServiceResult<T> => ({ ok: true, data });
@@ -343,7 +344,62 @@ export async function changeStage(
     after: { stage: stageLabels[to] },
     reason: details.lossReason ?? undefined,
   });
+  if (to === "GAGNE")
+    // Célébration collective (QG) : une seule fois par opportunité, même si elle repasse par « Gagné ».
+    await emitEvent({
+      kind: "opportunite.gagnee",
+      actorId: actor.id,
+      title: `Signé : ${opp.title}`,
+      body: opp.amount ? `${formatMoney(toCents(opp.amount))} HT` : undefined,
+      href: `/crm/opportunites/${id}`,
+      dedupeKey: `opportunite-gagnee:${id}`,
+    });
   return done({ suggestConversion: to === "GAGNE" && !opp.projectId });
+}
+
+/**
+ * Change le responsable commercial (passation acceptée). Même contrôle que `saveOpportunity`
+ * (un associé), trace dans l'historique de l'opportunité et dans le journal.
+ * `expectedOwnerId` protège contre un changement concurrent.
+ */
+export async function changeOpportunityOwner(
+  id: string,
+  ownerId: string,
+  actor: Actor,
+  options: { expectedOwnerId?: string; note?: string | null } = {},
+): Promise<ServiceResult<null>> {
+  const db = getDb();
+  const opp = await db.opportunity.findUnique({
+    where: { id },
+    include: { owner: { select: userSelect } },
+  });
+  if (!opp || opp.archivedAt) return failed("Opportunité introuvable.");
+  const next = await db.user.findFirst({ where: { id: ownerId, role: "associe" }, select: userSelect });
+  if (!next) return failed("Responsable commercial invalide.");
+  if (opp.ownerId === ownerId) return done(null);
+  const moved = await db.opportunity.updateMany({
+    where: { id, ...(options.expectedOwnerId ? { ownerId: options.expectedOwnerId } : {}) },
+    data: { ownerId },
+  });
+  if (moved.count === 0) return failed("L'opportunité a changé de responsable entre-temps. Rechargez la page.");
+  await db.opportunityActivity.create({
+    data: {
+      opportunityId: id,
+      kind: "NOTE",
+      authorId: actor.id,
+      body: [`Passée de ${opp.owner.name} à ${next.name}`, options.note?.trim()].filter(Boolean).join(" : "),
+    },
+  });
+  await recordAudit({
+    action: "opportunity.owner_changed",
+    actorId: actor.id,
+    targetType: "opportunity",
+    targetId: id,
+    before: { ownerId: opp.ownerId },
+    after: { ownerId },
+    reason: options.note?.trim() || undefined,
+  });
+  return done(null);
 }
 
 export async function addActivity(

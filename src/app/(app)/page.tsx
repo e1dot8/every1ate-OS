@@ -1,22 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Gauge } from "lucide-react";
-import { EmptyState, TaskRow, isLate } from "@/components/app/bits";
-import { PageHeader, PageLoading } from "@/components/layout/page-header";
-import { Card, CardTitle } from "@/components/ui/card";
-import { comparePriority, formatMinutes, isDueSoon } from "@/features/planning/rules";
-import { listTasksForUser } from "@/features/projects/service";
-import { userTotals } from "@/features/time/service";
+import { Gauge, ListChecks, Sparkles } from "lucide-react";
+import { PageLoading } from "@/components/layout/page-header";
+import { NotionPage } from "@/components/notion/blocks";
 import { requireUser } from "@/lib/auth/session";
-import { formatDateTime, todayDate } from "@/lib/dates";
-import { upcomingEvents } from "@/features/calendar/service";
 import { BriefCard } from "@/features/brief/brief-card";
 import { getBrief } from "@/features/brief/service";
+import { UpcomingDeliverables } from "@/features/deliverables/components/upcoming";
+import { effectivePresence, presenceDot, presenceText } from "@/features/presence/rules";
+import { getPresence } from "@/features/presence/service";
+import {
+  DeskSection,
+  HandoffsSection,
+  QuestsSection,
+  TeamSection,
+  ToTakeSection,
+} from "@/features/qg/components/sections";
+import { listPendingHandoffs } from "@/features/qg/handoffs";
+import { myDesk, tasksToTake, teamToday, weekQuests } from "@/features/qg/service";
+import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Mon espace" };
+export const metadata: Metadata = { title: "QG" };
 
-function todayInParis(now = new Date()) {
+function todayInParis(now: Date) {
   const label = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -26,134 +33,71 @@ function todayInParis(now = new Date()) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function Section({ title, children, href }: { title: string; children: React.ReactNode; href?: string }) {
-  return (
-    <Card className="gap-2">
-      <div className="flex items-baseline justify-between">
-        <CardTitle>{title}</CardTitle>
-        {href ? (
-          <Link href={href} className="text-sm font-bold text-pen-strong hover:underline">
-            Tout voir
-          </Link>
-        ) : null}
-      </div>
-      {children}
-    </Card>
-  );
-}
+const actionClass =
+  "inline-flex min-h-tap items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted";
 
-async function Dashboard() {
+/** Le QG : ce qui compte aujourd'hui, mon bureau, les passations, l'équipe, le tas et les quêtes. */
+async function Qg() {
   const user = await requireUser();
-  const today = todayDate();
-  const [tasks, totals, events, brief] = await Promise.all([
-    listTasksForUser(user.id),
-    userTotals(user.id),
-    upcomingEvents(user.id),
+  const now = new Date();
+  const [brief, presence, desk, handoffs, team, toTake, quests] = await Promise.all([
     getBrief(user.id),
+    getPresence(user.id),
+    myDesk(user.id),
+    listPendingHandoffs(user.id),
+    teamToday(user.id, now),
+    tasksToTake(),
+    weekQuests(now),
   ]);
-  const late = tasks.filter((t) => isLate(t));
-  const soon = tasks.filter((t) => isDueSoon(t.dueDate, today));
-  const stuck = tasks.filter((t) => t.status === "BLOQUE" || t.status === "EN_ATTENTE");
-  const priority = [...tasks]
-    .filter((t) => !stuck.includes(t))
-    .sort(
-      (a, b) =>
-        comparePriority(b.priority, a.priority) ||
-        (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity),
-    )
-    .slice(0, 5);
+  const mine = presence ? effectivePresence(presence, now, true) : null;
   return (
-    <>
-      <div className="flex items-end justify-between gap-3">
-        <PageHeader title={`Bonjour ${user.name}`} description={todayInParis()} />
-        <Link
-          href="/cockpit"
-          className="inline-flex min-h-tap shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-bold hover:bg-muted"
-        >
-          <Gauge aria-hidden="true" className="size-4" /> Cockpit
-        </Link>
-      </div>
+    <NotionPage
+      icon="🏠"
+      title={`Bonjour ${user.name}`}
+      description={
+        <p className="flex flex-wrap items-center gap-x-2">
+          <span>{todayInParis(now)}</span>
+          {mine ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true">·</span>
+              <span aria-hidden="true" className={cn("size-2 rounded-full", presenceDot[mine.state])} />
+              <span data-testid="ma-presence">{presenceText(mine)}</span>
+              {!mine.shared ? <span className="text-xs">(non partagé)</span> : null}
+            </span>
+          ) : null}
+        </p>
+      }
+      actions={
+        <>
+          <Link href="/qg/standup" className={actionClass}>
+            <Sparkles aria-hidden="true" className="size-4" /> Stand-up
+          </Link>
+          <Link href="/qg/menage" className={actionClass}>
+            <ListChecks aria-hidden="true" className="size-4" /> Grand ménage
+          </Link>
+          <Link href="/cockpit" className={actionClass}>
+            <Gauge aria-hidden="true" className="size-4" /> Cockpit
+          </Link>
+        </>
+      }
+    >
       <BriefCard brief={brief} />
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="gap-0.5 py-3">
-          <p className="text-xs text-muted-foreground">En retard</p>
-          <p className={late.length ? "text-2xl font-bold text-danger" : "text-2xl font-bold"}>
-            {late.length}
-          </p>
-        </Card>
-        <Card className="gap-0.5 py-3">
-          <p className="text-xs text-muted-foreground">Aujourd&apos;hui</p>
-          <p className="text-2xl font-bold">{formatMinutes(totals.today)}</p>
-        </Card>
-        <Card className="gap-0.5 py-3">
-          <p className="text-xs text-muted-foreground">Semaine</p>
-          <p className="text-2xl font-bold">{formatMinutes(totals.week)}</p>
-        </Card>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Section title="Mes tâches prioritaires" href="/taches">
-          {priority.length ? (
-            <ul className="flex flex-col">
-              {priority.map((t) => (
-                <TaskRow key={t.id} task={t} showProject />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="Rien de prioritaire.">
-              Les tâches qui vous sont assignées apparaîtront ici.
-            </EmptyState>
-          )}
-        </Section>
-        <Section title="Échéances en retard et à venir">
-          {late.length || soon.length ? (
-            <ul className="flex flex-col">
-              {[...late, ...soon.filter((t) => !late.includes(t))].map((t) => (
-                <TaskRow key={t.id} task={t} showProject />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="Aucune échéance proche." />
-          )}
-        </Section>
-        <Section title="Bloquées ou en attente">
-          {stuck.length ? (
-            <ul className="flex flex-col">
-              {stuck.map((t) => (
-                <TaskRow key={t.id} task={t} showProject />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="Aucune tâche bloquée." />
-          )}
-        </Section>
-        <Section title="Prochains rendez-vous" href="/calendrier">
-          {events.length ? (
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {events.map((e) => (
-                <li key={e.id}>
-                  <span className="text-muted-foreground">{formatDateTime(e.startsAt)} · </span>
-                  <Link href={`/calendrier/${e.id}`} className="font-bold hover:underline">
-                    {e.title}
-                  </Link>
-                  {e.location ? <span className="text-muted-foreground"> · {e.location}</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="Aucun rendez-vous dans les 14 jours." />
-          )}
-        </Section>
-      </div>
-    </>
+      <DeskSection desk={desk} />
+      <Suspense fallback={<PageLoading />}>
+        <UpcomingDeliverables userId={user.id} />
+      </Suspense>
+      <HandoffsSection received={handoffs.received} sent={handoffs.sent} />
+      <TeamSection team={team} />
+      <ToTakeSection toTake={toTake} />
+      <QuestsSection {...quests} />
+    </NotionPage>
   );
 }
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col gap-6">
-      <Suspense fallback={<PageLoading />}>
-        <Dashboard />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PageLoading />}>
+      <Qg />
+    </Suspense>
   );
 }

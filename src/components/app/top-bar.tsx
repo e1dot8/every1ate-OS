@@ -4,13 +4,22 @@ import { QuickAdd } from "@/components/app/quick-add";
 import { Elapsed } from "@/features/time/components/timer";
 import { unreadCount } from "@/features/notifications/service";
 import { getActiveTimer } from "@/features/time/service";
+import { PresenceMenu } from "@/features/presence/components/presence-menu";
+import { choiceFor, effectivePresence, presenceText } from "@/features/presence/rules";
+import { getPresence } from "@/features/presence/service";
 import { getCurrentUser } from "@/lib/auth/session";
 
-/** Barre d'état : chronomètre en cours et cloche des notifications. */
+/** Barre d'état : chronomètre en cours, statut de présence et cloche des notifications. */
 export async function TopBar() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const [active, unread] = await Promise.all([getActiveTimer(user.id), unreadCount(user.id)]);
+  const [active, unread, presence] = await Promise.all([
+    getActiveTimer(user.id),
+    unreadCount(user.id),
+    getPresence(user.id),
+  ]);
+  const now = new Date();
+  const mine = presence ? effectivePresence(presence, now, true) : null;
   return (
     <div className="mb-4 flex items-center justify-end gap-2">
       {active ? (
@@ -22,6 +31,15 @@ export async function TopBar() {
           <span className="truncate">{active.task.title}</span>
           <Elapsed startedAt={active.startedAt!.toISOString()} />
         </Link>
+      ) : null}
+      {mine ? (
+        <PresenceMenu
+          state={mine.state}
+          label={presenceText(mine)}
+          note={mine.note}
+          shared={mine.shared}
+          currentChoice={choiceFor(mine, now)}
+        />
       ) : null}
       <Link
         href="/recherche"

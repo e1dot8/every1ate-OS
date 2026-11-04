@@ -319,6 +319,13 @@ const taskStatusSchema = z.object({
   reason: optionalText,
   nextAction: optionalText,
   reviewDate: dateInput,
+  /** Motif de dépassement de la limite de tâches en cours (V1.2). */
+  wipReason: z
+    .string()
+    .trim()
+    .max(300, "Motif trop long (300 caractères).")
+    .optional()
+    .transform((v) => (v ? v : null)),
 });
 
 export async function changeTaskStatusAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -331,13 +338,21 @@ export async function changeTaskStatusAction(_prev: FormState, formData: FormDat
     parsed.data,
     user,
   );
-  if (!result.ok) return failure(result.error, formData);
+  if (!result.ok)
+    return result.code === "WIP_FULL"
+      ? // Bureau plein : le formulaire affiche le champ « motif » et renvoie.
+        { ...failure(result.error, formData), fieldErrors: { wipReason: result.error } }
+      : failure(result.error, formData);
   revalidatePath(`/taches/${parsed.data.taskId}`);
   revalidatePath(`/projets/${result.data.projectId}`);
+  revalidatePath("/");
   const next = result.data.nextOccurrence;
+  const base = result.data.wipOverride
+    ? "Statut mis à jour. Motif de dépassement visible de tous."
+    : "Statut mis à jour.";
   return {
     status: "success",
-    message: next ? `Statut mis à jour. ${occurrenceCreatedMessage(next.dueDate)}` : "Statut mis à jour.",
+    message: next ? `${base} ${occurrenceCreatedMessage(next.dueDate)}` : base,
   };
 }
 

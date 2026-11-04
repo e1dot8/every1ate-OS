@@ -33,6 +33,18 @@ const hours = (required: boolean) =>
       return n;
     });
 
+/** Places du bureau (1 à 10). Champ absent : valeur inchangée. */
+const wipLimit = z
+  .string()
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined) return undefined;
+    const n = Number(v);
+    if (!v.trim() || !Number.isInteger(n) || n < 1 || n > 10)
+      ctx.addIssue({ code: "custom", message: "Entre 1 et 10 tâches." });
+    return n;
+  });
+
 const fail = (error: string, formData: FormData): FormState => ({
   status: "error",
   message: error,
@@ -42,13 +54,14 @@ const fail = (error: string, formData: FormData): FormState => ({
 export async function saveAgencyAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const parsed = z
-    .object({ defaultHourlyCost: rate, defaultWeeklyHours: hours(true) })
+    .object({ defaultHourlyCost: rate, defaultWeeklyHours: hours(true), wipLimit })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationError(parsed.error, formData);
   const result = await saveAgencySettings(
     {
       defaultHourlyCostCents: parsed.data.defaultHourlyCost,
       defaultWeeklyHours: parsed.data.defaultWeeklyHours!,
+      ...(parsed.data.wipLimit === undefined ? {} : { wipLimit: parsed.data.wipLimit }),
     },
     user,
   );

@@ -13,9 +13,11 @@ const euros = (cents: number | null) =>
 export function AgencyForm({
   defaultHourlyCostCents,
   defaultWeeklyHours,
+  wipLimit,
 }: {
   defaultHourlyCostCents: number | null;
   defaultWeeklyHours: number;
+  wipLimit: number;
 }) {
   const [state, action] = useActionState(saveAgencyAction, initialFormState);
   return (
@@ -36,6 +38,14 @@ export function AgencyForm({
           label="Capacité par défaut (h/semaine)"
           defaultValue={state.values?.defaultWeeklyHours ?? String(defaultWeeklyHours)}
           error={state.fieldErrors?.defaultWeeklyHours}
+        />
+        <Field
+          name="wipLimit"
+          type="number"
+          label="Places du bureau (tâches en cours)"
+          hint="Tâches en cours + bloquées par associé avant de devoir en finir une (1 à 10). Au-delà, un motif visible de tous est demandé."
+          defaultValue={state.values?.wipLimit ?? String(wipLimit)}
+          error={state.fieldErrors?.wipLimit}
         />
       </div>
       <div>

@@ -13,6 +13,8 @@ import { getDb } from "@/lib/db/client";
 import { todayDate } from "@/lib/dates";
 import { toCents } from "@/lib/money";
 import { notify } from "@/features/notifications/service";
+import { emitEvent } from "@/features/events/emit";
+import { getAgencySettings } from "@/features/settings/service";
 import { suggestPriority } from "@/features/planning/rules";
 import { delayRuleTriggered } from "@/features/finance/calc";
 import { announceDecision, createDecision, getGovernance } from "@/features/finance/governance";
@@ -21,14 +23,19 @@ import { CLOSURE_ITEMS, getTemplate } from "@/features/projects/templates";
 import { buildNextOccurrence, normalizeRecurrence, recurrenceIssue } from "@/features/projects/recurrence";
 import {
   TASK_DONE_STATES,
+  WIP_STATES,
   checkProjectTransition,
   checkTaskTransition,
+  checkWipLimit,
   findDependencyCycle,
   type RuleResult,
 } from "@/features/projects/rules";
 
 type Actor = { id: string };
-export type ServiceResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
+export type ServiceResult<T = undefined> =
+  | { ok: true; data: T }
+  /** `code` : motif machine facultatif (ex. « WIP_FULL » : bureau plein, motif demandé). */
+  | { ok: false; error: string; code?: string };
 const done = <T>(data: T): ServiceResult<T> => ({ ok: true, data });
 const failed = (error: string): ServiceResult<never> => ({ ok: false, error });
 const fromRule = (r: RuleResult) => (r.ok ? null : r.error);
@@ -766,7 +773,69 @@ export type TaskStatusChange = {
   projectId: string;
   /** Occurrence créée par ce passage à « Terminé » (tâche répétée), sinon null. */
   nextOccurrence: { id: string; dueDate: Date } | null;
+  /** Limite d'en-cours dépassée avec un motif (visible de tous). */
+  wipOverride?: boolean;
 };
+
+/** Places occupées sur le bureau d'un associé : ses tâches en cours et bloquées (hors archives). */
+export async function deskCount(ownerId: string, exceptTaskId?: string) {
+  return getDb().task.count({
+    where: {
+      ownerId,
+      status: { in: WIP_STATES },
+      archivedAt: null,
+      project: { archivedAt: null },
+      ...(exceptTaskId ? { id: { not: exceptTaskId } } : {}),
+    },
+  });
+}
+
+/**
+ * Change le responsable d'une tâche (prise d'une tâche sans responsable, passation acceptée).
+ * `expectedOwnerId` (null = sans responsable) protège contre un changement concurrent :
+ * la tâche n'est réattribuée que si son responsable est toujours celui attendu.
+ */
+export async function assignTask(
+  taskId: string,
+  ownerId: string,
+  actor: Actor,
+  options: { expectedOwnerId?: string | null; reason?: string; notifyOwner?: boolean } = {},
+): Promise<ServiceResult<{ projectId: string; title: string }>> {
+  const db = getDb();
+  const task = await db.task.findUnique({
+    where: { id: taskId },
+    select: { id: true, title: true, ownerId: true, projectId: true, status: true, archivedAt: true },
+  });
+  if (!task || task.archivedAt) return failed("Tâche introuvable.");
+  if (TASK_DONE_STATES.includes(task.status)) return failed("Cette tâche est déjà terminée ou annulée.");
+  if (!(await db.user.findFirst({ where: { id: ownerId, role: "associe" } })))
+    return failed("Responsable invalide.");
+  if (task.ownerId === ownerId) return done({ projectId: task.projectId, title: task.title });
+  const moved = await db.task.updateMany({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      ...(options.expectedOwnerId !== undefined ? { ownerId: options.expectedOwnerId } : {}),
+    },
+    // Le motif de dépassement concernait le bureau de l'ancien responsable.
+    data: { ownerId, wipOverrideReason: null },
+  });
+  if (moved.count === 0) return failed("La tâche a changé de responsable entre-temps. Rechargez la page.");
+  await db.taskContributor.deleteMany({ where: { taskId, userId: ownerId } });
+  await recordAudit({
+    action: "task.assigned",
+    actorId: actor.id,
+    projectId: task.projectId,
+    targetType: "task",
+    targetId: taskId,
+    before: { ownerId: task.ownerId },
+    after: { ownerId },
+    reason: options.reason,
+  });
+  if (options.notifyOwner !== false)
+    await notifyAssignment(taskId, ownerId, task.title, task.projectId, actor);
+  return done({ projectId: task.projectId, title: task.title });
+}
 
 /** Conflit d'écriture concurrente (contrainte unique ou transaction en conflit) : jamais une erreur 500. */
 const isWriteConflict = (e: unknown) =>
@@ -775,7 +844,13 @@ const isWriteConflict = (e: unknown) =>
 export async function changeTaskStatus(
   taskId: string,
   to: TaskStatus,
-  details: { reason: string | null; nextAction: string | null; reviewDate: Date | null },
+  details: {
+    reason: string | null;
+    nextAction: string | null;
+    reviewDate: Date | null;
+    /** Motif pour dépasser la limite de tâches en cours (V1.2), visible de tous. */
+    wipReason?: string | null;
+  },
   actor: Actor,
 ): Promise<ServiceResult<TaskStatusChange>> {
   const db = getDb();
@@ -784,7 +859,7 @@ export async function changeTaskStatus(
     include: {
       dependsOn: { include: { dependsOn: true } },
       contributors: { select: { userId: true } },
-      project: { select: { status: true, archivedAt: true } },
+      project: { select: { status: true, archivedAt: true, name: true } },
     },
   });
   if (!task || task.archivedAt) return failed("Tâche introuvable.");
@@ -797,6 +872,22 @@ export async function changeTaskStatus(
     checkTaskTransition(task.status, to, { reason: details.reason, unfinishedPredecessors: unfinished }),
   );
   if (error) return failed(error);
+
+  // Limite d'en-cours (V1.2) : bureau du responsable plein → motif obligatoire, visible de tous.
+  let wip: { reason: string; occupied: number; limit: number } | null = null;
+  if (to === "EN_COURS" && task.ownerId && !WIP_STATES.includes(task.status)) {
+    const [settings, occupied] = await Promise.all([getAgencySettings(), deskCount(task.ownerId, taskId)]);
+    const check = checkWipLimit({
+      from: task.status,
+      to,
+      hasOwner: true,
+      occupied,
+      limit: settings.wipLimit,
+      reason: details.wipReason,
+    });
+    if (!check.ok) return { ok: false, error: check.error, code: "WIP_FULL" };
+    if (check.override) wip = { reason: details.wipReason!.trim(), occupied, limit: settings.wipLimit };
+  }
 
   type Outcome =
     | { kind: "stale" }
@@ -816,6 +907,8 @@ export async function changeTaskStatus(
           blockedReviewDate: to === "BLOQUE" ? details.reviewDate : null,
           cancelReason: to === "ANNULE" ? details.reason : null,
           completedAt: to === "TERMINE" ? new Date() : null,
+          // Le motif de dépassement vit tant que la tâche occupe une place du bureau.
+          wipOverrideReason: wip ? wip.reason : WIP_STATES.includes(to) ? undefined : null,
         },
       });
       if (moved.count === 0) {
@@ -881,6 +974,27 @@ export async function changeTaskStatus(
       : { status: to },
     reason: details.reason ?? undefined,
   });
+  if (wip)
+    await recordAudit({
+      action: "task.wip_override",
+      actorId: actor.id,
+      projectId: task.projectId,
+      targetType: "task",
+      targetId: taskId,
+      after: { ownerId: task.ownerId, occupied: wip.occupied, limit: wip.limit },
+      reason: wip.reason,
+    });
+  if (to === "TERMINE")
+    await emitEvent({
+      kind: "tache.terminee",
+      actorId: actor.id,
+      title: `Tâche terminée : ${task.title}`,
+      body: task.project.name,
+      href: `/taches/${taskId}`,
+      projectId: task.projectId,
+      taskId,
+      dedupeKey: `tache-terminee:${taskId}:${todayDate().toISOString().slice(0, 10)}`,
+    });
   if (next) {
     // Comme une création de tâche : journal et notification d'assignation.
     await recordAudit({
@@ -918,6 +1032,7 @@ export async function changeTaskStatus(
   return done({
     projectId: task.projectId,
     nextOccurrence: next ? { id: next.id, dueDate: next.dueDate } : null,
+    wipOverride: !!wip,
   });
 }
 

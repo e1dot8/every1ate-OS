@@ -446,6 +446,16 @@ export function TaskStatusForm({ taskId, status }: { taskId: string; status: str
       {to === "ANNULE" ? (
         <TextareaField name="reason" label="Pourquoi annuler ?" rows={2} error={state.fieldErrors?.reason} />
       ) : null}
+      {to === "EN_COURS" && (state.fieldErrors?.wipReason || state.values?.wipReason) ? (
+        // Bureau plein : on peut dépasser la limite avec un motif (5 caractères minimum).
+        <Field
+          name="wipReason"
+          label="Motif de dépassement (visible de tous)"
+          required={false}
+          hint="Ex. : urgence client, tâche de 10 minutes… Il s'affiche sur le QG."
+          defaultValue={state.values?.wipReason ?? ""}
+        />
+      ) : null}
       <div>
         <SubmitButton variant={to === "BLOQUE" ? "destructive" : "default"}>
           {to === "BLOQUE" ? "Bloquer la tâche" : "Mettre à jour"}
