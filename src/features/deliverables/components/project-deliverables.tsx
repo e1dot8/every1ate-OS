@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Plus } from "lucide-react";
 import { EmptyLine, Section } from "@/components/notion/blocks";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { DeliverableLine } from "@/features/deliverables/components/views";
 
 /** Onglet « Livrables » d'un projet : livrables groupés par étape. */
 export async function ProjectDeliverables({ projectId, archived }: { projectId: string; archived: boolean }) {
+  await connection();
   const items = await projectDeliverables(projectId);
   const today = todayDate();
   const groups = STAGES.map((stage) => ({ stage, items: items.filter((d) => d.stage === stage) })).filter(

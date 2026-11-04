@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { ListChecks } from "lucide-react";
 import { EmptyLine, Section } from "@/components/notion/blocks";
 import { formatDay, todayDate } from "@/lib/dates";
@@ -13,6 +14,8 @@ const MAX_LINES = 6;
  * et les points de checklist qui me sont confiés pour les 2 prochains jours.
  */
 export async function UpcomingDeliverables({ userId }: { userId: string }) {
+  // Rendu à la requête : la date du jour ne fait jamais partie d'un rendu préalable.
+  await connection();
   const today = todayDate();
   const { deliverables, items } = await myUpcomingDeliverables(userId, today);
   const shownDeliverables = deliverables.slice(0, MAX_LINES);
