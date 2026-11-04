@@ -50,7 +50,12 @@ test.describe("PWA et cache", () => {
     ).toBeVisible();
     const count = await withDb(
       async (c) =>
-        (await c.query(`select count(*)::int n from task_comment where "taskId"=$1`, [taskId])).rows[0].n,
+        (
+          await c.query(
+            `select count(*)::int n from message where "aboutTaskId"=$1 and "authorId" is not null`,
+            [taskId],
+          )
+        ).rows[0].n,
     );
     expect(count).toBe(0);
     await context.setOffline(false);

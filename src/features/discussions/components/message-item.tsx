@@ -158,13 +158,13 @@ function SystemLine({ message }: { message: MessageWithDetails }) {
       >
         QG
       </span>
-      <p className="min-w-0 flex-1 break-words text-muted-foreground">
+      <div className="min-w-0 flex-1 break-words text-muted-foreground">
         <span className="font-bold text-foreground">QG</span>{" "}
         <time dateTime={message.createdAt.toISOString()} className="text-xs">
           {formatTime(message.createdAt)}
         </time>
-        <br />
-        {message.body}
+        {/* Gras et retours à la ligne des messages du QG (point du matin) rendus sans HTML injecté. */}
+        <RichText body={message.body} className="min-w-0 break-words" />
         {href ? (
           <>
             {" "}
@@ -187,7 +187,7 @@ function SystemLine({ message }: { message: MessageWithDetails }) {
             )}
           </>
         ) : null}
-      </p>
+      </div>
     </li>
   );
 }
