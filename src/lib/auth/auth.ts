@@ -60,6 +60,8 @@ function createAuth() {
         whatsappKey: { type: "string", required: false, input: false, returned: false },
         whatsappPhone: { type: "string", required: false, input: false, returned: false },
         notifyPrefs: { type: "json", required: false, input: false, returned: false },
+        hourlyCostCents: { type: "number", required: false, input: false, returned: false },
+        weeklyCapacityHours: { type: "number", required: false, input: false, returned: false },
       },
     },
 
