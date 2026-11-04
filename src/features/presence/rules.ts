@@ -72,7 +72,10 @@ export function endOfParisDay(now: Date): Date {
 }
 
 /** Statut et échéance correspondant à un choix du menu. */
-export function presenceFromChoice(choice: PresenceChoice, now: Date): { state: PresenceValue; until: Date | null } {
+export function presenceFromChoice(
+  choice: PresenceChoice,
+  now: Date,
+): { state: PresenceValue; until: Date | null } {
   const c = PRESENCE_CHOICES.find((x) => x.key === choice)!;
   if (c.state === "DISPO") return { state: "DISPO", until: null };
   if (c.state === "ABSENT") return { state: "ABSENT", until: endOfParisDay(now) };
@@ -96,5 +99,7 @@ export function presenceText(p: { state: PresenceValue; until: Date | null }): s
     minute: "2-digit",
     timeZone: "Europe/Paris",
   }).format(p.until);
-  return p.state === "ABSENT" ? `${presenceLabels.ABSENT} aujourd'hui` : `${presenceLabels[p.state]} · jusqu'à ${time}`;
+  return p.state === "ABSENT"
+    ? `${presenceLabels.ABSENT} aujourd'hui`
+    : `${presenceLabels[p.state]} · jusqu'à ${time}`;
 }

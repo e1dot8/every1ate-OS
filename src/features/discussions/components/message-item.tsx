@@ -223,7 +223,7 @@ export function MessageItem({
       {deleted ? null : (
         <MessageActions
           messageId={message.id}
-          threadHref={ctx.view === "salon" || message.parentId === null ? threadHref : null}
+          threadHref={ctx.view === "salon" ? threadHref : null}
           taskHref={ctx.writable && !message.taskId ? `/discussions/${ctx.slug}/tache/${message.id}` : null}
           editHref={
             isMine && ctx.writable ? `${ctx.retour}?modifier=${message.id}#m-${message.id}` : null

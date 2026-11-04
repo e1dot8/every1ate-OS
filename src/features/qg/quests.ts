@@ -56,7 +56,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : 
 
 export function computeQuests(f: QuestFacts): QuestView[] {
   const done = Math.min(f.doneThisWeek, DONE_TARGET);
-  const handoffsOk = f.handoffsAnswered > 0 && f.handoffsAnsweredFast === f.handoffsAnswered && f.handoffsOverdue === 0;
+  const handoffsOk =
+    f.handoffsAnswered > 0 && f.handoffsAnsweredFast === f.handoffsAnswered && f.handoffsOverdue === 0;
   const views: Omit<QuestView, "label" | "percent">[] = [
     {
       key: "huit-taches",

@@ -55,7 +55,14 @@ export function MenageForm({ taskId, title }: { taskId: string; title: string })
         <Verdict value="ANNULE" variant="ghost">
           Annuler la tâche
         </Verdict>
-        <Button type="button" variant="ghost" size="sm" disabled aria-disabled="true" title="Bientôt disponible">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled
+          aria-disabled="true"
+          title="Bientôt disponible"
+        >
           Découper · bientôt disponible
         </Button>
       </div>

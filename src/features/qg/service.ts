@@ -65,7 +65,12 @@ export async function teamToday(viewerId: string, now = new Date()) {
     listStandups(today),
     db.task.groupBy({
       by: ["ownerId"],
-      where: { ownerId: { not: null }, status: { in: WIP_STATES }, archivedAt: null, project: { archivedAt: null } },
+      where: {
+        ownerId: { not: null },
+        status: { in: WIP_STATES },
+        archivedAt: null,
+        project: { archivedAt: null },
+      },
       _count: { _all: true },
     }),
     upcomingLoad(1, today),
@@ -140,7 +145,10 @@ export async function tasksToTake(take = 8) {
 }
 
 /** « Je la prends » : une tâche sans responsable devient la mienne (si personne ne l'a prise entre-temps). */
-export async function takeTask(taskId: string, actor: { id: string }): Promise<ServiceResult<{ projectId: string }>> {
+export async function takeTask(
+  taskId: string,
+  actor: { id: string },
+): Promise<ServiceResult<{ projectId: string }>> {
   const result = await assignTask(taskId, actor.id, actor, {
     expectedOwnerId: null,
     reason: "Prise dans « À prendre » (QG)",
@@ -229,12 +237,21 @@ export async function standupDraft(userId: string, now = new Date()) {
       OR: [{ status: { in: WIP_STATES } }, { dueDate: today }],
     },
     orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
-    select: { title: true, status: true, dueDate: true, blockedReason: true, project: { select: { name: true } } },
+    select: {
+      title: true,
+      status: true,
+      dueDate: true,
+      blockedReason: true,
+      project: { select: { name: true } },
+    },
   });
   const line = (t: (typeof tasks)[number]) => `- ${t.title} (${t.project.name})`;
   const todayLines = tasks
     .filter((t) => t.status !== "BLOQUE")
-    .map((t) => `${line(t)}${t.dueDate && t.dueDate.getTime() === today.getTime() ? " : à rendre aujourd'hui" : ""}`);
+    .map(
+      (t) =>
+        `${line(t)}${t.dueDate && t.dueDate.getTime() === today.getTime() ? " : à rendre aujourd'hui" : ""}`,
+    );
   const blockedLines = tasks
     .filter((t) => t.status === "BLOQUE")
     .map((t) => `${line(t)} : ${t.blockedReason ?? "raison non précisée"}`);

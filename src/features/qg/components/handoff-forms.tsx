@@ -34,7 +34,12 @@ export function HandoffAnswerForm({
   const uid = useId();
   if (state.status === "success") return <FormMessages state={state} />;
   return (
-    <form action={action} className="flex flex-col gap-2" noValidate aria-label={`Répondre pour « ${title} »`}>
+    <form
+      action={action}
+      className="flex flex-col gap-2"
+      noValidate
+      aria-label={`Répondre pour « ${title} »`}
+    >
       <FormMessages state={state} />
       <input type="hidden" name="handoffId" value={handoffId} />
       {isOpportunity ? (

@@ -29,7 +29,11 @@ function Slots({ used, limit }: { used: number; limit: number }) {
           key={i}
           className={cn(
             "h-3 w-5 rounded-sm border",
-            i < used ? (i >= limit ? "border-pen bg-pen" : "border-ink bg-ink") : "border-border bg-background",
+            i < used
+              ? i >= limit
+                ? "border-pen bg-pen"
+                : "border-ink bg-ink"
+              : "border-border bg-background",
           )}
         />
       ))}
@@ -116,7 +120,10 @@ function HandoffObject({ h }: { h: PendingHandoff }) {
   if (h.opportunity)
     return (
       <span className="min-w-0">
-        <Link href={`/crm/opportunites/${h.opportunity.id}`} className="font-bold break-words hover:underline">
+        <Link
+          href={`/crm/opportunites/${h.opportunity.id}`}
+          className="font-bold break-words hover:underline"
+        >
           {h.opportunity.title}
         </Link>
         <span className="text-[13px] text-muted-foreground"> · client · {h.opportunity.client.name}</span>
@@ -146,7 +153,9 @@ export function HandoffsSection({ received, sent }: { received: PendingHandoff[]
                 {h.note ? <p className="text-sm whitespace-pre-line">« {h.note} »</p> : null}
                 <p className="text-xs text-muted-foreground">
                   Proposée le {formatDateTime(h.createdAt)}
-                  {h.mode === "REPRENDRE" ? " · en acceptant, vous la cédez" : " · en acceptant, elle devient la vôtre"}
+                  {h.mode === "REPRENDRE"
+                    ? " · en acceptant, vous la cédez"
+                    : " · en acceptant, elle devient la vôtre"}
                 </p>
                 <HandoffAnswerForm
                   handoffId={h.id}
@@ -420,7 +429,10 @@ export function QuestsSection({
           <p className="text-sm text-muted-foreground">Aucun badge encore cette semaine.</p>
         )}
         {history.length ? (
-          <Toggle title="Semaines précédentes" meta={`${history.length} badge${history.length > 1 ? "s" : ""}`}>
+          <Toggle
+            title="Semaines précédentes"
+            meta={`${history.length} badge${history.length > 1 ? "s" : ""}`}
+          >
             <ul className="flex flex-col gap-1 text-sm">
               {history.map((b) => (
                 <li key={`${b.key}-${b.period}`}>

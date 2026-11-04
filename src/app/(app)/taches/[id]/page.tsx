@@ -261,8 +261,8 @@ async function TaskView({ params }: { params: Promise<{ id: string }> }) {
               ) : task.ownerId ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    {task.owner?.name} est responsable. Vous pouvez lui proposer de la reprendre : elle
-                    change de main s&apos;il accepte.
+                    {task.owner?.name} est responsable. Vous pouvez lui proposer de la reprendre : elle change
+                    de main s&apos;il accepte.
                   </p>
                   <ProposeHandoffForm target="task" targetId={id} mode="REPRENDRE" />
                 </>

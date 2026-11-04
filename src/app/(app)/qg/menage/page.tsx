@@ -13,7 +13,9 @@ import { DUST_DAYS, dustyTasks } from "@/features/qg/service";
 export const metadata: Metadata = { title: "Grand ménage" };
 
 function isFridayInParis(now: Date) {
-  return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(now) === "Fri";
+  return (
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(now) === "Fri"
+  );
 }
 
 async function Menage() {
@@ -51,13 +53,17 @@ async function Menage() {
                     {t.owner?.name ?? "Sans responsable"}
                   </span>
                 </div>
-                <p className="font-annotation text-sm text-pen-strong">Sans activité depuis {t.idleDays} jours</p>
+                <p className="font-annotation text-sm text-pen-strong">
+                  Sans activité depuis {t.idleDays} jours
+                </p>
                 <MenageForm taskId={t.id} title={t.title} />
               </li>
             ))}
           </ul>
         ) : (
-          <EmptyLine>Rien ne prend la poussière : aucune tâche ouverte sans activité depuis {DUST_DAYS} jours.</EmptyLine>
+          <EmptyLine>
+            Rien ne prend la poussière : aucune tâche ouverte sans activité depuis {DUST_DAYS} jours.
+          </EmptyLine>
         )}
       </Section>
     </>

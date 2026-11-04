@@ -173,7 +173,11 @@ export async function acceptHandoff(
     // L'objet a bougé entre-temps : la proposition n'a plus de sens, on la retire.
     await db.handoff.updateMany({
       where: { id, status: "EN_ATTENTE" },
-      data: { status: "ANNULEE", answer: "Annulée : l'élément a changé entre-temps.", answeredAt: new Date() },
+      data: {
+        status: "ANNULEE",
+        answer: "Annulée : l'élément a changé entre-temps.",
+        answeredAt: new Date(),
+      },
     });
     return failed(
       stillOpen
@@ -251,7 +255,11 @@ export async function acceptHandoff(
   return done({ href });
 }
 
-export async function refuseHandoff(id: string, answer: string | null, actor: Actor): Promise<ServiceResult<null>> {
+export async function refuseHandoff(
+  id: string,
+  answer: string | null,
+  actor: Actor,
+): Promise<ServiceResult<null>> {
   const db = getDb();
   const h = await db.handoff.findUnique({ where: { id }, include: handoffInclude });
   if (!h) return failed("Passation introuvable.");

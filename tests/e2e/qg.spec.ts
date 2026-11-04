@@ -57,7 +57,9 @@ test.describe("QG", () => {
     await page.getByLabel("Motif de dépassement (visible de tous)").fill(motif);
     await page.getByRole("button", { name: "Mettre à jour" }).click();
     await expect(page.getByText("Statut mis à jour. Motif de dépassement visible de tous.")).toBeVisible();
-    await expect.poll(async () => taskRow(extra)).toMatchObject({ status: "EN_COURS", wipOverrideReason: motif });
+    await expect
+      .poll(async () => taskRow(extra))
+      .toMatchObject({ status: "EN_COURS", wipOverrideReason: motif });
 
     await page.goto("/");
     const region = page.getByRole("region", { name: "Mon bureau" });
@@ -77,7 +79,7 @@ test.describe("QG", () => {
       const giver = uniqueName("Jo");
       const taker = uniqueName("Pi");
       const { email } = await activateAssociate(pj, giver);
-      await activateAssociate(pp, taker);
+      const takerAccount = await activateAssociate(pp, taker);
       const projectId = await createProjectFromTemplate(pj, uniqueName("Passation "));
       const [taskId] = await projectTaskIds(projectId);
       const title = uniqueName("Montage v2 ");
@@ -101,7 +103,7 @@ test.describe("QG", () => {
       await expect(row.getByText("« Rushes dans le Drive, reste l'étalonnage. »")).toBeVisible();
       await row.getByRole("button", { name: "Accepter" }).click();
       await expect(row).toHaveCount(0);
-      const takerId = await withTaker(pp);
+      const takerId = await userIdByEmail(takerAccount.email);
       await expect.poll(async () => (await taskRow(taskId)).ownerId).toBe(takerId);
 
       await pj.goto(`/taches/${taskId}`);
@@ -166,14 +168,3 @@ test.describe("QG", () => {
     await expect.poll(async () => (await taskRow(taskId)).ownerId).toBe(await userIdByEmail(email));
   });
 });
-
-/** Identifiant de l'associé connecté dans `page` (lu depuis sa propre page « Mes tâches »). */
-async function withTaker(page: import("@playwright/test").Page) {
-  const { withDb } = await import("./support/db");
-  const name = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Bonjour ", "");
-  return withDb(
-    async (c) =>
-      (await c.query(`select id from "user" where name = $1 order by "createdAt" desc limit 1`, [name])).rows[0]
-        .id as string,
-  );
-}

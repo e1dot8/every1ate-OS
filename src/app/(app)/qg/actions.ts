@@ -47,7 +47,10 @@ export async function proposeHandoffAction(_prev: FormState, formData: FormData)
   const parsed = proposeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return validationError(parsed.error, formData);
   if (parsed.data.mode === "DONNER" && !parsed.data.toId)
-    return { ...failure("Choisissez à qui passer la main.", formData), fieldErrors: { toId: "Choisissez un associé." } };
+    return {
+      ...failure("Choisissez à qui passer la main.", formData),
+      fieldErrors: { toId: "Choisissez un associé." },
+    };
   const { target, targetId, mode, toId, note } = parsed.data;
   const result = await proposeHandoff(
     { target: target === "task" ? { taskId: targetId } : { opportunityId: targetId }, mode, toId, note },
@@ -172,7 +175,12 @@ export async function menageAction(_prev: FormState, formData: FormData): Promis
   revalidatePath("/");
   revalidatePath(`/taches/${taskId}`);
   revalidatePath(`/projets/${result.data.projectId}`);
-  const labels = { TERMINE: "Terminée.", EN_ATTENTE: "Mise en attente.", BLOQUE: "Bloquée.", ANNULE: "Annulée." };
+  const labels = {
+    TERMINE: "Terminée.",
+    EN_ATTENTE: "Mise en attente.",
+    BLOQUE: "Bloquée.",
+    ANNULE: "Annulée.",
+  };
   return { status: "success", message: labels[verdict] };
 }
 

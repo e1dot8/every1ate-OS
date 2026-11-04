@@ -52,9 +52,7 @@ export const WIP_STATES: TaskStatus[] = ["EN_COURS", "BLOQUE"];
 /** Longueur minimale du motif de dépassement (visible de tous). */
 export const WIP_REASON_MIN = 5;
 
-export type WipCheck =
-  | { ok: true; override: boolean }
-  | { ok: false; error: string; needsReason: true };
+export type WipCheck = { ok: true; override: boolean } | { ok: false; error: string; needsReason: true };
 
 /**
  * Limite d'en-cours (« bureau à N places ») : passer une tâche « En cours » alors que son

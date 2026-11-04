@@ -381,7 +381,8 @@ export async function changeOpportunityOwner(
     where: { id, ...(options.expectedOwnerId ? { ownerId: options.expectedOwnerId } : {}) },
     data: { ownerId },
   });
-  if (moved.count === 0) return failed("L'opportunité a changé de responsable entre-temps. Rechargez la page.");
+  if (moved.count === 0)
+    return failed("L'opportunité a changé de responsable entre-temps. Rechargez la page.");
   await db.opportunityActivity.create({
     data: {
       opportunityId: id,
