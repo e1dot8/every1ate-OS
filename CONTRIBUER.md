@@ -64,16 +64,16 @@ Connexion : `johan@demo.every1ate.test` (ou `charles@`, `pierre@`), mot de passe
 ```
 main ──────────────●──────────────●──────────►  (production, Netlify)
                    ▲              ▲
-v1-1 ──●──●──●─────┘              │            (version en cours de validation)
+v1-2 ──●──●──●─────┘              │            (version en cours de validation)
             \                     │
 charles/export-pdf ──●──●──► pull request ──►  relue par l'autre associé
 ```
 
-1. **Partir de la branche de version la plus récente** (aujourd'hui `v1-1`), jamais de `main`
+1. **Partir de la branche de version la plus récente** (aujourd'hui `v1-2`, qui contient aussi la V1.1), jamais de `main`
    directement, et ne jamais écrire sur `main`.
 2. **Une branche par fonctionnalité**, nommée `prenom/sujet-court` :
    ```bash
-   git switch v1-1 && git pull
+   git switch v1-2 && git pull
    git switch -c charles/export-pdf
    ```
 3. **Petits commits clairs**, en français : « Export PDF du devis : bouton et gabarit ».
@@ -87,7 +87,7 @@ charles/export-pdf ──●──●──► pull request ──►  relue par
    `main` (chaque mise en production coûte 15 crédits Netlify sur 300 par mois).
 
 Avant de commencer une journée : `git pull` sur sa branche de départ, puis
-`git merge v1-1` dans sa branche de fonctionnalité pour rester à jour.
+`git merge v1-2` dans sa branche de fonctionnalité pour rester à jour.
 
 ## 4. Ajouter une fonctionnalité : le chemin type
 
@@ -120,17 +120,10 @@ Ouvrir le dossier dans Claude Code, puis demander par exemple :
 
 Claude travaille alors sur votre branche et suit les mêmes règles que celles utilisées jusqu'ici.
 
-## 6. Zones en chantier (V1.2, branche `v1-2`)
+## 6. Où en est le projet
 
-Pour éviter de modifier la même chose en même temps, ne pas toucher sans en parler à ces zones,
-reconstruites en ce moment :
-
-- l'accueil (`src/app/(app)/page.tsx`) et la barre du haut ;
-- livrables, discussions, alertes push/WhatsApp, passations, stand-up, présence ;
-- les statuts de tâche (limite de tâches en cours) et les réglages de l'agence ;
-- la navigation (`src/lib/navigation.ts`).
-
-Tout le reste (finance, CRM, calendrier, temps, documents, comptes rendus…) est libre.
+L'état complet (versions, ce qui reste à faire, réglages à configurer avant la mise en ligne) est
+dans [`docs/PASSATION.md`](docs/PASSATION.md). À lire en premier.
 
 ## 7. Ce qui ne se partage jamais
 
