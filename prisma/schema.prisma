@@ -1303,6 +1303,12 @@ enum HandoffStatus {
   ANNULEE
 }
 
+/// DONNER : « from » confie l'objet à « to ». REPRENDRE : « from » demande à « to » (responsable actuel) de le lui céder.
+enum HandoffMode {
+  DONNER
+  REPRENDRE
+}
+
 /// Passation : une tâche ou une opportunité proposée à un associé, qui accepte ou refuse.
 model Handoff {
   id            String        @id @default(cuid())
@@ -1315,6 +1321,7 @@ model Handoff {
   toId          String
   to            User          @relation("HandoffTo", fields: [toId], references: [id], onDelete: Restrict)
   note          String?
+  mode          HandoffMode   @default(DONNER)
   status        HandoffStatus @default(EN_ATTENTE)
   answer        String?
   answeredAt    DateTime?

@@ -17,6 +17,11 @@ export type AuditAction =
   | `calendar.${string}`
   | `file.${string}`
   | `settings.${string}`
+  | `deliverable.${string}`
+  | `handoff.${string}`
+  | `channel.${string}`
+  | `notification.${string}`
+  | `presence.${string}`
   | "auth.sign_in.success"
   | "auth.sign_in.failure"
   | "auth.sign_in.blocked"
