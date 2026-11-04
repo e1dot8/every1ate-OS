@@ -8,6 +8,8 @@ import { formatDay, todayDate } from "@/lib/dates";
 import { isDueSoon, overdueLevel, suggestPriority } from "@/features/planning/rules";
 import { dueFollowUps } from "@/features/crm/service";
 import { sendDigests } from "@/features/brief/digest";
+import { runDiscussionsScan } from "@/features/discussions/scan";
+import { recordTeamBadges } from "@/features/qg/badges";
 
 export type NotificationInput = {
   userId: string;
@@ -20,7 +22,15 @@ export type NotificationInput = {
     | "planning"
     | "action"
     | "import"
-    | "relance";
+    | "relance"
+    // V1.2
+    | "livrable"
+    | "passation"
+    | "mention"
+    | "discussion"
+    | "standup"
+    | "rappel"
+    | "equipe";
   title: string;
   body?: string;
   href?: string;
@@ -189,5 +199,14 @@ export async function runScheduledScan(now = new Date()) {
     }
   }
   counts.recaps = await sendDigests(now);
-  return counts;
+  // V1.2 : rappels et messages programmés des discussions, badges d'équipe.
+  const discussions = await runDiscussionsScan(now).catch((error) => {
+    console.error("[scan] discussions", error);
+    return { reminders: 0, scheduled: 0 };
+  });
+  const badges = await recordTeamBadges(now).catch((error) => {
+    console.error("[scan] badges", error);
+    return 0;
+  });
+  return { ...counts, rappels: discussions.reminders, programmes: discussions.scheduled, badges };
 }

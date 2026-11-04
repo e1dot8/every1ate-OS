@@ -39,6 +39,16 @@ model User {
   digestFrequency     DigestFrequency @default(AUCUN)
   /// Jour du dernier récapitulatif envoyé (évite les doublons).
   lastDigestOn        DateTime?       @db.Date
+  /// Présence (V1.2) : statut choisi par l'associé, jamais déduit de son activité.
+  presenceState       PresenceState   @default(DISPO)
+  presenceUntil       DateTime?
+  presenceNote        String?
+  presenceShared      Boolean         @default(true)
+  /// WhatsApp (V1.2) : numéro et clé personnelle CallMeBot (chiffrée), facultatifs.
+  whatsappPhone       String?
+  whatsappKey         String?
+  /// Préférences de notification par événement : { "livrable.etape": { push: true, whatsapp: false }, … }
+  notifyPrefs         Json?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   sessions            Session[]
@@ -68,6 +78,23 @@ model User {
   calendarFeed       CalendarFeed?
   filesAdded         FileReference[]
   meetingNotes       MeetingNote[]
+
+  deliverablesOwned   Deliverable[]          @relation("DeliverableOwner")
+  deliverablesCreated Deliverable[]          @relation("DeliverableCreator")
+  checkItemsAssigned  DeliverableCheckItem[] @relation("CheckItemAssignee")
+  checkItemsDone      DeliverableCheckItem[] @relation("CheckItemDoneBy")
+  pushSubscriptions   PushSubscription[]
+  externalDeliveries  ExternalDelivery[]
+  handoffsSent        Handoff[]              @relation("HandoffFrom")
+  handoffsReceived    Handoff[]              @relation("HandoffTo")
+  standupEntries      StandupEntry[]
+  channelsCreated     Channel[]              @relation("ChannelCreator")
+  channelMemberships  ChannelMember[]
+  messages            Message[]              @relation("MessageAuthor")
+  messageReactions    MessageReaction[]
+  savedMessages       SavedMessage[]
+  reminders           Reminder[]
+  scheduledMessages   ScheduledMessage[]
 
   @@map("user")
 }
@@ -293,6 +320,8 @@ model Project {
   events             CalendarEvent[]
   files              FileReference[]
   meetingNotes       MeetingNote[]
+  deliverables       Deliverable[]
+  channel            Channel?
 
   @@index([status, archivedAt])
   @@index([ownerId])
@@ -325,6 +354,7 @@ model WorkPackage {
   costItems       CostItem[]
   billing         BillingMilestone[]
   fileReferences  FileReference[]
+  deliverables    Deliverable[]
 
   @@index([projectId, position])
   @@map("work_package")
@@ -359,6 +389,8 @@ model Task {
   recurrenceUntil   DateTime?         @db.Date
   /// Occurrence suivante déjà créée (garantit une seule création).
   nextOccurrenceId  String?           @unique
+  /// Motif donné en dépassant la limite de tâches en cours (V1.2), visible de tous.
+  wipOverrideReason String?
   startDate         DateTime?         @db.Date
   dueDate           DateTime?         @db.Date
   estimatedMinutes  Int?
@@ -379,6 +411,7 @@ model Task {
   timeEntries       TimeEntry[]
   comments          TaskComment[]
   files             FileReference[]
+  handoffs          Handoff[]
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -602,6 +635,7 @@ model Opportunity {
   activities        OpportunityActivity[]
   events            CalendarEvent[]
   meetingNotes      MeetingNote[]
+  handoffs          Handoff[]
 
   @@index([stage, archivedAt])
   @@index([ownerId])
@@ -1075,6 +1109,8 @@ model AgencySetting {
   /// Coût horaire interne par défaut (centimes), si l'associé n'a pas le sien.
   defaultHourlyCostCents Int?
   defaultWeeklyHours     Int       @default(35)
+  /// Nombre de tâches « En cours » par associé avant de devoir finir (V1.2).
+  wipLimit               Int       @default(3)
   /// Solde bancaire saisi à la main (point de départ de la trésorerie prévisionnelle).
   cashBalance            Decimal?  @db.Decimal(12, 2)
   cashBalanceDate        DateTime? @db.Date
@@ -1135,4 +1171,331 @@ model MeetingNote {
   @@index([clientId])
   @@index([opportunityId])
   @@map("meeting_note")
+}
+
+// ─── V1.2 : livrables, automatisations, QG au quotidien, discussions ──────────
+
+/// Étapes de fabrication d'un livrable ; LIVRE = livré au client.
+enum DeliverableStage {
+  PREPARATION
+  CREATION
+  PRODUCTION
+  MONTAGE
+  LIVRAISON
+  LIVRE
+}
+
+enum DeliverableFormat {
+  VIDEO
+  REEL
+  PHOTO
+  POST
+  CAROUSEL
+  STORY
+  VISUEL
+  ARTICLE
+  PRINT
+  AUTRE
+}
+
+/// Un livrable (vidéo, post, visuel…) suivi de la préparation à la livraison.
+model Deliverable {
+  id            String                 @id @default(cuid())
+  projectId     String
+  project       Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workPackageId String?
+  workPackage   WorkPackage?           @relation(fields: [workPackageId], references: [id], onDelete: SetNull)
+  title         String
+  format        DeliverableFormat      @default(AUTRE)
+  /// Support ou réseau de diffusion (Instagram, YouTube, client…).
+  channel       String?
+  stage         DeliverableStage       @default(PREPARATION)
+  ownerId       String?
+  owner         User?                  @relation("DeliverableOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  /// Livraison prévue au client.
+  dueDate       DateTime?              @db.Date
+  /// Mise en ligne prévue (contenus publiés).
+  publishDate   DateTime?              @db.Date
+  /// Lien vers les fichiers (Drive, Frame.io…).
+  link          String?
+  notes         String?
+  blockedReason String?
+  deliveredAt   DateTime?
+  position      Int                    @default(0)
+  archivedAt    DateTime?
+  createdById   String
+  createdBy     User                   @relation("DeliverableCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  checkItems    DeliverableCheckItem[]
+
+  @@index([projectId, archivedAt])
+  @@index([stage, dueDate])
+  @@index([ownerId])
+  @@map("deliverable")
+}
+
+/// Point de checklist d'une étape de livrable.
+model DeliverableCheckItem {
+  id            String           @id @default(cuid())
+  deliverableId String
+  deliverable   Deliverable      @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  stage         DeliverableStage
+  label         String
+  position      Int              @default(0)
+  assigneeId    String?
+  assignee      User?            @relation("CheckItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueDate       DateTime?        @db.Date
+  doneAt        DateTime?
+  doneById      String?
+  doneBy        User?            @relation("CheckItemDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+
+  @@index([deliverableId, stage, position])
+  @@index([assigneeId, doneAt])
+  @@map("deliverable_check_item")
+}
+
+/// Abonnement aux notifications push d'un appareil (Web Push).
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+  @@map("push_subscription")
+}
+
+/// Journal des envois hors application (push, WhatsApp) : statut, erreur.
+model ExternalDelivery {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   String
+  eventKind String
+  title     String
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([channel, createdAt])
+  @@map("external_delivery")
+}
+
+enum PresenceState {
+  DISPO
+  FOCUS
+  REUNION
+  ABSENT
+}
+
+enum HandoffStatus {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+  ANNULEE
+}
+
+/// Passation : une tâche ou une opportunité proposée à un associé, qui accepte ou refuse.
+model Handoff {
+  id            String        @id @default(cuid())
+  taskId        String?
+  task          Task?         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  fromId        String
+  from          User          @relation("HandoffFrom", fields: [fromId], references: [id], onDelete: Restrict)
+  toId          String
+  to            User          @relation("HandoffTo", fields: [toId], references: [id], onDelete: Restrict)
+  note          String?
+  status        HandoffStatus @default(EN_ATTENTE)
+  answer        String?
+  answeredAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([toId, status])
+  @@index([fromId, status])
+  @@index([taskId])
+  @@index([opportunityId])
+  @@map("handoff")
+}
+
+/// Stand-up asynchrone : une entrée par associé et par jour.
+model StandupEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  today     String?
+  blocked   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("standup_entry")
+}
+
+/// Badge d'équipe (collectif, jamais individuel) gagné pour une période.
+model TeamBadge {
+  id       String   @id @default(cuid())
+  key      String
+  period   String
+  earnedAt DateTime @default(now())
+
+  @@unique([key, period])
+  @@map("team_badge")
+}
+
+enum ChannelKind {
+  PUBLIC
+  PRIVE
+  DIRECT
+  PERSO
+}
+
+/// Salon de discussion (général, clients, un par projet, privé, message direct, notes perso).
+model Channel {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  topic       String?
+  kind        ChannelKind        @default(PUBLIC)
+  projectId   String?            @unique
+  project     Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Lien de visio du salon (Meet, Jitsi) pour les huddles.
+  meetUrl     String?
+  createdById String?
+  createdBy   User?              @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  members     ChannelMember[]
+  messages    Message[]
+  scheduled   ScheduledMessage[]
+
+  @@index([kind, archivedAt])
+  @@map("channel")
+}
+
+model ChannelMember {
+  id         String   @id @default(cuid())
+  channelId  String
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime @default(now())
+  muted      Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("channel_member")
+}
+
+/// Message ; authorId vide = message du QG (événement automatique). parentId = réponse dans un fil.
+model Message {
+  id            String              @id @default(cuid())
+  channelId     String
+  channel       Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId      String?
+  author        User?               @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  parentId      String?
+  parent        Message?            @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Message[]           @relation("Thread")
+  body          String
+  mentionIds    String[]            @default([])
+  /// Réponse de fil aussi affichée dans le salon.
+  alsoInChannel Boolean             @default(false)
+  /// Tâche créée à partir de ce message.
+  taskId        String?
+  meta          Json?
+  editedAt      DateTime?
+  deletedAt     DateTime?
+  pinnedAt      DateTime?
+  pinnedById    String?
+  createdAt     DateTime            @default(now())
+  reactions     MessageReaction[]
+  attachments   MessageAttachment[]
+  saves         SavedMessage[]
+  reminders     Reminder[]
+
+  @@index([channelId, createdAt])
+  @@index([parentId, createdAt])
+  @@map("message")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reaction")
+}
+
+/// Pièce jointe par lien (Drive, Frame.io…) : aucun fichier n'est stocké.
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+
+  @@map("message_attachment")
+}
+
+model SavedMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@map("saved_message")
+}
+
+model Reminder {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String?
+  message   Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  text      String
+  remindAt  DateTime
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([sentAt, remindAt])
+  @@map("reminder")
+}
+
+model ScheduledMessage {
+  id          String    @id @default(cuid())
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parentId    String?
+  body        String
+  sendAt      DateTime
+  sentAt      DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([sentAt, sendAt])
+  @@map("scheduled_message")
 }
