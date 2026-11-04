@@ -100,15 +100,15 @@ model User {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String             @id
+  expiresAt         DateTime
+  token             String             @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  ipAddress         String?
+  userAgent         String?
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Appareils abonnés au push depuis cette session : supprimés quand la session est révoquée.
   pushSubscriptions PushSubscription[]
 
@@ -414,6 +414,8 @@ model Task {
   comments          TaskComment[]
   files             FileReference[]
   handoffs          Handoff[]
+  /// Discussion de la tâche (V1.3) : fil rattaché dans le salon du projet.
+  aboutMessages     Message[]         @relation("MessageAboutTask")
 
   @@index([projectId, archivedAt])
   @@index([ownerId, status])
@@ -520,15 +522,17 @@ model TimeEntry {
 }
 
 model TaskComment {
-  id        String    @id @default(cuid())
-  taskId    String
-  task      Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  authorId  String
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  body      String
-  editedAt  DateTime?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  id               String    @id @default(cuid())
+  taskId           String
+  task             Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  authorId         String
+  author           User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body             String
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  /// V1.3 : commentaire recopié dans la discussion de la tâche (message de fil).
+  movedToMessageId String?
 
   @@index([taskId, createdAt])
   @@map("task_comment")
@@ -1230,6 +1234,8 @@ model Deliverable {
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   checkItems    DeliverableCheckItem[]
+  /// Discussion du livrable (V1.3) : fil rattaché dans le salon du projet.
+  aboutMessages Message[]              @relation("MessageAboutDeliverable")
 
   @@index([projectId, archivedAt])
   @@index([stage, dueDate])
@@ -1414,33 +1420,41 @@ model ChannelMember {
 
 /// Message ; authorId vide = message du QG (événement automatique). parentId = réponse dans un fil.
 model Message {
-  id            String              @id @default(cuid())
-  channelId     String
-  channel       Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  authorId      String?
-  author        User?               @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  parentId      String?
-  parent        Message?            @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
-  replies       Message[]           @relation("Thread")
-  body          String
-  mentionIds    String[]            @default([])
+  id                 String              @id @default(cuid())
+  channelId          String
+  channel            Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId           String?
+  author             User?               @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  parentId           String?
+  parent             Message?            @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies            Message[]           @relation("Thread")
+  body               String
+  mentionIds         String[]            @default([])
   /// Réponse de fil aussi affichée dans le salon.
-  alsoInChannel Boolean             @default(false)
+  alsoInChannel      Boolean             @default(false)
   /// Tâche créée à partir de ce message.
-  taskId        String?
-  meta          Json?
-  editedAt      DateTime?
-  deletedAt     DateTime?
-  pinnedAt      DateTime?
-  pinnedById    String?
-  createdAt     DateTime            @default(now())
-  reactions     MessageReaction[]
-  attachments   MessageAttachment[]
-  saves         SavedMessage[]
-  reminders     Reminder[]
+  taskId             String?
+  /// Discussion rattachée à un élément (V1.3) : la racine du fil (parentId nul) et ses réponses
+  /// portent l'élément ; une seule racine par élément (index partiels dans la migration).
+  aboutTaskId        String?
+  aboutTask          Task?               @relation("MessageAboutTask", fields: [aboutTaskId], references: [id], onDelete: SetNull)
+  aboutDeliverableId String?
+  aboutDeliverable   Deliverable?        @relation("MessageAboutDeliverable", fields: [aboutDeliverableId], references: [id], onDelete: SetNull)
+  meta               Json?
+  editedAt           DateTime?
+  deletedAt          DateTime?
+  pinnedAt           DateTime?
+  pinnedById         String?
+  createdAt          DateTime            @default(now())
+  reactions          MessageReaction[]
+  attachments        MessageAttachment[]
+  saves              SavedMessage[]
+  reminders          Reminder[]
 
   @@index([channelId, createdAt])
   @@index([parentId, createdAt])
+  @@index([aboutTaskId, createdAt])
+  @@index([aboutDeliverableId, createdAt])
   @@map("message")
 }
 
@@ -1511,4 +1525,16 @@ model ScheduledMessage {
 
   @@index([sentAt, sendAt])
   @@map("scheduled_message")
+}
+
+/// Point du matin (V1.3) : un par jour ouvré, publié à 8 h (heure de Paris) dans la Salle commune.
+/// La date unique empêche toute double publication ; `data` garde l'instantané affiché.
+model MorningReport {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  data      Json
+  messageId String?
+  createdAt DateTime @default(now())
+
+  @@map("morning_report")
 }

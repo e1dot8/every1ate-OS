@@ -19,6 +19,7 @@ export const WHATSAPP_RECOMMENDED: readonly EventKind[] = [
   "passation.demandee",
   "mention",
   "message.direct",
+  "point.matin",
 ];
 
 /** Réglages par défaut : push pour tout sauf les événements fréquents, WhatsApp nulle part. */

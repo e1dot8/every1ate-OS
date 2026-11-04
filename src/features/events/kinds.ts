@@ -16,6 +16,8 @@ export const EVENT_KINDS = [
   "standup.bloque",
   "rappel",
   "opportunite.gagnee",
+  "commentaire",
+  "point.matin",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -34,4 +36,6 @@ export const eventLabels: Record<EventKind, string> = {
   "standup.bloque": "Un associé est bloqué (stand-up)",
   rappel: "Tes rappels",
   "opportunite.gagnee": "Une opportunité est signée",
+  commentaire: "Nouveau commentaire sur une tâche, un livrable ou un projet que tu suis",
+  "point.matin": "Le point du matin (8 h, jours ouvrés)",
 };

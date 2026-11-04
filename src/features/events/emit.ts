@@ -38,6 +38,8 @@ const NOTIFICATION_KIND: Record<EventKind, NotificationInput["kind"]> = {
   "standup.bloque": "standup",
   rappel: "rappel",
   "opportunite.gagnee": "equipe",
+  commentaire: "discussion",
+  "point.matin": "equipe",
 };
 
 /**
