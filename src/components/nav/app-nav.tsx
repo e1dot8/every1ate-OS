@@ -9,7 +9,9 @@ function NavEntry({ item, active, layout }: { item: NavItem; active: boolean; la
   const Icon = item.icon;
   const base = cn(
     "flex min-h-tap items-center rounded-lg text-xs font-bold",
-    layout === "bar" ? "flex-1 flex-col justify-center gap-0.5 px-1" : "gap-3 px-3 text-sm",
+    layout === "bar"
+      ? "min-w-0 flex-1 flex-col justify-center gap-0.5 px-0.5 text-[11px]"
+      : "gap-3 px-3 text-sm",
   );
 
   if (item.comingInLot !== undefined) {
@@ -65,9 +67,11 @@ export function AppNavShell({ pathname }: { pathname: string }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         <div className="mx-auto flex h-bottom-nav max-w-lg items-stretch px-2">
-          {primaryNav.map((item) => (
-            <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="bar" />
-          ))}
+          {primaryNav
+            .filter((item) => item.mobile !== false)
+            .map((item) => (
+              <NavEntry key={item.href} item={item} active={isActive(item.href)} layout="bar" />
+            ))}
         </div>
       </nav>
       <nav
