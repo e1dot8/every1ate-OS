@@ -77,8 +77,8 @@ async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
         </Section>
         <Callout icon="⌨️">
           <p>
-            Dans un message : <strong>**gras**</strong>, <em>_italique_</em>, <code>`code`</code>, @Prénom pour
-            prévenir quelqu&apos;un. Tape <code>/aide</code> pour les commandes (<code>/tache</code>,{" "}
+            Dans un message : <strong>**gras**</strong>, <em>_italique_</em>, <code>`code`</code>, @Prénom
+            pour prévenir quelqu&apos;un. Tape <code>/aide</code> pour les commandes (<code>/tache</code>,{" "}
             <code>/rappel</code>, <code>/focus</code>, <code>/huddle</code>…).
           </p>
         </Callout>

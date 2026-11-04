@@ -6,13 +6,7 @@ import { presenceSelect } from "@/features/presence/service";
 import { containsPattern, normalizeQuery, SEARCH_MIN_LENGTH } from "@/features/search/rules";
 import type { ServiceResult } from "@/features/projects/service";
 import { ensureDefaultChannels } from "@/features/discussions/channels";
-import {
-  DEFAULT_CHANNELS,
-  PAGE_SIZE,
-  channelTitle,
-  dmSlug,
-  persoSlug,
-} from "@/features/discussions/rules";
+import { DEFAULT_CHANNELS, PAGE_SIZE, channelTitle, dmSlug, persoSlug } from "@/features/discussions/rules";
 
 /** Lectures des discussions. Chaque requête est bornée aux salons accessibles au lecteur. */
 
@@ -169,12 +163,14 @@ export async function sidebarData(userId: string, now = new Date()): Promise<Sid
 
   const perso = rows.find((c) => c.kind === "PERSO" && c.slug === persoSlug(userId));
   const persoCount = perso ? count(perso.id) : { unread: 0 };
-  const totalUnread =
-    channels.reduce((n, c) => n + c.unread, 0) + directs.reduce((n, d) => n + d.unread, 0);
+  const totalUnread = channels.reduce((n, c) => n + c.unread, 0) + directs.reduce((n, d) => n + d.unread, 0);
   return {
     channels,
     directs,
-    perso: { href: perso ? `/discussions/${perso.slug}` : `/discussions/direct/${userId}`, unread: persoCount.unread },
+    perso: {
+      href: perso ? `/discussions/${perso.slug}` : `/discussions/direct/${userId}`,
+      unread: persoCount.unread,
+    },
     totalUnread,
   };
 }
@@ -206,7 +202,10 @@ export type MessageWithDetails = Prisma.MessageGetPayload<{ include: ReturnType<
 export async function linkedTasks(messages: { taskId: string | null }[]) {
   const ids = [...new Set(messages.map((m) => m.taskId).filter(Boolean) as string[])];
   if (!ids.length) return new Map<string, string>();
-  const tasks = await getDb().task.findMany({ where: { id: { in: ids } }, select: { id: true, title: true } });
+  const tasks = await getDb().task.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, title: true },
+  });
   return new Map(tasks.map((t) => [t.id, t.title]));
 }
 
@@ -328,7 +327,13 @@ export async function activityFeed(userId: string) {
       where: { userId: { not: userId }, message: { authorId: userId, deletedAt: null, channel } },
       orderBy: { createdAt: "desc" },
       take: 20,
-      select: { id: true, emoji: true, createdAt: true, user: { select: { name: true } }, message: { select: activitySelect } },
+      select: {
+        id: true,
+        emoji: true,
+        createdAt: true,
+        user: { select: { name: true } },
+        message: { select: activitySelect },
+      },
     }),
     db.reminder.findMany({
       where: { userId },
@@ -356,7 +361,9 @@ export async function savedMessages(userId: string) {
 }
 
 const scheduledInclude = {
-  channel: { select: { slug: true, name: true, kind: true, projectId: true, project: { select: { name: true } } } },
+  channel: {
+    select: { slug: true, name: true, kind: true, projectId: true, project: { select: { name: true } } },
+  },
 } as const satisfies Prisma.ScheduledMessageInclude;
 
 export async function scheduledMessages(userId: string, now = new Date()) {

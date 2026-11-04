@@ -49,6 +49,8 @@ export function MessageActions({
   const [state, action, pending] = useActionState(messageMenuAction, initialFormState);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Près du bas de l'écran (compositeur, barre de navigation), le menu s'ouvre vers le haut.
+  const [upward, setUpward] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [dismissed, setDismissed] = useState<typeof state | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -85,7 +87,9 @@ export function MessageActions({
         aria-label="Actions du message"
         aria-expanded={open}
         aria-controls={mounted ? panelId : undefined}
-        onClick={() => {
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setUpward(rect.bottom > window.innerHeight * 0.5 && rect.top > 440);
           setMounted(true);
           setConfirming(false);
           setOpen((v) => !v);
@@ -110,7 +114,10 @@ export function MessageActions({
         <div
           id={panelId}
           hidden={!open}
-          className="absolute top-full right-0 z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-lg border bg-background p-1.5 shadow-lg"
+          className={cn(
+            "absolute right-0 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-lg border bg-background p-1.5 shadow-lg",
+            upward ? "bottom-full mb-1" : "top-full mt-1",
+          )}
         >
           <form action={action} onSubmit={() => setOpen(false)} className="flex flex-col">
             <input type="hidden" name="messageId" value={messageId} />
@@ -213,7 +220,11 @@ export function MessageActions({
                   </div>
                 </div>
               ) : (
-                <button type="button" onClick={() => setConfirming(true)} className={cn(itemClass, "text-danger")}>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className={cn(itemClass, "text-danger")}
+                >
                   <Trash2 aria-hidden="true" className="size-4" />
                   Supprimer…
                 </button>

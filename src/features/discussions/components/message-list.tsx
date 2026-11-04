@@ -37,11 +37,7 @@ export function MessageList({
                     <span className="text-xs font-bold text-pen-strong">Nouveaux messages</span>
                   </li>
                 ) : null}
-                <MessageItem
-                  message={message}
-                  compact={compact && message.id !== firstUnreadId}
-                  ctx={ctx}
-                />
+                <MessageItem message={message} compact={compact && message.id !== firstUnreadId} ctx={ctx} />
               </Fragment>
             ))}
           </ul>

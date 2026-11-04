@@ -65,7 +65,9 @@ async function ChannelView({
   const title = channelTitle({ ...channel, projectName: channel.project?.name, partnerName: partner?.name });
   const notice = partner ? presenceNotice(partner.name, partner.presence, now) : null;
   const focusEnd =
-    partner?.presence.state === "FOCUS" && partner.presence.until ? formatHourFr(partner.presence.until) : null;
+    partner?.presence.state === "FOCUS" && partner.presence.until
+      ? formatHourFr(partner.presence.until)
+      : null;
   const retour = `/discussions/${channel.slug}`;
   const placeholder =
     channel.kind === "PERSO"
@@ -99,7 +101,10 @@ async function ChannelView({
       <div className="-mt-3 flex flex-col gap-2">
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {channel.kind !== "PERSO" ? (
-            <Link href={`/discussions/${channel.slug}/reglages`} className="inline-flex min-h-9 items-center gap-1.5 hover:underline">
+            <Link
+              href={`/discussions/${channel.slug}/reglages`}
+              className="inline-flex min-h-9 items-center gap-1.5 hover:underline"
+            >
               <Users aria-hidden="true" className="size-4" />
               {channel.kind === "PUBLIC"
                 ? `${members.count} membre${members.count > 1 ? "s" : ""} · ouvert à tous les associés`
@@ -109,7 +114,10 @@ async function ChannelView({
             <span>Visible par toi seul.</span>
           )}
           {channel.project ? (
-            <Link href={`/projets/${channel.project.id}`} className="inline-flex min-h-9 items-center gap-1.5 hover:underline">
+            <Link
+              href={`/projets/${channel.project.id}`}
+              className="inline-flex min-h-9 items-center gap-1.5 hover:underline"
+            >
               <FolderKanban aria-hidden="true" className="size-4" />
               Voir le projet
             </Link>

@@ -66,7 +66,12 @@ export function ChannelSettingsForm({
   renamable: boolean;
 }) {
   const [state, action] = useActionState(updateChannelAction, initialFormState);
-  const v = { name: channel.name, topic: channel.topic ?? "", meetUrl: channel.meetUrl ?? "", ...state.values };
+  const v = {
+    name: channel.name,
+    topic: channel.topic ?? "",
+    meetUrl: channel.meetUrl ?? "",
+    ...state.values,
+  };
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <FormMessages state={state} />
@@ -74,7 +79,13 @@ export function ChannelSettingsForm({
       {renamable ? (
         <Field name="name" label="Nom du salon" defaultValue={v.name} error={state.fieldErrors?.name} />
       ) : null}
-      <TextareaField name="topic" label="Sujet" rows={2} defaultValue={v.topic} error={state.fieldErrors?.topic} />
+      <TextareaField
+        name="topic"
+        label="Sujet"
+        rows={2}
+        defaultValue={v.topic}
+        error={state.fieldErrors?.topic}
+      />
       <Field
         name="meetUrl"
         type="url"

@@ -24,7 +24,9 @@ export type MessageContext = {
 };
 
 function metaHref(meta: unknown): string | null {
-  return meta && typeof meta === "object" && "href" in meta ? safeHref((meta as { href: unknown }).href) : null;
+  return meta && typeof meta === "object" && "href" in meta
+    ? safeHref((meta as { href: unknown }).href)
+    : null;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
@@ -70,7 +72,10 @@ function Reactions({ message, ctx }: { message: MessageWithDetails; ctx: Message
 function SystemLine({ message }: { message: MessageWithDetails }) {
   const href = metaHref(message.meta);
   return (
-    <li id={`m-${message.id}`} className="flex scroll-mt-28 gap-3 rounded-md px-1.5 py-1.5 text-sm hover:bg-muted/60">
+    <li
+      id={`m-${message.id}`}
+      className="flex scroll-mt-28 gap-3 rounded-md px-1.5 py-1.5 text-sm hover:bg-muted/60"
+    >
       <span
         aria-hidden="true"
         className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-cream text-[11px] font-bold"
@@ -88,7 +93,10 @@ function SystemLine({ message }: { message: MessageWithDetails }) {
           <>
             {" "}
             {href.startsWith("/") ? (
-              <Link href={href} className="font-bold text-foreground underline decoration-pen underline-offset-2">
+              <Link
+                href={href}
+                className="font-bold text-foreground underline decoration-pen underline-offset-2"
+              >
                 Ouvrir
               </Link>
             ) : (
@@ -158,7 +166,11 @@ export function MessageItem({
           <p className="text-xs text-muted-foreground">
             A répondu dans le fil{message.parent?.author ? ` de ${message.parent.author.name}` : ""} :{" "}
             <Link href={threadHref} className="underline underline-offset-2">
-              « {message.parent && !message.parent.deletedAt ? plainExcerpt(message.parent.body, 60) : "message supprimé"} »
+              «{" "}
+              {message.parent && !message.parent.deletedAt
+                ? plainExcerpt(message.parent.body, 60)
+                : "message supprimé"}{" "}
+              »
             </Link>
           </p>
         ) : null}
@@ -225,9 +237,7 @@ export function MessageItem({
           messageId={message.id}
           threadHref={ctx.view === "salon" ? threadHref : null}
           taskHref={ctx.writable && !message.taskId ? `/discussions/${ctx.slug}/tache/${message.id}` : null}
-          editHref={
-            isMine && ctx.writable ? `${ctx.retour}?modifier=${message.id}#m-${message.id}` : null
-          }
+          editHref={isMine && ctx.writable ? `${ctx.retour}?modifier=${message.id}#m-${message.id}` : null}
           isMine={isMine}
           pinned={!!message.pinnedAt}
           saved={message.saves.length > 0}

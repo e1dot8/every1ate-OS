@@ -46,5 +46,9 @@ function render(nodes: InlineNode[], keyPrefix: string): React.ReactNode[] {
 }
 
 export function RichText({ body, className }: { body: string; className?: string }) {
-  return <div className={className ?? "min-w-0 break-words whitespace-normal"}>{render(parseInline(body), "n")}</div>;
+  return (
+    <div className={className ?? "min-w-0 break-words whitespace-normal"}>
+      {render(parseInline(body), "n")}
+    </div>
+  );
 }

@@ -78,7 +78,10 @@ async function Results({ term, userId }: { term: string; userId: string }) {
         <Section title="Messages" count={total}>
           <ul aria-label="Messages trouvés" className="flex flex-col">
             {messages.map((m) => (
-              <li key={m.id} className="relative flex flex-col gap-0.5 rounded-md px-1 py-2 hover:bg-muted/60">
+              <li
+                key={m.id}
+                className="relative flex flex-col gap-0.5 rounded-md px-1 py-2 hover:bg-muted/60"
+              >
                 <Link
                   href={permalink(m.slug, m)}
                   className="text-sm break-words after:absolute after:inset-0 hover:underline"

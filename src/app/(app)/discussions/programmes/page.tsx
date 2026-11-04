@@ -19,14 +19,21 @@ async function Scheduled() {
     user.id,
   );
   const where = (s: (typeof pending)[number]) =>
-    channelTitle({ ...s.channel, projectName: s.channel.project?.name, partnerName: partners.get(s.channel.slug) });
+    channelTitle({
+      ...s.channel,
+      projectName: s.channel.project?.name,
+      partnerName: partners.get(s.channel.slug),
+    });
   return (
     <>
       <Section title="À envoyer" count={pending.length}>
         {pending.length ? (
           <ul aria-label="Messages à envoyer" className="flex flex-col">
             {pending.map((s) => (
-              <li key={s.id} className="flex min-h-tap items-start gap-3 rounded-md px-1 py-2 hover:bg-muted/60">
+              <li
+                key={s.id}
+                className="flex min-h-tap items-start gap-3 rounded-md px-1 py-2 hover:bg-muted/60"
+              >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <p className="text-sm break-words">{plainExcerpt(s.body, 200)}</p>
                   <span className="text-xs text-muted-foreground">
@@ -50,7 +57,9 @@ async function Scheduled() {
             ))}
           </ul>
         ) : (
-          <EmptyLine>Aucun message programmé. « Programmer » dans le compositeur choisit l&apos;heure d&apos;envoi.</EmptyLine>
+          <EmptyLine>
+            Aucun message programmé. « Programmer » dans le compositeur choisit l&apos;heure d&apos;envoi.
+          </EmptyLine>
         )}
       </Section>
       {sent.length ? (

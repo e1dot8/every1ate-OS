@@ -122,7 +122,9 @@ export async function sendMessageAction(_prev: ComposerState, formData: FormData
     else sendAt = await partnerFocusEnd(input.channelId, user.id, now);
     if (!sendAt)
       return failure(
-        input.intent === "finfocus" ? "Cette personne n'est plus en focus : envoie ton message." : "Indique la date et l'heure d'envoi.",
+        input.intent === "finfocus"
+          ? "Cette personne n'est plus en focus : envoie ton message."
+          : "Indique la date et l'heure d'envoi.",
         formData,
       );
     const result = await scheduleMessage(
@@ -237,7 +239,10 @@ const reactionSchema = z.object({ messageId: id, emoji: z.enum(REACTIONS) });
 /** Pastille de réaction sous un message : ajoute ou retire sa réaction. */
 export async function toggleReactionAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  const parsed = reactionSchema.safeParse({ messageId: field(formData, "messageId"), emoji: field(formData, "emoji") });
+  const parsed = reactionSchema.safeParse({
+    messageId: field(formData, "messageId"),
+    emoji: field(formData, "emoji"),
+  });
   if (!parsed.success) return;
   const result = await toggleReaction(user, parsed.data.messageId, parsed.data.emoji);
   if (result.ok) refresh();
@@ -309,7 +314,11 @@ export async function convertToTaskAction(_prev: FormState, formData: FormData):
 // ─── Salons ─────────────────────────────────────────────────────────────────
 
 const channelSchema = z.object({
-  name: z.string().trim().min(1, "Nom requis.").max(CHANNEL_NAME_MAX, `${CHANNEL_NAME_MAX} caractères au plus.`),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Nom requis.")
+    .max(CHANNEL_NAME_MAX, `${CHANNEL_NAME_MAX} caractères au plus.`),
   topic: z.string().trim().max(TOPIC_MAX, `${TOPIC_MAX} caractères au plus.`).optional(),
   isPrivate: checkbox,
   memberIds: z.array(id).max(100),
@@ -373,7 +382,10 @@ const memberSchema = z.object({ channelId: id, userId: id });
 
 export async function addMemberAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = memberSchema.safeParse({ channelId: field(formData, "channelId"), userId: field(formData, "userId") });
+  const parsed = memberSchema.safeParse({
+    channelId: field(formData, "channelId"),
+    userId: field(formData, "userId"),
+  });
   if (!parsed.success) return { status: "error", message: "Choisis un associé." };
   const result = await addChannelMember(user, parsed.data.channelId, parsed.data.userId);
   if (!result.ok) return { status: "error", message: result.error };
@@ -383,7 +395,10 @@ export async function addMemberAction(_prev: FormState, formData: FormData): Pro
 
 export async function removeMemberAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  const parsed = memberSchema.safeParse({ channelId: field(formData, "channelId"), userId: field(formData, "userId") });
+  const parsed = memberSchema.safeParse({
+    channelId: field(formData, "channelId"),
+    userId: field(formData, "userId"),
+  });
   if (!parsed.success) return;
   const result = await removeChannelMember(user, parsed.data.channelId, parsed.data.userId);
   if (!result.ok) return;

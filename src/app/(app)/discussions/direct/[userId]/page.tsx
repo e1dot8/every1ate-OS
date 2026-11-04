@@ -8,7 +8,7 @@ import { ensureDirectChannel } from "@/features/discussions/channels";
 export const metadata: Metadata = { title: "Message direct" };
 
 /** Contrat partagé : /discussions/direct/<userId> ouvre (et crée au besoin) le message direct. */
-async function OpenDirect({ params }: { params: Promise<{ userId: string }> }) {
+async function OpenDirect({ params }: { params: Promise<{ userId: string }> }): Promise<React.ReactNode> {
   const user = await requireUser();
   const { userId } = await params;
   const channel = await ensureDirectChannel(user.id, userId);

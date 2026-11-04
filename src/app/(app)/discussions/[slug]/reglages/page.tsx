@@ -7,11 +7,7 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { PageLoading } from "@/components/layout/page-header";
 import { Callout, EmptyLine, NotionPage, Properties, Property, Section } from "@/components/notion/blocks";
 import { formatDay } from "@/lib/dates";
-import {
-  archiveChannelAction,
-  createJitsiAction,
-  removeMemberAction,
-} from "@/app/(app)/discussions/actions";
+import { archiveChannelAction, createJitsiAction, removeMemberAction } from "@/app/(app)/discussions/actions";
 import { listAssociates } from "@/features/projects/service";
 import { accessChannel } from "@/features/discussions/channels";
 import { AddMemberForm, ChannelSettingsForm } from "@/features/discussions/components/forms";
@@ -43,7 +39,9 @@ async function SettingsView({ params }: { params: Promise<{ slug: string }> }) {
   const title = channelTitle({ ...channel, projectName: channel.project?.name, partnerName: partner?.name });
   const writable = !channel.archivedAt;
   const renamable =
-    (channel.kind === "PUBLIC" || channel.kind === "PRIVE") && !channel.projectId && !isDefaultChannel(channel.slug);
+    (channel.kind === "PUBLIC" || channel.kind === "PRIVE") &&
+    !channel.projectId &&
+    !isDefaultChannel(channel.slug);
   const candidates =
     channel.kind === "PRIVE" && writable
       ? (await listAssociates())
@@ -75,7 +73,12 @@ async function SettingsView({ params }: { params: Promise<{ slug: string }> }) {
         ) : null}
         <Property icon={Video} label="Visio">
           {channel.meetUrl ? (
-            <a href={channel.meetUrl} target="_blank" rel="noopener noreferrer" className="break-all underline">
+            <a
+              href={channel.meetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all underline"
+            >
               {channel.meetUrl}
             </a>
           ) : (
@@ -100,7 +103,9 @@ async function SettingsView({ params }: { params: Promise<{ slug: string }> }) {
               <SubmitButton variant="outline" pendingLabel="Création…">
                 Créer une salle Jitsi
               </SubmitButton>
-              <span className="text-sm text-muted-foreground">Gratuit, sans compte : le lien remplace l&apos;actuel.</span>
+              <span className="text-sm text-muted-foreground">
+                Gratuit, sans compte : le lien remplace l&apos;actuel.
+              </span>
             </form>
           </Section>
         </>
@@ -116,7 +121,10 @@ async function SettingsView({ params }: { params: Promise<{ slug: string }> }) {
           {members.members.length ? (
             <ul className="flex flex-col">
               {members.members.map((m) => (
-                <li key={m.id} className="flex min-h-tap items-center gap-2 rounded-md px-1 hover:bg-muted/60">
+                <li
+                  key={m.id}
+                  className="flex min-h-tap items-center gap-2 rounded-md px-1 hover:bg-muted/60"
+                >
                   <PresenceDot state={m.presenceShared ? m.presenceState : "DISPO"} />
                   <span className="min-w-0 flex-1 truncate">
                     {m.name}
@@ -142,7 +150,9 @@ async function SettingsView({ params }: { params: Promise<{ slug: string }> }) {
               {members.members.length} premiers sur {members.count}.
             </p>
           ) : null}
-          {channel.kind === "PRIVE" && writable ? <AddMemberForm channelId={channel.id} candidates={candidates} /> : null}
+          {channel.kind === "PRIVE" && writable ? (
+            <AddMemberForm channelId={channel.id} candidates={candidates} />
+          ) : null}
         </Section>
       ) : null}
 

@@ -4,6 +4,7 @@ import {
   canArchiveChannel,
   canPostInChannel,
   channelSlugCandidates,
+  channelTitle,
   dayLabel,
   dmSlug,
   firstUnreadIndex,
@@ -11,11 +12,14 @@ import {
   groupByDay,
   isHttpsUrl,
   jitsiUrl,
+  messageHref,
   nextMondayAt9,
+  permalink,
   persoSlug,
   plainExcerpt,
   presenceNotice,
   reminderAt,
+  safeHref,
   slugify,
   taskTitleFromMessage,
   tomorrowAt9,
@@ -164,9 +168,9 @@ describe("textes dérivés", () => {
     expect(presenceNotice("Pierre", { state: "FOCUS", until: null }, NOW)).toBe(
       "Pierre est en focus : il sera prévenu à la fin.",
     );
-    expect(
-      presenceNotice("Pierre", { state: "FOCUS", until: new Date("2026-11-05T08:00:00Z") }, NOW),
-    ).toBe("Pierre est en focus jusqu'à demain à 9 h : il sera prévenu à la fin.");
+    expect(presenceNotice("Pierre", { state: "FOCUS", until: new Date("2026-11-05T08:00:00Z") }, NOW)).toBe(
+      "Pierre est en focus jusqu'à demain à 9 h : il sera prévenu à la fin.",
+    );
     expect(presenceNotice("Pierre", { state: "DISPO", until: null }, NOW)).toBeNull();
   });
 
@@ -177,5 +181,32 @@ describe("textes dérivés", () => {
     expect(isHttpsUrl("javascript:alert(1)")).toBe(false);
     expect(isHttpsUrl("https://user:pass@exemple.fr")).toBe(false);
     expect(isHttpsUrl("https://exemple.fr/a b")).toBe(false);
+  });
+});
+
+describe("titres et liens", () => {
+  it("nom affiché selon le type de salon", () => {
+    expect(channelTitle({ kind: "PERSO", name: "Notes perso" })).toBe("Moi (notes perso)");
+    expect(channelTitle({ kind: "DIRECT", name: "Message direct", partnerName: "Pierre" })).toBe("Pierre");
+    expect(channelTitle({ kind: "DIRECT", name: "Message direct" })).toBe("Message direct");
+    expect(channelTitle({ kind: "PUBLIC", name: "Ancien nom", projectName: "Clip renommé" })).toBe(
+      "Clip renommé",
+    );
+    expect(channelTitle({ kind: "PRIVE", name: "Direction" })).toBe("Direction");
+  });
+
+  it("liens vers un message : salon, fil, lien permanent", () => {
+    expect(messageHref("general", { id: "m1", parentId: null })).toBe("/discussions/general#m-m1");
+    expect(messageHref("general", { id: "m2", parentId: "m1" })).toBe("/discussions/general/fil/m1#m-m2");
+    expect(permalink("general", { id: "m1", parentId: null })).toBe("/discussions/general/fil/m1#m-m1");
+  });
+
+  it("lien d'un message du QG : interne ou https seulement", () => {
+    expect(safeHref("/taches/abc")).toBe("/taches/abc");
+    expect(safeHref("https://exemple.fr/x")).toBe("https://exemple.fr/x");
+    expect(safeHref("//evil.example")).toBeNull();
+    expect(safeHref("/\\evil.example")).toBeNull();
+    expect(safeHref("javascript:alert(1)")).toBeNull();
+    expect(safeHref(undefined)).toBeNull();
   });
 });

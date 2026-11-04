@@ -254,12 +254,14 @@ export async function editMessage(
   rawBody: string,
 ): Promise<ServiceResult<{ slug: string; parentId: string | null }>> {
   const found = await accessMessage(messageId, actor.id);
-  if (!found || found.message.authorId !== actor.id || found.message.deletedAt) return failed(MESSAGE_NOT_FOUND);
+  if (!found || found.message.authorId !== actor.id || found.message.deletedAt)
+    return failed(MESSAGE_NOT_FOUND);
   if (!canPostInChannel(found.channel, !!found.member)) return failed(ARCHIVED);
   const body = rawBody.trim();
   const problem = checkBody(body);
   if (problem) return failed(problem);
-  if (isCommand(body)) return failed("Une commande ne remplace pas un message : écris-la dans un nouveau message.");
+  if (isCommand(body))
+    return failed("Une commande ne remplace pas un message : écris-la dans un nouveau message.");
   const mentionIds = await resolveMessageMentions(found.channel, body, actor.id);
   await getDb().message.update({
     where: { id: messageId },
@@ -278,7 +280,8 @@ export async function deleteMessage(
   messageId: string,
 ): Promise<ServiceResult<{ slug: string; parentId: string | null }>> {
   const found = await accessMessage(messageId, actor.id);
-  if (!found || found.message.authorId !== actor.id || found.message.deletedAt) return failed(MESSAGE_NOT_FOUND);
+  if (!found || found.message.authorId !== actor.id || found.message.deletedAt)
+    return failed(MESSAGE_NOT_FOUND);
   const db = getDb();
   await db.$transaction([
     db.message.update({
@@ -379,7 +382,11 @@ export async function remindAboutMessage(
   return done({ slug: found.channel.slug, remindAt });
 }
 
-export async function createReminder(actor: Actor, text: string, remindAt: Date): Promise<ServiceResult<null>> {
+export async function createReminder(
+  actor: Actor,
+  text: string,
+  remindAt: Date,
+): Promise<ServiceResult<null>> {
   const clean = text.trim();
   if (!clean) return failed("Écris le texte du rappel.");
   if (clean.length > 500) return failed("Rappel trop long (500 caractères).");
@@ -405,7 +412,8 @@ export async function scheduleMessage(
   const body = input.body.trim();
   const problem = checkBody(body) ?? (await checkParent(access.channel.id, input.parentId));
   if (problem) return failed(problem);
-  if (isCommand(body)) return failed("Les commandes s'exécutent tout de suite : elles ne se programment pas.");
+  if (isCommand(body))
+    return failed("Les commandes s'exécutent tout de suite : elles ne se programment pas.");
   if (input.sendAt.getTime() < now.getTime() + 60_000)
     return failed("Choisis une heure d'envoi dans le futur (au moins une minute).");
   if (input.sendAt.getTime() > now.getTime() + MAX_SCHEDULE_MS)
@@ -431,7 +439,11 @@ export async function cancelScheduled(actor: Actor, scheduledId: string): Promis
 }
 
 /** Fin du focus de l'autre associé d'un message direct (pour « Envoyer à la fin de son focus »). */
-export async function partnerFocusEnd(channelId: string, userId: string, now = new Date()): Promise<Date | null> {
+export async function partnerFocusEnd(
+  channelId: string,
+  userId: string,
+  now = new Date(),
+): Promise<Date | null> {
   const partner = await getDb().channelMember.findFirst({
     where: { channelId, userId: { not: userId }, channel: { kind: "DIRECT" } },
     select: { user: { select: { presenceState: true, presenceUntil: true, presenceShared: true } } },
@@ -511,7 +523,10 @@ export async function updateChannel(
   if (topic && topic.length > TOPIC_MAX) return failed(`Sujet trop long (${TOPIC_MAX} caractères).`);
   const meetUrl = input.meetUrl?.trim() || null;
   if (meetUrl && !isHttpsUrl(meetUrl)) return failed("Le lien visio doit commencer par https://.");
-  const renamable = (channel.kind === "PUBLIC" || channel.kind === "PRIVE") && !channel.projectId && !isDefaultChannel(channel.slug);
+  const renamable =
+    (channel.kind === "PUBLIC" || channel.kind === "PRIVE") &&
+    !channel.projectId &&
+    !isDefaultChannel(channel.slug);
   const name = renamable && input.name ? input.name.replace(/\s+/g, " ").trim() : channel.name;
   if (!name) return failed("Donne un nom au salon.");
   if (name.length > CHANNEL_NAME_MAX) return failed(`Nom trop long (${CHANNEL_NAME_MAX} caractères).`);
@@ -533,7 +548,10 @@ export async function updateChannel(
 }
 
 /** « Créer une salle Jitsi » : lien gratuit, propre au salon, enregistré comme lien visio. */
-export async function createJitsiRoom(actor: Actor, channelId: string): Promise<ServiceResult<{ slug: string }>> {
+export async function createJitsiRoom(
+  actor: Actor,
+  channelId: string,
+): Promise<ServiceResult<{ slug: string }>> {
   const { access, error } = await editableChannel(actor, channelId);
   if (!access) return failed(error);
   const meetUrl = jitsiUrl(access.channel.slug, randomBytes(5).toString("hex"));
@@ -608,7 +626,10 @@ export async function setChannelArchived(
   const { channel } = access;
   if (!canArchiveChannel(channel)) return failed("Ce salon ne peut pas être archivé.");
   if (!!channel.archivedAt === archived) return done({ slug: channel.slug });
-  await getDb().channel.update({ where: { id: channelId }, data: { archivedAt: archived ? new Date() : null } });
+  await getDb().channel.update({
+    where: { id: channelId },
+    data: { archivedAt: archived ? new Date() : null },
+  });
   await recordAudit({
     action: archived ? "channel.archived" : "channel.restored",
     actorId: actor.id,
@@ -633,7 +654,8 @@ async function createTaskFrom(
   input: { projectId: string; title: string; ownerId: string | null; dueDate: Date | null; origin: string },
 ): Promise<ServiceResult<{ id: string }>> {
   if (!(await openProject(input.projectId))) return failed("Projet introuvable ou clôturé.");
-  if (input.ownerId && !(await associateIds([input.ownerId])).length) return failed("Responsable introuvable.");
+  if (input.ownerId && !(await associateIds([input.ownerId])).length)
+    return failed("Responsable introuvable.");
   return saveTask(
     input.projectId,
     null,
@@ -701,7 +723,10 @@ async function runTaskCommand(
   let ownerId: string | null = actor.id;
   let ownerName: string | null = actor.name;
   if (cmd.owner) {
-    const people = await getDb().user.findMany({ where: { role: "associe" }, select: { id: true, name: true } });
+    const people = await getDb().user.findMany({
+      where: { role: "associe" },
+      select: { id: true, name: true },
+    });
     const resolved = resolveMentions([cmd.owner], people, null);
     if (resolved.ambiguous.length)
       return failed(`Plusieurs associés s'appellent ${cmd.owner} : écris le nom complet (ex. @PrénomNom).`);
@@ -734,7 +759,9 @@ async function runFollowUpCommand(filter: string | null, now: Date): Promise<Ser
     .filter((o) => !needle || foldText(o.title).includes(needle))
     .sort((a, b) => (a.nextActionDate?.getTime() ?? 0) - (b.nextActionDate?.getTime() ?? 0));
   if (!shown.length)
-    return done({ message: filter ? `Aucune relance en retard pour « ${filter} ».` : "Aucune relance en retard." });
+    return done({
+      message: filter ? `Aucune relance en retard pour « ${filter} ».` : "Aucune relance en retard.",
+    });
   return done({
     message: `${shown.length} relance${shown.length > 1 ? "s" : ""} à faire :`,
     lines: shown.slice(0, 15).map((o) => ({
@@ -783,7 +810,9 @@ export async function runCommand(
       const result = await saveStandup(actor, { today: cmd.today, blocked: cmd.blocked }, now);
       if (!result.ok) return result;
       return done({
-        message: cmd.blocked ? "Stand-up enregistré : l'équipe est prévenue du blocage." : "Stand-up enregistré.",
+        message: cmd.blocked
+          ? "Stand-up enregistré : l'équipe est prévenue du blocage."
+          : "Stand-up enregistré.",
       });
     }
     case "rappel": {
@@ -799,10 +828,20 @@ export async function runCommand(
       if (!channel.meetUrl)
         return done({
           message: "Ce salon n'a pas encore de lien visio.",
-          lines: [{ text: "Définir le lien visio (ou créer une salle Jitsi)", href: `/discussions/${channel.slug}/reglages` }],
+          lines: [
+            {
+              text: "Définir le lien visio (ou créer une salle Jitsi)",
+              href: `/discussions/${channel.slug}/reglages`,
+            },
+          ],
         });
       if (!canPostInChannel(channel, !!access.member)) return failed(ARCHIVED);
-      await publishMessage(actor, channel, { body: `🎧 Huddle : rejoignez la visio ${channel.meetUrl}` }, now);
+      await publishMessage(
+        actor,
+        channel,
+        { body: `🎧 Huddle : rejoignez la visio ${channel.meetUrl}` },
+        now,
+      );
       return done({ message: "Lien visio partagé dans le salon." });
     }
   }

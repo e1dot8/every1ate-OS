@@ -36,7 +36,10 @@ async function ConvertView({ params }: { params: Promise<Params> }) {
   ];
 
   if (message.taskId) {
-    const task = await db.task.findUnique({ where: { id: message.taskId }, select: { id: true, title: true } });
+    const task = await db.task.findUnique({
+      where: { id: message.taskId },
+      select: { id: true, title: true },
+    });
     return (
       <NotionPage icon="✅" crumbs={crumbs} title="Transformer en tâche">
         <Callout icon="🔗">
@@ -84,7 +87,10 @@ async function ConvertView({ params }: { params: Promise<Params> }) {
         projects={projects.map((p) => ({ value: p.id, label: p.name }))}
         associates={associates.map((a) => ({ value: a.id, label: a.name }))}
       />
-      <Link href={back} className="inline-flex min-h-tap w-fit items-center text-sm font-bold hover:underline">
+      <Link
+        href={back}
+        className="inline-flex min-h-tap w-fit items-center text-sm font-bold hover:underline"
+      >
         Annuler
       </Link>
     </NotionPage>

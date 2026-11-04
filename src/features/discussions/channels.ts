@@ -82,7 +82,10 @@ export async function ensureGeneralChannel(): Promise<ChannelRow | null> {
 }
 
 /** Salon d'un projet (nom du projet), créé à la demande. Null si le projet n'existe pas. */
-export async function ensureProjectChannel(projectId: string, actorId: string | null): Promise<ChannelRow | null> {
+export async function ensureProjectChannel(
+  projectId: string,
+  actorId: string | null,
+): Promise<ChannelRow | null> {
   const db = getDb();
   const found = await db.channel.findUnique({ where: { projectId }, select: channelSelect });
   if (found) return found;

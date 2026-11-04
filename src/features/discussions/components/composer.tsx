@@ -126,7 +126,8 @@ export function Composer({
             Aussi envoyer dans le salon
           </label>
         ) : null}
-        <div className="flex flex-wrap items-start gap-1">
+        {/* Sur mobile, place libre à droite pour le bouton flottant « Créer » de l'application. */}
+        <div className="flex flex-wrap items-start gap-1 pr-16 md:pr-0">
           <details className="group" open={!!values?.attachmentUrl}>
             <summary className={summaryClass}>
               <Paperclip aria-hidden="true" className="size-4" />
@@ -174,21 +175,49 @@ export function Composer({
                 Programmer l&apos;envoi
               </Button>
               <div className="flex flex-wrap gap-1">
-                <Button type="submit" name="intent" value="demain9" variant="ghost" size="sm" disabled={pending}>
+                <Button
+                  type="submit"
+                  name="intent"
+                  value="demain9"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                >
                   Demain 9 h
                 </Button>
-                <Button type="submit" name="intent" value="lundi9" variant="ghost" size="sm" disabled={pending}>
+                <Button
+                  type="submit"
+                  name="intent"
+                  value="lundi9"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                >
                   Lundi 9 h
                 </Button>
                 {focusEndLabel ? (
-                  <Button type="submit" name="intent" value="finfocus" variant="ghost" size="sm" disabled={pending}>
+                  <Button
+                    type="submit"
+                    name="intent"
+                    value="finfocus"
+                    variant="ghost"
+                    size="sm"
+                    disabled={pending}
+                  >
                     À la fin de son focus ({focusEndLabel})
                   </Button>
                 ) : null}
               </div>
             </div>
           </details>
-          <Button ref={send} type="submit" name="intent" value="envoyer" className="ml-auto" disabled={pending}>
+          <Button
+            ref={send}
+            type="submit"
+            name="intent"
+            value="envoyer"
+            className="ml-auto"
+            disabled={pending}
+          >
             <Send aria-hidden="true" />
             {pending ? "Envoi…" : "Envoyer"}
           </Button>

@@ -21,7 +21,8 @@ export const PAGE_SIZE = 50;
 /** Palette fixe des réactions. */
 export const REACTIONS = ["👍", "✅", "👀", "🙏", "🎉", "❤️", "😂"] as const;
 export type Reaction = (typeof REACTIONS)[number];
-export const isReaction = (value: string): value is Reaction => (REACTIONS as readonly string[]).includes(value);
+export const isReaction = (value: string): value is Reaction =>
+  (REACTIONS as readonly string[]).includes(value);
 
 /** Salons publics créés à la demande pour tous les associés. */
 export const DEFAULT_CHANNELS = [
@@ -380,7 +381,8 @@ export function formatHourFr(date: Date): string {
 export function formatMomentFr(date: Date, now: Date): string {
   if (localDay(date) === localDay(now)) return formatHourFr(date);
   const day = parseDateInput(localDay(date))!;
-  const label = isoDay(day) === isoDay(addDays(todayDate(now), 1)) ? "demain" : formatWeekday(day).toLowerCase();
+  const label =
+    isoDay(day) === isoDay(addDays(todayDate(now), 1)) ? "demain" : formatWeekday(day).toLowerCase();
   return `${label} à ${formatHourFr(date)}`;
 }
 
@@ -392,7 +394,8 @@ export const REMINDER_CHOICES = [
   { value: "demain", label: "Demain 9 h" },
 ] as const;
 export type ReminderChoice = (typeof REMINDER_CHOICES)[number]["value"];
-export const isReminderChoice = (v: string): v is ReminderChoice => REMINDER_CHOICES.some((c) => c.value === v);
+export const isReminderChoice = (v: string): v is ReminderChoice =>
+  REMINDER_CHOICES.some((c) => c.value === v);
 
 /** Heure d'un rappel : dans 20 min, 1 h, 3 h ou demain 9 h (heure de Paris). */
 export function reminderAt(choice: ReminderChoice, now: Date): Date {

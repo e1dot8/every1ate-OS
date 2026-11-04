@@ -12,7 +12,11 @@ async function Saved() {
   const user = await discussionsViewer();
   const saved = await savedMessages(user.id);
   if (!saved.length)
-    return <EmptyLine>Rien pour l&apos;instant : « Plus tard » dans le menu d&apos;un message l&apos;ajoute ici.</EmptyLine>;
+    return (
+      <EmptyLine>
+        Rien pour l&apos;instant : « Plus tard » dans le menu d&apos;un message l&apos;ajoute ici.
+      </EmptyLine>
+    );
   const partners = await directNames(
     saved.map((s) => s.message.channel.slug),
     user.id,

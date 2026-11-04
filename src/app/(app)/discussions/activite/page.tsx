@@ -69,17 +69,25 @@ async function Activity() {
         {pending.length || sent.length ? (
           <ul className="flex flex-col">
             {[...pending, ...sent].map((r) => (
-              <li key={r.id} className="flex min-h-tap items-center gap-3 rounded-md px-1 py-2 hover:bg-muted/60">
+              <li
+                key={r.id}
+                className="flex min-h-tap items-center gap-3 rounded-md px-1 py-2 hover:bg-muted/60"
+              >
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   {r.message ? (
-                    <Link href={permalink(r.message.channel.slug, r.message)} className="text-sm break-words hover:underline">
+                    <Link
+                      href={permalink(r.message.channel.slug, r.message)}
+                      className="text-sm break-words hover:underline"
+                    >
                       {r.text}
                     </Link>
                   ) : (
                     <span className="text-sm break-words">{r.text}</span>
                   )}
                   <span className="text-xs text-muted-foreground">
-                    {r.sentAt ? `Rappelé le ${formatDateTime(r.sentAt)}` : `Prévu le ${formatDateTime(r.remindAt)}`}
+                    {r.sentAt
+                      ? `Rappelé le ${formatDateTime(r.sentAt)}`
+                      : `Prévu le ${formatDateTime(r.remindAt)}`}
                   </span>
                 </div>
                 {!r.sentAt ? (

@@ -91,7 +91,10 @@ async function ThreadView({
   );
 }
 
-export default function ThreadPage({ params, searchParams }: PageProps<"/discussions/[slug]/fil/[messageId]">) {
+export default function ThreadPage({
+  params,
+  searchParams,
+}: PageProps<"/discussions/[slug]/fil/[messageId]">) {
   return (
     <DiscussionsFrame>
       <Suspense fallback={<PageLoading />}>

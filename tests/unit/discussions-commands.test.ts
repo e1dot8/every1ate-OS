@@ -73,7 +73,12 @@ describe("analyse des commandes", () => {
 
   it("/tache : titre, responsable et échéance", () => {
     const parsed = parseCommand("/tache Préparer le moodboard @Pierre demain", NOW);
-    expect(parsed).toMatchObject({ ok: true, command: "tache", title: "Préparer le moodboard", owner: "Pierre" });
+    expect(parsed).toMatchObject({
+      ok: true,
+      command: "tache",
+      title: "Préparer le moodboard",
+      owner: "Pierre",
+    });
     expect(parsed?.ok && parsed.command === "tache" && day(parsed.due)).toBe("2026-11-05");
 
     expect(parseCommand("/tâche @Zoé, Appeler Brume 12/11", NOW)).toMatchObject({
@@ -113,8 +118,14 @@ describe("analyse des commandes", () => {
       today: "Montage du clip",
       blocked: "Attente des rushs",
     });
-    expect(parseCommand("/standup Montage du clip", NOW)).toMatchObject({ today: "Montage du clip", blocked: null });
-    expect(parseCommand("/standup | Rien ne marche", NOW)).toMatchObject({ today: null, blocked: "Rien ne marche" });
+    expect(parseCommand("/standup Montage du clip", NOW)).toMatchObject({
+      today: "Montage du clip",
+      blocked: null,
+    });
+    expect(parseCommand("/standup | Rien ne marche", NOW)).toMatchObject({
+      today: null,
+      blocked: "Rien ne marche",
+    });
     expect(parseCommand("/standup", NOW)).toMatchObject({ ok: false });
   });
 

@@ -31,7 +31,10 @@ export async function processDueDiscussions(now: Date): Promise<{ reminders: num
     },
   });
   for (const r of dueReminders) {
-    const claimed = await db.reminder.updateMany({ where: { id: r.id, sentAt: null }, data: { sentAt: now } });
+    const claimed = await db.reminder.updateMany({
+      where: { id: r.id, sentAt: null },
+      data: { sentAt: now },
+    });
     if (!claimed.count) continue;
     await emitEvent({
       kind: "rappel",

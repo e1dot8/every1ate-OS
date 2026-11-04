@@ -10,7 +10,15 @@ import { MESSAGE_MAX_LENGTH } from "@/features/discussions/rules";
 import { initialFormState } from "@/lib/forms";
 
 /** Modification d'un de ses messages, à la place du message. */
-export function EditMessageForm({ messageId, body, retour }: { messageId: string; body: string; retour: string }) {
+export function EditMessageForm({
+  messageId,
+  body,
+  retour,
+}: {
+  messageId: string;
+  body: string;
+  retour: string;
+}) {
   const [state, action] = useActionState(editMessageAction, initialFormState);
   const id = `modifier-${messageId}`;
   return (
