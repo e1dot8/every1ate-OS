@@ -26,6 +26,7 @@ export type AppEvent = {
 
 const NOTIFICATION_KIND: Record<EventKind, NotificationInput["kind"]> = {
   "livrable.coche": "livrable",
+  "livrable.assigne": "assignation",
   "livrable.etape": "livrable",
   "livrable.livre": "livrable",
   "livrable.bloque": "blocage",

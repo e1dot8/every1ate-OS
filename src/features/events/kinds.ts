@@ -4,6 +4,7 @@
  */
 export const EVENT_KINDS = [
   "livrable.coche",
+  "livrable.assigne",
   "livrable.etape",
   "livrable.livre",
   "livrable.bloque",
@@ -21,6 +22,7 @@ export type EventKind = (typeof EVENT_KINDS)[number];
 
 export const eventLabels: Record<EventKind, string> = {
   "livrable.coche": "Un point de checklist d'un livrable est coché",
+  "livrable.assigne": "On te confie un point de checklist",
   "livrable.etape": "Un livrable passe à l'étape suivante",
   "livrable.livre": "Un livrable est livré",
   "livrable.bloque": "Un livrable est bloqué",

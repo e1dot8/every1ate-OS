@@ -1,6 +1,6 @@
 /**
- * Libellés du journal pour les actions du QG (V1.2). À fusionner dans
- * `src/features/projects/journal-labels.ts` (hors périmètre du module QG).
+ * Libellés du journal pour les actions du QG (V1.2), repris par
+ * `src/features/projects/journal-labels.ts`.
  */
 const LABELS: Record<string, string> = {
   "task.assigned": "a changé le responsable",

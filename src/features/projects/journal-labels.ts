@@ -1,5 +1,9 @@
+import { deliverableJournalLabels } from "@/features/deliverables/rules";
+import { qgJournalLabel } from "@/features/qg/labels";
+
 /** Libellés lisibles des actions du journal d'un projet. */
 const LABELS: Record<string, string> = {
+  ...deliverableJournalLabels,
   "project.created": "a créé le projet",
   "project.updated": "a modifié le projet",
   "project.status_changed": "a changé le statut",
@@ -43,7 +47,7 @@ const LABELS: Record<string, string> = {
 };
 
 export function journalLabel(action: string) {
-  return LABELS[action] ?? action;
+  return LABELS[action] ?? qgJournalLabel(action) ?? action;
 }
 
 /** Résumé court des valeurs avant/après (dates, statuts…). */

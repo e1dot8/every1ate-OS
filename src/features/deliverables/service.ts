@@ -6,7 +6,6 @@ import { getDb } from "@/lib/db/client";
 import { addDays, todayDate } from "@/lib/dates";
 import { zonedToUtc } from "@/features/calendar/rules";
 import { emitEvent, type AppEvent } from "@/features/events/emit";
-import { notify } from "@/features/notifications/service";
 import type { ServiceResult } from "@/features/projects/service";
 import {
   advanceOnCheck,
@@ -687,14 +686,16 @@ export async function assignCheckItem(
     },
   });
   if (assignee && assignee.id !== actor.id && assignee.id !== item.assigneeId)
-    await notify({
-      userId: assignee.id,
-      kind: "assignation",
+    await emitEvent({
+      kind: "livrable.assigne",
+      actorId: actor.id,
+      recipients: [assignee.id],
       title: `${actor.name} te confie « ${item.label} »`,
       body: item.deliverable.title,
       href: `/livrables/${ids.deliverableId}`,
       projectId: ids.projectId,
       dedupeKey: `livrable-assigne:${itemId}:${assignee.id}`,
-    }).catch((error) => console.error("[livrables] notification d'assignation", error));
+      channelPost: false,
+    });
   return done(ids);
 }
