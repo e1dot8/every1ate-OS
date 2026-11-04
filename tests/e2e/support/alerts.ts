@@ -9,7 +9,9 @@ export async function deliveriesFor(email: string): Promise<DeliveryRow[]> {
   return withDb(async (c) => {
     const { rows } = await c.query(
       `select d.channel, d."eventKind", d.title, d.status from external_delivery d
-       join "user" u on u.id = d."userId" where u.email = $1 order by d."createdAt"`,
+       join "user" u on u.id = d."userId"
+       -- Le point du matin (diffusé à tous en semaine après 8 h) peut tomber pendant la série.
+       where u.email = $1 and d."eventKind" <> 'point.matin' order by d."createdAt"`,
       [email],
     );
     return rows as DeliveryRow[];

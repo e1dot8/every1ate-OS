@@ -57,6 +57,7 @@ import { setPresence } from "@/features/presence/service";
 import { proposeHandoff } from "@/features/qg/handoffs";
 import { isoWeekPeriod } from "@/features/qg/quests";
 import { saveStandup } from "@/features/qg/standup";
+import { publishMorningReportNow } from "@/features/qg/morning/service";
 
 const PASSWORD = "Demo-Every1ate-2026!";
 const db = getDb();
@@ -999,6 +1000,8 @@ async function main() {
   });
 
   await runScheduledScan();
+  // Le point du matin du jour, même hors horaire (sans effet s'il vient d'être publié par la passe).
+  await publishMorningReportNow();
   console.log("Données de démonstration créées.");
   console.log(`Comptes : johan@ / charles@ / pierre@demo.every1ate.test — mot de passe : ${PASSWORD}`);
 }

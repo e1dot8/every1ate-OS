@@ -18,6 +18,7 @@ import {
   ToTakeSection,
 } from "@/features/qg/components/sections";
 import { listPendingHandoffs } from "@/features/qg/handoffs";
+import { MorningReportBanner } from "@/features/qg/morning/components";
 import { myDesk, tasksToTake, teamToday, weekQuests } from "@/features/qg/service";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +82,9 @@ async function Qg() {
         </>
       }
     >
+      <Suspense fallback={null}>
+        <MorningReportBanner />
+      </Suspense>
       <BriefCard brief={brief} />
       <DeskSection desk={desk} />
       <Suspense fallback={<PageLoading />}>

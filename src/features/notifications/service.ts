@@ -10,6 +10,7 @@ import { dueFollowUps } from "@/features/crm/service";
 import { sendDigests } from "@/features/brief/digest";
 import { runDiscussionsScan } from "@/features/discussions/scan";
 import { recordTeamBadges } from "@/features/qg/badges";
+import { publishMorningReport } from "@/features/qg/morning/service";
 
 export type NotificationInput = {
   userId: string;
@@ -208,5 +209,13 @@ export async function runScheduledScan(now = new Date()) {
     console.error("[scan] badges", error);
     return 0;
   });
-  return { ...counts, rappels: discussions.reminders, programmes: discussions.scheduled, badges };
+  // V1.3 : le point du matin (jours ouvrés, dès 8 h à Paris), une seule fois par jour ; ne lève jamais.
+  const pointDuMatin = await publishMorningReport(now);
+  return {
+    ...counts,
+    rappels: discussions.reminders,
+    programmes: discussions.scheduled,
+    badges,
+    pointDuMatin,
+  };
 }
