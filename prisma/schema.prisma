@@ -109,6 +109,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Appareils abonnés au push depuis cette session : supprimés quand la session est révoquée.
+  pushSubscriptions PushSubscription[]
 
   @@index([userId])
   @@map("session")
@@ -1265,10 +1267,14 @@ model PushSubscription {
   p256dh     String
   auth       String
   userAgent  String?
+  /// Session qui a abonné l'appareil : sans session valide, plus aucun envoi (appareil déconnecté).
+  sessionId  String?
+  session    Session?  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
 
   @@index([userId])
+  @@index([sessionId])
   @@map("push_subscription")
 }
 
