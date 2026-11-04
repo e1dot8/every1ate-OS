@@ -63,6 +63,8 @@ test.describe("finance", () => {
     browser,
     isMobile,
   }) => {
+    // Long parcours à deux associés ; la base de test accumule des centaines d'associés.
+    test.slow();
     test.skip(
       isMobile,
       "Réglage global partagé : vérifié une seule fois (ordinateur) pour éviter les interférences.",

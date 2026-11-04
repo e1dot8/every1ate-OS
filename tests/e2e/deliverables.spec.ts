@@ -12,6 +12,8 @@ test.describe("livrables", () => {
     page,
     browser,
   }) => {
+    // Long parcours à deux associés ; la base de test accumule des centaines d'associés.
+    test.slow();
     // Un deuxième associé, destinataire des notifications.
     const other = await browser.newContext();
     const pierre = await activateAssociate(await other.newPage(), "Pierre");
