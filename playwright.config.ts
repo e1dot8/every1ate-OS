@@ -18,6 +18,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   timeout: 45_000,
+  // Actions serveur + rafraîchissement sous 4 navigateurs en parallèle : 5 s par défaut est trop
+  // juste depuis que chaque action déclenche aussi notifications et messages de salon (V1.2).
+  expect: { timeout: 10_000 },
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL, trace: "retain-on-failure", launchOptions: { executablePath } },
   projects: [

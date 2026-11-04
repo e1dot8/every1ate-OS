@@ -122,7 +122,8 @@ test.describe("QG", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Stand-up" })).toBeVisible();
     const today = uniqueName("Montage du teaser ");
     await page.getByLabel("Aujourd'hui", { exact: true }).fill(today);
-    await page.getByLabel("Bloqué", { exact: true }).fill("Attente des rushes client");
+    const blocked = uniqueName("Attente des rushes client ");
+    await page.getByLabel("Bloqué", { exact: true }).fill(blocked);
     await page.getByRole("button", { name: "Publier mon stand-up" }).click();
     await expect(page.getByText("Stand-up publié.")).toBeVisible();
     await expect(page.getByRole("region", { name: /^Stand-ups du jour/ }).getByText(today)).toBeVisible();
@@ -130,7 +131,7 @@ test.describe("QG", () => {
     await page.goto("/");
     const team = page.getByRole("region", { name: "L'équipe aujourd'hui" });
     await expect(team.getByText(today)).toBeVisible();
-    await expect(team.getByText("Attente des rushes client")).toBeVisible();
+    await expect(team.getByText(blocked)).toBeVisible();
   });
 
   test("présence : statut choisi depuis la barre du haut, sans historique", async ({ page }) => {

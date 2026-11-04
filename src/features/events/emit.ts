@@ -1,6 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db/client";
-import { notify, type NotificationInput } from "@/features/notifications/service";
+import type { NotificationInput } from "@/features/notifications/service";
 import { deliverExternal } from "@/features/notifications/channels";
 import { postSystemMessage } from "@/features/discussions/system";
 import type { EventKind } from "@/features/events/kinds";
@@ -51,20 +51,25 @@ export async function emitEvent(e: AppEvent): Promise<void> {
       e.recipients ??
       (await getDb().user.findMany({ where: { role: "associe" }, select: { id: true } })).map((u) => u.id);
     const targets = [...new Set(recipients)].filter((id) => id !== e.actorId);
-    const fresh: string[] = [];
-    for (const userId of targets) {
-      const created = await notify({
-        userId,
-        kind: NOTIFICATION_KIND[e.kind],
-        title: e.title,
-        body: e.body,
-        href: e.href,
-        projectId: e.projectId ?? null,
-        taskId: e.taskId ?? null,
-        dedupeKey: e.dedupeKey,
-      });
-      if (created) fresh.push(userId);
-    }
+    // Un seul INSERT pour tous les destinataires ; seules les lignes réellement créées (pas de
+    // doublon sur userId + dedupeKey) déclenchent ensuite push et WhatsApp.
+    const created = targets.length
+      ? await getDb().notification.createManyAndReturn({
+          data: targets.map((userId) => ({
+            userId,
+            kind: NOTIFICATION_KIND[e.kind],
+            title: e.title,
+            body: e.body,
+            href: e.href,
+            projectId: e.projectId ?? null,
+            taskId: e.taskId ?? null,
+            dedupeKey: e.dedupeKey,
+          })),
+          skipDuplicates: true,
+          select: { userId: true },
+        })
+      : [];
+    const fresh = created.map((row) => row.userId);
     if (fresh.length)
       await deliverExternal(fresh, {
         kind: e.kind,

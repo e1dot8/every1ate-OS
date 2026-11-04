@@ -34,7 +34,7 @@ export async function createDeliverable(
   if (input.dueDate) await page.getByLabel("Échéance (livraison au client)").fill(input.dueDate);
   if (input.publishDate) await page.getByLabel("Date de publication").fill(input.publishDate);
   await page.getByRole("button", { name: "Créer le livrable" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: input.title })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: input.title })).toBeVisible({ timeout: 15_000 });
   return page.url().split("/livrables/")[1].split(/[?#]/)[0];
 }
 

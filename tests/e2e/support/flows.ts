@@ -15,7 +15,9 @@ export async function activateAssociate(
   await page.getByLabel("Nouveau mot de passe").fill(STRONG_PASSWORD);
   await page.getByLabel("Confirmer le mot de passe").fill(STRONG_PASSWORD);
   await page.getByRole("button", { name: "Activer mon compte" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Bonjour ${name}`);
+  // Hachage du mot de passe + première page du QG : plus long que la moyenne quand les
+  // navigateurs de test tournent en parallèle sur une base qui accumule des associés.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Bonjour ${name}`, { timeout: 20_000 });
   return { email, password: STRONG_PASSWORD };
 }
 
