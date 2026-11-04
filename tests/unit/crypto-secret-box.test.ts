@@ -1,12 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import {
-  SecretBoxError,
-  deriveSecretsKey,
-  isSealed,
-  openSecret,
-  sealSecret,
-} from "@/lib/crypto/secret-box";
+import { SecretBoxError, deriveSecretsKey, isSealed, openSecret, sealSecret } from "@/lib/crypto/secret-box";
 
 const key = randomBytes(32);
 

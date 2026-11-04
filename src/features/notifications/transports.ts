@@ -18,7 +18,8 @@ export const SEND_TIMEOUT_MS = 8_000;
 export type PushTarget = { endpoint: string; p256dh: string; auth: string };
 
 const isTimeout = (error: unknown) =>
-  error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError" || /timeout/i.test(error.message));
+  error instanceof Error &&
+  (error.name === "TimeoutError" || error.name === "AbortError" || /timeout/i.test(error.message));
 
 /** Web Push (VAPID) vers un abonnement. 404/410 : l'abonnement n'existe plus. */
 export async function sendWebPush(

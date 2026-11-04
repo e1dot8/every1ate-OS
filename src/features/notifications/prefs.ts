@@ -39,7 +39,10 @@ export function recommendedPrefs(): NotifyPrefs {
 }
 
 const channelSchema = z
-  .object({ push: z.boolean().optional().catch(undefined), whatsapp: z.boolean().optional().catch(undefined) })
+  .object({
+    push: z.boolean().optional().catch(undefined),
+    whatsapp: z.boolean().optional().catch(undefined),
+  })
   .catch({});
 
 /**

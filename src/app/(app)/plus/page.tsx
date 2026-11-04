@@ -74,7 +74,12 @@ async function Menu() {
       <Row href="/crm/clients" icon={Building2} title="Clients" detail="Entreprises et contacts" />
       <Row href="/documents" icon={FileText} title="Documents" detail="Références Google Drive" />
       <Row href="/notifications" icon={Bell} title="Notifications" detail="Alertes, retards et escalades" />
-      <Row href="/plus/alertes" icon={BellRing} title="Alertes" detail="Push et WhatsApp : que recevoir, où" />
+      <Row
+        href="/plus/alertes"
+        icon={BellRing}
+        title="Alertes"
+        detail="Push et WhatsApp : que recevoir, où"
+      />
       <Row href="/gouvernance" icon={Landmark} title="Gouvernance" detail="Seuils et décisions collectives" />
       <Row
         href="/plus/reglages"

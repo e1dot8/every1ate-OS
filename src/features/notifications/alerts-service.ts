@@ -6,7 +6,12 @@ import { getDb } from "@/lib/db/client";
 import { getServerEnv } from "@/lib/env";
 import type { ServiceResult } from "@/features/projects/service";
 import { deliver, whatsappKeyContext, type DeliveryLog } from "@/features/notifications/delivery";
-import { changedPrefs, parsePrefs, type ExternalChannel, type NotifyPrefs } from "@/features/notifications/prefs";
+import {
+  changedPrefs,
+  parsePrefs,
+  type ExternalChannel,
+  type NotifyPrefs,
+} from "@/features/notifications/prefs";
 import { WHATSAPP_HOURLY_LIMIT, deviceLabel, maskPhone } from "@/features/notifications/external-rules";
 
 /**
@@ -71,7 +76,10 @@ export type AlertSettings = Awaited<ReturnType<typeof getAlertSettings>>;
 export type PushSubscriptionInput = { endpoint: string; p256dh: string; auth: string };
 
 export async function isPushSubscriptionKnown(userId: string, endpoint: string): Promise<boolean> {
-  const found = await getDb().pushSubscription.findFirst({ where: { userId, endpoint }, select: { id: true } });
+  const found = await getDb().pushSubscription.findFirst({
+    where: { userId, endpoint },
+    select: { id: true },
+  });
   return Boolean(found);
 }
 
@@ -222,11 +230,13 @@ export function summarizeTest(channel: ExternalChannel, logs: DeliveryLog[]): Se
         ? "Aucun appareil enregistré : activez d'abord les notifications sur cet appareil."
         : "WhatsApp n'est pas configuré.",
     );
-  if (count("limite")) return failed(`Limite de ${WHATSAPP_HOURLY_LIMIT} messages WhatsApp par heure atteinte.`);
+  if (count("limite"))
+    return failed(`Limite de ${WHATSAPP_HOURLY_LIMIT} messages WhatsApp par heure atteinte.`);
   const failures = logs.filter((l) => l.status === "echec");
   const sent = count("envoye");
   const outbox = count("outbox");
-  if (failures.length && !sent && !outbox) return failed(`Échec de l'envoi : ${failures[0].error ?? "erreur inconnue"}`);
+  if (failures.length && !sent && !outbox)
+    return failed(`Échec de l'envoi : ${failures[0].error ?? "erreur inconnue"}`);
   const parts: string[] = [];
   if (sent) parts.push(`Test envoyé (${target(sent)}).`);
   if (outbox) parts.push(`Mode test : envoi journalisé, rien n'est parti (${target(outbox)}).`);

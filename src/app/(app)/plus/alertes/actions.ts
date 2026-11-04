@@ -128,11 +128,21 @@ export async function saveWhatsappAction(_prev: FormState, formData: FormData): 
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) fieldErrors[String(issue.path[0])] ??= issue.message;
-    return { status: "error", message: "Corrigez les champs signalés.", fieldErrors, values: { phone: phoneInput } };
+    return {
+      status: "error",
+      message: "Corrigez les champs signalés.",
+      fieldErrors,
+      values: { phone: phoneInput },
+    };
   }
   const result = await configureWhatsapp(parsed.data, user);
   if (!result.ok)
-    return { status: "error", message: result.error, fieldErrors: { apikey: result.error }, values: { phone: phoneInput } };
+    return {
+      status: "error",
+      message: result.error,
+      fieldErrors: { apikey: result.error },
+      values: { phone: phoneInput },
+    };
   revalidatePath(PATH);
   return { status: "success", message: "WhatsApp enregistré. Envoyez-vous un test pour vérifier." };
 }
@@ -148,7 +158,8 @@ export async function removeWhatsappAction(): Promise<FormState> {
 export async function savePrefsAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const intent = z.enum(["save", "reset"]).catch("save").parse(formData.get("intent"));
-  const prefs = intent === "reset" ? recommendedPrefs() : prefsFromForm((field) => formData.get(field) === "on");
+  const prefs =
+    intent === "reset" ? recommendedPrefs() : prefsFromForm((field) => formData.get(field) === "on");
   const result = await saveNotifyPrefs(prefs, user, intent === "reset" ? "Réglages recommandés" : undefined);
   if (!result.ok) return { status: "error", message: result.error };
   revalidatePath(PATH);

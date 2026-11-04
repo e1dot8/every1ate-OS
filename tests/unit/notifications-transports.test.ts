@@ -23,7 +23,10 @@ describe("transport CallMeBot", () => {
   });
 
   it("détecte une page d'erreur renvoyée avec un statut 200", async () => {
-    const result = await sendCallMeBot(input, respond(200, "APIKey is invalid. Please check your apikey 987654"));
+    const result = await sendCallMeBot(
+      input,
+      respond(200, "APIKey is invalid. Please check your apikey 987654"),
+    );
     expect(result).toEqual({ ok: false, error: "CallMeBot : clé API ou numéro refusés." });
   });
 
@@ -31,7 +34,10 @@ describe("transport CallMeBot", () => {
     const timeout = vi.fn(async () => {
       throw new DOMException("The operation timed out.", "TimeoutError");
     }) as unknown as typeof fetch;
-    expect(await sendCallMeBot(input, timeout)).toEqual({ ok: false, error: "CallMeBot : délai dépassé (8 s)." });
+    expect(await sendCallMeBot(input, timeout)).toEqual({
+      ok: false,
+      error: "CallMeBot : délai dépassé (8 s).",
+    });
     const offline = vi.fn(async () => {
       throw new TypeError("fetch failed https://api.callmebot.com/whatsapp.php?apikey=987654");
     }) as unknown as typeof fetch;

@@ -68,7 +68,7 @@ export function PresenceMenu({
         type="button"
         aria-expanded={open}
         aria-controls={`${uid}-menu`}
-        aria-label={`Mon statut : ${label}`}
+        aria-label={`Ma présence : ${label}`}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex min-h-tap min-w-tap items-center justify-center gap-2 rounded-full border px-3 text-sm font-bold hover:bg-muted md:max-w-56"
       >
@@ -83,10 +83,10 @@ export function PresenceMenu({
         className="fixed inset-x-4 top-20 z-50 rounded-xl border bg-card p-3 shadow-xl md:absolute md:inset-x-auto md:top-12 md:right-0 md:w-80"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="font-bold">Mon statut</p>
+          <p className="font-bold">Ma présence</p>
           <button
             type="button"
-            aria-label="Fermer le menu de statut"
+            aria-label="Fermer le menu de présence"
             onClick={() => setOpen(false)}
             className="inline-flex size-tap items-center justify-center rounded-full hover:bg-muted"
           >
@@ -96,7 +96,7 @@ export function PresenceMenu({
         <form action={action} className="flex flex-col gap-3" noValidate>
           <FormMessages state={result.status === "error" ? result : initialFormState} />
           <fieldset className="flex flex-col">
-            <legend className="sr-only">Statut</legend>
+            <legend className="sr-only">Choix de présence</legend>
             {PRESENCE_CHOICES.map((c) => (
               <label
                 key={c.key}
@@ -131,14 +131,13 @@ export function PresenceMenu({
               defaultChecked={result.values ? result.values.shared === "on" : shared}
               className="size-5 accent-ink"
             />
-            Partager mon statut
+            Visible par les associés
           </label>
           <p className="text-xs text-muted-foreground">
-            Visible des associés seulement si vous le partagez. Il expire seul ; aucun historique n&apos;est
-            gardé.
+            Décochez pour le garder pour vous. Il expire seul ; aucun historique n&apos;est gardé.
           </p>
           <div>
-            <SubmitButton>Enregistrer mon statut</SubmitButton>
+            <SubmitButton>Partager mon statut</SubmitButton>
           </div>
         </form>
       </div>

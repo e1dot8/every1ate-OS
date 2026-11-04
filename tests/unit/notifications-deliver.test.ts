@@ -70,13 +70,24 @@ function user(id: string, extra: Record<string, unknown> = {}) {
     whatsappPhone: null,
     whatsappKey: null,
     notifyPrefs: null,
-    pushSubscriptions: [{ id: `sub-${id}`, endpoint: `https://fcm.googleapis.com/fcm/send/${id}`, p256dh: "p", auth: "a" }],
+    pushSubscriptions: [
+      { id: `sub-${id}`, endpoint: `https://fcm.googleapis.com/fcm/send/${id}`, p256dh: "p", auth: "a" },
+    ],
     ...extra,
   };
 }
 
-const withWhatsapp = { whatsappPhone: "+33612345678", whatsappKey: "scelle", notifyPrefs: { "livrable.livre": { whatsapp: true } } };
-const delivered: ExternalPayload = { kind: "livrable.livre", title: "Livrable livré", body: "Clip v2", href: "/livrables/1" };
+const withWhatsapp = {
+  whatsappPhone: "+33612345678",
+  whatsappKey: "scelle",
+  notifyPrefs: { "livrable.livre": { whatsapp: true } },
+};
+const delivered: ExternalPayload = {
+  kind: "livrable.livre",
+  title: "Livrable livré",
+  body: "Clip v2",
+  href: "/livrables/1",
+};
 const statuses = () => h.created.map((row) => `${row.userId}:${row.channel}:${row.status}`).sort();
 
 beforeEach(() => {
@@ -106,14 +117,21 @@ describe("deliverExternal", () => {
     expect(h.sendWebPush).toHaveBeenCalledTimes(2);
     const [, target, message] = h.sendWebPush.mock.calls[0];
     expect(target).toMatchObject({ endpoint: expect.stringContaining("fcm.googleapis.com") });
-    expect(message).toEqual({ title: "Livrable livré", body: "Clip v2", href: "/livrables/1", tag: "livrable.livre:/livrables/1" });
+    expect(message).toEqual({
+      title: "Livrable livré",
+      body: "Clip v2",
+      href: "/livrables/1",
+      tag: "livrable.livre:/livrables/1",
+    });
     expect(h.sendCallMeBot).toHaveBeenCalledWith({
       phone: "+33612345678",
       apikey: "clair-scelle",
       text: "Livrable livré\nClip v2\nhttps://os.example.test/livrables/1",
     });
     expect(h.touched.sort()).toEqual(["sub-u1", "sub-u2"]);
-    expect(h.created.every((row) => row.eventKind === "livrable.livre" && row.title === "Livrable livré")).toBe(true);
+    expect(
+      h.created.every((row) => row.eventKind === "livrable.livre" && row.title === "Livrable livré"),
+    ).toBe(true);
   });
 
   it("n'envoie rien hors de l'app pour un événement désactivé (point de checklist coché par défaut)", async () => {
@@ -126,7 +144,10 @@ describe("deliverExternal", () => {
 
   it("en focus ou absent : rien n'est envoyé (journalisé « ignore_focus »), sauf urgence", async () => {
     const until = new Date(NOW + 3_600_000);
-    h.users = [user("u1", { ...withWhatsapp, presenceState: "FOCUS", presenceUntil: until }), user("u2", { presenceState: "ABSENT" })];
+    h.users = [
+      user("u1", { ...withWhatsapp, presenceState: "FOCUS", presenceUntil: until }),
+      user("u2", { presenceState: "ABSENT" }),
+    ];
     await deliverExternal(["u1", "u2"], delivered);
     expect(statuses()).toEqual(["u1:push:ignore_focus", "u1:whatsapp:ignore_focus", "u2:push:ignore_focus"]);
     expect(h.sendWebPush).not.toHaveBeenCalled();
@@ -166,13 +187,18 @@ describe("deliverExternal", () => {
     h.sendWebPush.mockResolvedValue({ ok: false, gone: true, error: "Abonnement expiré : appareil retiré." });
     await deliverExternal(["u1"], delivered);
     expect(h.deleted).toEqual(["sub-u1"]);
-    expect(h.created).toEqual([expect.objectContaining({ status: "echec", error: "Abonnement expiré : appareil retiré." })]);
+    expect(h.created).toEqual([
+      expect.objectContaining({ status: "echec", error: "Abonnement expiré : appareil retiré." }),
+    ]);
     expect(h.touched).toEqual([]);
   });
 
   it("limite WhatsApp : au-delà de 20 envois réussis dans l'heure, statut « limite »", async () => {
     h.users = [user("u1", { ...withWhatsapp, pushSubscriptions: [] })];
-    h.recentWhatsapp = Array.from({ length: 20 }, (_, i) => ({ userId: "u1", createdAt: new Date(NOW - (i + 1) * 60_000) }));
+    h.recentWhatsapp = Array.from({ length: 20 }, (_, i) => ({
+      userId: "u1",
+      createdAt: new Date(NOW - (i + 1) * 60_000),
+    }));
     await deliverExternal(["u1"], delivered);
     expect(statuses()).toEqual(["u1:whatsapp:limite"]);
     expect(h.sendCallMeBot).not.toHaveBeenCalled();
@@ -182,7 +208,11 @@ describe("deliverExternal", () => {
     h.users = [user("u1", { ...withWhatsapp, whatsappKey: "illisible", pushSubscriptions: [] })];
     await deliverExternal(["u1"], delivered);
     expect(h.created).toEqual([
-      expect.objectContaining({ channel: "whatsapp", status: "echec", error: expect.stringContaining("illisible") }),
+      expect.objectContaining({
+        channel: "whatsapp",
+        status: "echec",
+        error: expect.stringContaining("illisible"),
+      }),
     ]);
     expect(h.sendCallMeBot).not.toHaveBeenCalled();
   });

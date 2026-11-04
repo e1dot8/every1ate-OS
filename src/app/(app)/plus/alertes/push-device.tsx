@@ -10,7 +10,10 @@ import { checkPushSubscriptionAction, subscribePushAction, unsubscribePushAction
 type DeviceState = "loading" | "unsupported" | "denied" | "off" | "on";
 type Notice = { tone: "success" | "warning" | "danger"; text: string } | null;
 
-const stateLabels: Record<DeviceState, { label: string; variant: "outline" | "success" | "warning" | "danger" }> = {
+const stateLabels: Record<
+  DeviceState,
+  { label: string; variant: "outline" | "success" | "warning" | "danger" }
+> = {
   loading: { label: "Vérification…", variant: "outline" },
   unsupported: { label: "Non prises en charge", variant: "warning" },
   denied: { label: "Refusées", variant: "danger" },
@@ -90,7 +93,10 @@ export function PushDevice({ publicKey }: { publicKey: string | null }) {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
-        setNotice({ tone: "warning", text: "Autorisation non accordée : aucune notification ne sera affichée." });
+        setNotice({
+          tone: "warning",
+          text: "Autorisation non accordée : aucune notification ne sera affichée.",
+        });
         return;
       }
       const registration = await activeRegistration();
@@ -148,8 +154,8 @@ export function PushDevice({ publicKey }: { publicKey: string | null }) {
       </div>
       {state === "unsupported" ? (
         <p className="text-sm text-muted-foreground">
-          Ce navigateur ne gère pas les notifications push. Sur iPhone, installez d&apos;abord l&apos;application
-          sur l&apos;écran d&apos;accueil, puis ouvrez cette page depuis son icône.
+          Ce navigateur ne gère pas les notifications push. Sur iPhone, installez d&apos;abord
+          l&apos;application sur l&apos;écran d&apos;accueil, puis ouvrez cette page depuis son icône.
         </p>
       ) : null}
       {state === "denied" ? (

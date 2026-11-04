@@ -39,9 +39,12 @@ async function Alerts() {
       <Section id="appareil" title="Notifications sur cet appareil">
         <PushDevice publicKey={push.publicKey} />
         <Callout icon="📱" tone="info">
-          <b>iPhone et iPad (iOS 16.4 ou plus)</b> : <Link href="/plus/installer" className="underline decoration-pen underline-offset-4">installez d&apos;abord l&apos;application</Link> sur
-          l&apos;écran d&apos;accueil, ouvrez-la depuis son icône, puis activez ici. Android et ordinateur :
-          directement depuis le navigateur. Se déconnecter désactive les notifications de l&apos;appareil.
+          <b>iPhone et iPad (iOS 16.4 ou plus)</b> :{" "}
+          <Link href="/plus/installer" className="underline decoration-pen underline-offset-4">
+            installez d&apos;abord l&apos;application
+          </Link>{" "}
+          sur l&apos;écran d&apos;accueil, ouvrez-la depuis son icône, puis activez ici. Android et ordinateur
+          : directement depuis le navigateur. Se déconnecter désactive les notifications de l&apos;appareil.
         </Callout>
         {push.testMode ? (
           <p className="text-xs text-muted-foreground">
@@ -117,18 +120,16 @@ async function Alerts() {
             Mode test : les messages WhatsApp sont journalisés sans rien envoyer.
           </p>
         ) : null}
-        {whatsappReady || whatsapp.phone ? (
-          <div className="flex flex-wrap items-start gap-2">
-            {whatsappReady ? <TestSendForm channel="whatsapp" /> : null}
-            <RemoveWhatsappForm />
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-start gap-2">
+          {whatsappReady ? <TestSendForm channel="whatsapp" /> : null}
+          <RemoveWhatsappForm configured={Boolean(whatsapp.phone || whatsapp.hasKey)} />
+        </div>
       </Section>
 
       <Section id="preferences" title="Que recevoir ?">
         <Callout icon="🌙">
-          En <b>focus</b> ou <b>absent</b>, rien n&apos;est envoyé hors de l&apos;app, sauf urgence. Tout reste
-          visible dans les{" "}
+          En <b>focus</b> ou <b>absent</b>, rien n&apos;est envoyé hors de l&apos;app, sauf urgence. Tout
+          reste visible dans les{" "}
           <Link href="/notifications" className="underline decoration-pen underline-offset-4">
             notifications
           </Link>{" "}

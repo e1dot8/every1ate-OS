@@ -29,7 +29,13 @@ describe("préférences d'alertes", () => {
     const whatsappOn = EVENT_KINDS.filter((kind) => prefs[kind].whatsapp);
     expect(whatsappOn.sort()).toEqual([...WHATSAPP_RECOMMENDED].sort());
     expect(whatsappOn).toEqual(
-      expect.arrayContaining(["livrable.livre", "livrable.bloque", "passation.demandee", "mention", "message.direct"]),
+      expect.arrayContaining([
+        "livrable.livre",
+        "livrable.bloque",
+        "passation.demandee",
+        "mention",
+        "message.direct",
+      ]),
     );
     expect(prefs["livrable.coche"].push).toBe(false);
   });

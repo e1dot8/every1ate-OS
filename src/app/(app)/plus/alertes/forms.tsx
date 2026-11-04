@@ -30,7 +30,12 @@ export function TestSendForm({ channel }: { channel: "push" | "whatsapp" }) {
 export function WhatsappForm({ phone, hasKey }: { phone: string | null; hasKey: boolean }) {
   const [state, action] = useActionState(saveWhatsappAction, initialFormState);
   return (
-    <form action={action} className="flex max-w-xl flex-col gap-3" noValidate aria-label="Numéro et clé WhatsApp">
+    <form
+      action={action}
+      className="flex max-w-xl flex-col gap-3"
+      noValidate
+      aria-label="Numéro et clé WhatsApp"
+    >
       <FormMessages state={state} />
       <Field
         name="phone"
@@ -66,16 +71,20 @@ export function WhatsappForm({ phone, hasKey }: { phone: string | null; hasKey: 
   );
 }
 
-export function RemoveWhatsappForm() {
+/** Toujours monté : la confirmation reste affichée une fois le numéro supprimé. */
+export function RemoveWhatsappForm({ configured }: { configured: boolean }) {
   const [state, action] = useActionState(removeWhatsappAction, initialFormState);
+  if (!configured && state.status === "idle") return null;
   return (
     <form action={action} className="flex flex-col gap-2">
       <FormMessages state={state} />
-      <div>
-        <SubmitButton variant="ghost" pendingLabel="Suppression…">
-          <Trash2 aria-hidden="true" /> Supprimer
-        </SubmitButton>
-      </div>
+      {configured ? (
+        <div>
+          <SubmitButton variant="ghost" pendingLabel="Suppression…">
+            <Trash2 aria-hidden="true" /> Supprimer
+          </SubmitButton>
+        </div>
+      ) : null}
     </form>
   );
 }

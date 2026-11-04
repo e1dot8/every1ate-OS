@@ -53,7 +53,8 @@ export function openSecret(sealed: string, key: Buffer, context = ""): string {
   const iv = fromB64(parts[1]);
   const tag = fromB64(parts[2]);
   const ciphertext = fromB64(parts[3]);
-  if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES) throw new SecretBoxError("Secret chiffré illisible.");
+  if (iv.length !== IV_BYTES || tag.length !== TAG_BYTES)
+    throw new SecretBoxError("Secret chiffré illisible.");
   try {
     const decipher = createDecipheriv("aes-256-gcm", key, iv, { authTagLength: TAG_BYTES });
     decipher.setAAD(Buffer.from(context, "utf8"));

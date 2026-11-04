@@ -76,9 +76,13 @@ describe("alertes push et WhatsApp", () => {
   });
 
   it("exige les deux clés VAPID ensemble, et des clés pour PUSH_TRANSPORT=webpush", () => {
-    expect(() => parseServerEnv({ ...valid, VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY })).toThrow(/VAPID_PRIVATE_KEY/);
+    expect(() => parseServerEnv({ ...valid, VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY })).toThrow(
+      /VAPID_PRIVATE_KEY/,
+    );
     expect(() => parseServerEnv({ ...valid, PUSH_TRANSPORT: "webpush" })).toThrow(/VAPID_PUBLIC_KEY/);
-    expect(() => parseServerEnv({ ...valid, ...vapid, VAPID_PRIVATE_KEY: "trop-court" })).toThrow(/VAPID_PRIVATE_KEY/);
+    expect(() => parseServerEnv({ ...valid, ...vapid, VAPID_PRIVATE_KEY: "trop-court" })).toThrow(
+      /VAPID_PRIVATE_KEY/,
+    );
   });
 
   it("déduit le contact VAPID : VAPID_SUBJECT, sinon l'URL https, sinon l'adresse d'expédition", () => {

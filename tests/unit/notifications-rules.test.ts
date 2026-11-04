@@ -54,7 +54,11 @@ describe("limite WhatsApp (heure glissante)", () => {
 
 describe("CallMeBot", () => {
   it("construit l'URL d'envoi avec numéro, texte et clé encodés", () => {
-    const url = buildCallMeBotUrl({ phone: "+33612345678", text: "Livré : Clip & co\nhttps://x/y?a=1", apikey: "123456" });
+    const url = buildCallMeBotUrl({
+      phone: "+33612345678",
+      text: "Livré : Clip & co\nhttps://x/y?a=1",
+      apikey: "123456",
+    });
     expect(url.startsWith(`${CALLMEBOT_ENDPOINT}?`)).toBe(true);
     const params = new URL(url).searchParams;
     expect(params.get("phone")).toBe("+33612345678");
@@ -95,7 +99,10 @@ describe("texte WhatsApp", () => {
 
   it("assemble titre, corps et lien absolu vers l'app", () => {
     expect(
-      buildWhatsappText({ title: "Livrable livré", body: "Clip v2 · Projet Néons", href: "/livrables/abc" }, appUrl),
+      buildWhatsappText(
+        { title: "Livrable livré", body: "Clip v2 · Projet Néons", href: "/livrables/abc" },
+        appUrl,
+      ),
     ).toBe("Livrable livré\nClip v2 · Projet Néons\nhttps://os.example.test/livrables/abc");
     expect(buildWhatsappText({ title: "Rappel" }, appUrl)).toBe("Rappel");
   });
@@ -138,9 +145,21 @@ describe("texte WhatsApp", () => {
 describe("notifications push", () => {
   it("prépare le message : titre, corps, lien interne et étiquette", () => {
     expect(
-      buildPushMessage({ kind: "livrable.livre", title: "  Livré\n: Clip ", body: "Projet Néons", href: "/livrables/1" }),
-    ).toEqual({ title: "Livré : Clip", body: "Projet Néons", href: "/livrables/1", tag: "livrable.livre:/livrables/1" });
-    expect(buildPushMessage({ kind: "rappel", title: "Rappel", href: "https://ailleurs.example" }).href).toBe("/");
+      buildPushMessage({
+        kind: "livrable.livre",
+        title: "  Livré\n: Clip ",
+        body: "Projet Néons",
+        href: "/livrables/1",
+      }),
+    ).toEqual({
+      title: "Livré : Clip",
+      body: "Projet Néons",
+      href: "/livrables/1",
+      tag: "livrable.livre:/livrables/1",
+    });
+    expect(buildPushMessage({ kind: "rappel", title: "Rappel", href: "https://ailleurs.example" }).href).toBe(
+      "/",
+    );
   });
 
   it("n'accepte que les services push des navigateurs, en HTTPS", () => {
@@ -188,7 +207,9 @@ describe("outils", () => {
   });
 
   it("raccourcit les erreurs et retire les URL (qui peuvent contenir une clé)", () => {
-    const message = shortError("échec https://api.callmebot.com/whatsapp.php?apikey=123456 " + "x".repeat(300));
+    const message = shortError(
+      "échec https://api.callmebot.com/whatsapp.php?apikey=123456 " + "x".repeat(300),
+    );
     expect(message).not.toContain("123456");
     expect(Array.from(message).length).toBeLessThanOrEqual(160);
   });

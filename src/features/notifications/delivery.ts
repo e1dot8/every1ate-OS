@@ -97,8 +97,7 @@ export async function deliver(
     const allowed = (channel: ExternalChannel) =>
       mode.channels.includes(channel) &&
       (!mode.respectPrefs || (request.kind !== "test" && wants(prefs, request.kind, channel)));
-    const pushWanted =
-      allowed("push") && env.pushTransport !== "off" && user.pushSubscriptions.length > 0;
+    const pushWanted = allowed("push") && env.pushTransport !== "off" && user.pushSubscriptions.length > 0;
     const whatsappWanted = allowed("whatsapp") && Boolean(user.whatsappPhone && user.whatsappKey);
     if (!pushWanted && !whatsappWanted) continue;
 
@@ -113,7 +112,8 @@ export async function deliver(
       if (whatsappWanted) logs.push(log(user.id, "whatsapp", "ignore_focus"));
       continue;
     }
-    if (pushWanted) for (const sub of user.pushSubscriptions) jobs.push({ channel: "push", userId: user.id, sub });
+    if (pushWanted)
+      for (const sub of user.pushSubscriptions) jobs.push({ channel: "push", userId: user.id, sub });
     if (whatsappWanted)
       whatsappCandidates.push({
         channel: "whatsapp",
@@ -147,7 +147,9 @@ export async function deliver(
   const used: string[] = [];
 
   const outcomeLog = (job: Job, outcome: SendOutcome): DeliveryLog =>
-    outcome.ok ? log(job.userId, job.channel, "envoye") : log(job.userId, job.channel, "echec", outcome.error);
+    outcome.ok
+      ? log(job.userId, job.channel, "envoye")
+      : log(job.userId, job.channel, "echec", outcome.error);
 
   const results = await mapLimit(jobs, CONCURRENCY, async (job): Promise<DeliveryLog> => {
     try {
@@ -167,13 +169,19 @@ export async function deliver(
       }
       return outcomeLog(job, await sendCallMeBot({ phone: job.phone, apikey, text: whatsappText }));
     } catch (error) {
-      return log(job.userId, job.channel, "echec", shortError(error instanceof Error ? error.name : "Erreur"));
+      return log(
+        job.userId,
+        job.channel,
+        "echec",
+        shortError(error instanceof Error ? error.name : "Erreur"),
+      );
     }
   });
   logs.push(...results);
 
   if (gone.length) await db.pushSubscription.deleteMany({ where: { id: { in: gone } } });
-  if (used.length) await db.pushSubscription.updateMany({ where: { id: { in: used } }, data: { lastUsedAt: now } });
+  if (used.length)
+    await db.pushSubscription.updateMany({ where: { id: { in: used } }, data: { lastUsedAt: now } });
   if (logs.length) await db.externalDelivery.createMany({ data: logs });
   return logs;
 }
