@@ -57,6 +57,7 @@ import { setPresence } from "@/features/presence/service";
 import { proposeHandoff } from "@/features/qg/handoffs";
 import { isoWeekPeriod } from "@/features/qg/quests";
 import { saveStandup } from "@/features/qg/standup";
+import { postSubjectComment } from "@/features/discussions/subjects";
 import { publishMorningReportNow } from "@/features/qg/morning/service";
 
 const PASSWORD = "Demo-Every1ate-2026!";
@@ -942,6 +943,45 @@ async function main() {
       body: "Je te renvoie le lien des rushes dès que le vidéaste l'a déposé.",
       sendAt: new Date(Date.now() + 2 * 3600 * 1000),
     });
+  }
+
+  // ─── V1.3 : discussions rattachées aux éléments (livrable, tâche) ─────────
+  const comment = async (
+    author: { id: string; name: string },
+    subject: { type: "task" | "deliverable"; id: string },
+    body: string,
+  ) => {
+    const r = await postSubjectComment(author, subject, { body });
+    if (!r.ok) throw new Error(r.error);
+  };
+  await comment(
+    charles,
+    { type: "deliverable", id: reel },
+    "Tournage terminé ce matin, rushes en cours de copie sur le Drive.",
+  );
+  await comment(
+    johan,
+    { type: "deliverable", id: reel },
+    "@Charles la musique est bien celle validée par Claire ?",
+  );
+  await comment(
+    charles,
+    { type: "deliverable", id: reel },
+    "Oui, version courte (30 s). Je l'intègre au montage demain.",
+  );
+  await comment(
+    pierre,
+    { type: "deliverable", id: lookbook },
+    "Il manque deux tenues pour finir la sélection, je relance l'atelier.",
+  );
+  const keyVisual = await db.task.findFirst({ where: { projectId: p1, title: { contains: "Key visual" } } });
+  if (keyVisual) {
+    await comment(
+      johan,
+      { type: "task", id: keyVisual.id },
+      "Bloqué tant qu'on n'a pas les visuels produits. @Pierre tu as un contact chez eux ?",
+    );
+    await comment(pierre, { type: "task", id: keyVisual.id }, "Oui, j'appelle Claire cet après-midi.");
   }
 
   // ─── V1.2 : QG (stand-up, présence, passations, tâches à prendre, badges) ─
