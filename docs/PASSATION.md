@@ -46,7 +46,7 @@ Migrations V1.2 (additives) : `prisma/migrations/20261104090000_*`, `20261104090
 | `pnpm typecheck`, `pnpm lint`, `pnpm format:check` | OK                                                                                            |
 | `pnpm test` (unitaires)                            | 484 tests OK                                                                                  |
 | `pnpm build` + `pnpm check:bundle`                 | OK, aucun secret dans le code envoyé au navigateur                                            |
-| `pnpm test:e2e` (mobile + ordinateur, base neuve)  | RESULTAT_E2E                                                                                  |
+| `pnpm test:e2e` (mobile + ordinateur, base neuve)  | 275 réussis, 3 ignorés (déjà ignorés en V1.1), 0 échec                                        |
 | Revue de code (sécurité + logique métier)          | 17 points trouvés, aucun critique ; 16 corrigés, 1 laissé en l'état (point 1 de la section 6) |
 
 ## 5. Avant la mise en ligne de la V1.2 (checklist)

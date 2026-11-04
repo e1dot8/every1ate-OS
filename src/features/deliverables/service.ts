@@ -573,6 +573,9 @@ export async function toggleCheckItem(
         // Horodatage de la coche (`doneAt`) : cocher, décocher puis recocher prévient de nouveau ;
         // le double clic est écarté par le verrou ci-dessus.
         dedupeKey: `livrable-coche:${itemId}:${at.toISOString()}`,
+        // Une coche n'est pas un jalon : pas de message dans le salon (passage d'étape, livraison
+        // et blocage y restent annoncés), sinon le salon du projet est noyé.
+        channelPost: false,
       });
     if (target) {
       await recordAudit({
