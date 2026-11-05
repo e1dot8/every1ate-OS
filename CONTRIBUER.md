@@ -64,16 +64,16 @@ Connexion : `johan@demo.every1ate.test` (ou `charles@`, `pierre@`), mot de passe
 ```
 main ──────────────●──────────────●──────────►  (production, Netlify)
                    ▲              ▲
-v1-2 ──●──●──●─────┘              │            (version en cours de validation)
+v1-3 ──●──●──●─────┘              │            (version en cours de validation)
             \                     │
 charles/export-pdf ──●──●──► pull request ──►  relue par l'autre associé
 ```
 
-1. **Partir de la branche de version la plus récente** (aujourd'hui `v1-2`, qui contient aussi la V1.1), jamais de `main`
+1. **Partir de la branche de version la plus récente** (aujourd'hui `v1-3`, qui contient aussi les V1.1 et V1.2), jamais de `main`
    directement, et ne jamais écrire sur `main`.
 2. **Une branche par fonctionnalité**, nommée `prenom/sujet-court` :
    ```bash
-   git switch v1-2 && git pull
+   git switch v1-3 && git pull
    git switch -c charles/export-pdf
    ```
 3. **Petits commits clairs**, en français : « Export PDF du devis : bouton et gabarit ».
@@ -87,7 +87,7 @@ charles/export-pdf ──●──●──► pull request ──►  relue par
    `main` (chaque mise en production coûte 15 crédits Netlify sur 300 par mois).
 
 Avant de commencer une journée : `git pull` sur sa branche de départ, puis
-`git merge v1-2` dans sa branche de fonctionnalité pour rester à jour.
+`git merge v1-3` dans sa branche de fonctionnalité pour rester à jour.
 
 ## 4. Ajouter une fonctionnalité : le chemin type
 

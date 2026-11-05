@@ -1041,6 +1041,20 @@ async function main() {
 
   await runScheduledScan();
   // Le point du matin du jour, même hors horaire (sans effet s'il vient d'être publié par la passe).
+  // Démo : les actions ci-dessus datent de maintenant ; on en vieillit une partie d'un jour pour que
+  // la rubrique « Hier » du point du matin montre des avancées (données fictives uniquement ;
+  // le journal d'audit, en ajout seul, n'est jamais modifié).
+  const yesterday = (d: Date) => new Date(d.getTime() - 24 * 3600 * 1000);
+  const doneTasks = await db.task.findMany({
+    where: { status: "TERMINE", completedAt: { not: null } },
+    select: { id: true, completedAt: true },
+    take: 6,
+    orderBy: { completedAt: "desc" },
+  });
+  for (const t of doneTasks)
+    await db.task.update({ where: { id: t.id }, data: { completedAt: yesterday(t.completedAt!) } });
+  await db.$executeRaw`UPDATE "deliverable" SET "deliveredAt" = "deliveredAt" - interval '1 day'
+    WHERE "deliveredAt" IS NOT NULL`;
   await publishMorningReportNow();
   console.log("Données de démonstration créées.");
   console.log(`Comptes : johan@ / charles@ / pierre@demo.every1ate.test — mot de passe : ${PASSWORD}`);

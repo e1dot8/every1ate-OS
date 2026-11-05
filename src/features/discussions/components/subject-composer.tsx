@@ -113,7 +113,8 @@ export function SubjectComposer({ type, id }: { type: SubjectType; id: string })
             </label>
           </div>
         </details>
-        <Button type="submit" className="ml-auto" disabled={pending}>
+        {/* Pleine largeur sur mobile : le bouton « + » flottant ne le recouvre jamais. */}
+        <Button type="submit" className="w-full sm:ml-auto sm:w-auto" disabled={pending}>
           <Send aria-hidden="true" />
           {pending ? "Publication…" : "Publier"}
         </Button>

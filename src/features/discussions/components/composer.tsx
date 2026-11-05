@@ -224,7 +224,9 @@ export function Composer({
             type="submit"
             name="intent"
             value="envoyer"
-            className="ml-auto"
+            // Hors des discussions, le bouton « + » flottant est affiché en bas à droite sur mobile :
+            // bouton pleine largeur pour qu'il reste toujours atteignable.
+            className={inline ? "w-full sm:ml-auto sm:w-auto" : "ml-auto"}
             disabled={pending}
           >
             <Send aria-hidden="true" />
